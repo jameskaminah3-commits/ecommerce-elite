@@ -1,45 +1,67 @@
-# [Project name]
+# Happyfine Wholesalers
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
-
-## Run & Operate
-
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+A premium full-stack wholesale e-commerce platform for the Kenyan market.
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+| Layer | Technology |
+|---|---|
+| Frontend | React + Vite (`artifacts/storefront`) |
+| Backend API | Express 5 (`artifacts/api-server`) |
+| Database | Replit PostgreSQL via Drizzle ORM (`lib/db`) |
+| API Client | Orval-generated React Query hooks (`lib/api-client-react`) |
+| API Spec | OpenAPI 3.1 (`lib/api-spec/openapi.yaml`) |
 
-## Where things live
+## Product Categories
+Home & Living, Electronics, Decor, Fashion, Beauty, Gym & Fitness
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+## Running the App
 
-## Architecture decisions
+All workflows are managed by Replit:
+- **Storefront** — `artifacts/storefront: web`
+- **API Server** — `artifacts/api-server: API Server`
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+## Default Credentials (development seed)
 
-## Product
+| Role | Email | Password hash note |
+|---|---|---|
+| Admin | admin@happyfine.co.ke | SHA-256 of "password" (swap for bcrypt in production) |
+| Customer | jane@example.com | SHA-256 of "password" |
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+> **Production:** Replace `sha256` hashing in `artifacts/api-server/src/routes/auth.ts` with `bcrypt` before going live.
 
-## User preferences
+## Payment Integrations (Stubs)
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+Both payment methods are **stubs** — routes are wired and return valid responses but real API calls are commented out.
 
-## Gotchas
+### M-Pesa (Daraja STK Push)
+- Route: `POST /api/payments/mpesa/stkpush`
+- Activate by setting these secrets and uncommenting the Daraja code in `artifacts/api-server/src/routes/payments.ts`:
+  - `MPESA_CONSUMER_KEY`
+  - `MPESA_CONSUMER_SECRET`
+  - `MPESA_SHORTCODE`
+  - `MPESA_PASSKEY`
+  - `MPESA_CALLBACK_URL`
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+### Pesapal
+- Route: `POST /api/payments/pesapal`
+- Activate by setting:
+  - `PESAPAL_CONSUMER_KEY`
+  - `PESAPAL_CONSUMER_SECRET`
 
-## Pointers
+## Regenerating the API Client
 
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+After editing `lib/api-spec/openapi.yaml`, run:
+```bash
+pnpm --filter @workspace/api-client-react run generate
+```
+
+## Future Migration to Supabase
+The database layer is fully abstracted via Drizzle ORM. To migrate:
+1. Set `DATABASE_URL` to your Supabase connection string
+2. Run `pnpm --filter @workspace/db run db:push`
+
+## User Preferences
+- Currency displayed as KES (Kenyan Shilling)
+- No emojis in the UI
+- Premium, professional design aesthetic

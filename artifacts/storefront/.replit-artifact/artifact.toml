@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Happyfine Wholesalers"
+version = "1.0.0"
+id = "artifacts/storefront"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18539
+
+[services.development]
+run = "pnpm --filter @workspace/storefront run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/storefront", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/storefront/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18539"
+BASE_PATH = "/"
