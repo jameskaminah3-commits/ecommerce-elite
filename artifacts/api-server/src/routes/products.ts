@@ -2,6 +2,11 @@ import { Router, type IRouter } from "express";
 import { eq, ilike, gte, lte, and, desc, asc, sql, inArray } from "drizzle-orm";
 import { db, productsTable, productVariantsTable, categoriesTable } from "@workspace/db";
 import {
+  deleteProductFromSearchInBackground,
+  searchProductIds,
+  syncProductToSearchInBackground,
+} from "../lib/meilisearch";
+import {
   ListProductsQueryParams,
   CreateProductBody,
   UpdateProductBody,
@@ -48,11 +53,21 @@ router.get("/products", async (req, res): Promise<void> => {
 
   const { category, minPrice, maxPrice, search, sort, page = 1, limit = 24, featured } = params.data;
 
+  const searchResult = search
+    ? await searchProductIds({ query: search, page, limit, category, minPrice, maxPrice, featured, sort })
+    : null;
+
+  if (searchResult && searchResult.ids.length === 0) {
+    res.json({ items: [], total: 0, page, limit });
+    return;
+  }
+
   const conditions = [];
   if (category) conditions.push(eq(productsTable.categoryId, category));
   if (minPrice != null) conditions.push(gte(productsTable.basePrice, String(minPrice)));
   if (maxPrice != null) conditions.push(lte(productsTable.basePrice, String(maxPrice)));
-  if (search) conditions.push(ilike(productsTable.name, `%${search}%`));
+  if (searchResult) conditions.push(inArray(productsTable.id, searchResult.ids));
+  if (search && !searchResult) conditions.push(ilike(productsTable.name, `%${search}%`));
   if (featured != null) conditions.push(eq(productsTable.featured, featured));
   // Only show active products in storefront by default
   conditions.push(eq(productsTable.status, "active"));
@@ -67,10 +82,16 @@ router.get("/products", async (req, res): Promise<void> => {
 
   const offset = (page - 1) * limit;
 
-  const [{ count }] = await db
-    .select({ count: sql<number>`cast(count(*) as int)` })
-    .from(productsTable)
-    .where(conditions.length > 0 ? and(...conditions) : undefined);
+  const [{ count }] = searchResult
+    ? [{ count: searchResult.total }]
+    : await db
+        .select({ count: sql<number>`cast(count(*) as int)` })
+        .from(productsTable)
+        .where(conditions.length > 0 ? and(...conditions) : undefined);
+
+  const finalOrderBy = searchResult
+    ? sql.raw(`array_position(ARRAY[${searchResult.ids.join(",")}], products.id)`)
+    : orderBy;
 
   const rows = await db
     .select({
@@ -83,9 +104,9 @@ router.get("/products", async (req, res): Promise<void> => {
     .leftJoin(productVariantsTable, eq(productVariantsTable.productId, productsTable.id))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .groupBy(productsTable.id, categoriesTable.name)
-    .orderBy(orderBy)
+    .orderBy(finalOrderBy)
     .limit(limit)
-    .offset(offset);
+    .offset(searchResult ? 0 : offset);
 
   res.json({
     items: rows.map((r) => productRow(r.product, r.categoryName ?? null, r.totalStock ?? 0)),
@@ -106,6 +127,7 @@ router.post("/products", async (req, res): Promise<void> => {
   if (data.compareAtPrice != null) data.compareAtPrice = String(data.compareAtPrice);
   const [prod] = await db.insert(productsTable).values(data).returning();
   const [cat] = await db.select({ name: categoriesTable.name }).from(categoriesTable).where(eq(categoriesTable.id, prod.categoryId));
+  syncProductToSearchInBackground(prod.id);
   res.status(201).json(productRow(prod, cat?.name ?? null, 0));
 });
 
@@ -168,6 +190,7 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
     return;
   }
   const [cat] = await db.select({ name: categoriesTable.name }).from(categoriesTable).where(eq(categoriesTable.id, prod.categoryId));
+  syncProductToSearchInBackground(prod.id);
   res.json(productRow(prod, cat?.name ?? null, 0));
 });
 
@@ -178,6 +201,7 @@ router.delete("/products/:id", async (req, res): Promise<void> => {
     return;
   }
   await db.delete(productsTable).where(eq(productsTable.id, params.data.id));
+  deleteProductFromSearchInBackground(params.data.id);
   res.sendStatus(204);
 });
 
@@ -210,6 +234,7 @@ router.post("/products/:id/variants", async (req, res): Promise<void> => {
   const data: any = { ...parsed.data, productId: params.data.id };
   data.price = String(data.price);
   const [variant] = await db.insert(productVariantsTable).values(data).returning();
+  syncProductToSearchInBackground(params.data.id);
   res.status(201).json({ ...variant, price: parseFloat(variant.price), createdAt: variant.createdAt instanceof Date ? variant.createdAt.toISOString() : variant.createdAt });
 });
 
@@ -231,6 +256,7 @@ router.patch("/variants/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Variant not found" });
     return;
   }
+  syncProductToSearchInBackground(variant.productId);
   res.json({ ...variant, price: parseFloat(variant.price), createdAt: variant.createdAt instanceof Date ? variant.createdAt.toISOString() : variant.createdAt });
 });
 
@@ -240,7 +266,9 @@ router.delete("/variants/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
+  const [variant] = await db.select().from(productVariantsTable).where(eq(productVariantsTable.id, params.data.id));
   await db.delete(productVariantsTable).where(eq(productVariantsTable.id, params.data.id));
+  if (variant) syncProductToSearchInBackground(variant.productId);
   res.sendStatus(204);
 });
 

@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { db, ordersTable, orderItemsTable, cartItemsTable, productVariantsTable, productsTable } from "@workspace/db";
+import { syncProductToSearchInBackground } from "../lib/meilisearch";
 import {
   CreateOrderBody,
   ListOrdersQueryParams,
@@ -98,6 +99,7 @@ router.post("/orders", async (req, res): Promise<void> => {
       id: cartItemsTable.id,
       variantId: cartItemsTable.variantId,
       quantity: cartItemsTable.quantity,
+      productId: productsTable.id,
       productName: productsTable.name,
       productImageUrl: productsTable.imageUrl,
       variantSku: productVariantsTable.sku,
@@ -162,6 +164,7 @@ router.post("/orders", async (req, res): Promise<void> => {
       .update(productVariantsTable)
       .set({ stock: row.stock - row.quantity })
       .where(eq(productVariantsTable.id, row.variantId));
+    syncProductToSearchInBackground(row.productId);
   }
 
   // Clear cart
