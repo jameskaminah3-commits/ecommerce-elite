@@ -35,8 +35,8 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
-      <Route path="/products" component={ProductsPage} />
       <Route path="/products/:id" component={ProductDetail} />
+      <Route path="/products" component={ProductsPage} />
       <Route path="/checkout" component={CheckoutPage} />
       <Route path="/orders/:id" component={OrderPage} />
       <Route path="/account" component={AccountPage} />
