@@ -18,9 +18,10 @@ export function CartDrawer() {
   const unlocked = cartTotal >= FREE_DELIVERY_THRESHOLD;
 
   // Cross-sell: fetch a few products for "You may also like"
-  const { data: crossSellData } = useListProducts({
-    query: { queryKey: ['cross-sell'], enabled: isCartDrawerOpen },
-  });
+  const { data: crossSellData } = useListProducts(
+    { limit: 6 },
+    { query: { queryKey: ['cross-sell'], enabled: isCartDrawerOpen } as any },
+  );
   const crossSell = crossSellData?.items?.slice(0, 6) || [];
 
   return (

@@ -157,12 +157,15 @@ export function Header() {
   const megaTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  const { data: searchResults } = useListProducts({
-    query: {
-      queryKey: ['header-search', searchQuery],
-      enabled: searchQuery.length >= 2,
+  const { data: searchResults } = useListProducts(
+    { search: searchQuery || undefined, limit: 4 },
+    {
+      query: {
+        queryKey: ['header-search', searchQuery],
+        enabled: searchQuery.length >= 2,
+      } as any,
     },
-  });
+  );
 
   // Close search on outside click
   useEffect(() => {

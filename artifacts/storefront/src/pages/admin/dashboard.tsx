@@ -94,7 +94,7 @@ export default function AdminDashboard() {
               </Button>
             </div>
             <div className="divide-y">
-              {recentOrders?.items.map((order) => (
+              {recentOrders?.map((order) => (
                 <div key={order.id} className="p-4 sm:p-6 flex items-center justify-between hover:bg-muted/20 transition-colors">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">

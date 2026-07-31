@@ -8,6 +8,7 @@
     "build:api": "pnpm --filter @workspace/api-server build",
     "start:api": "pnpm --filter @workspace/api-server start",
     "db:push": "pnpm --filter @workspace/db push",
+    "seed:local": "pnpm --filter @workspace/scripts seed:local",
     "search:sync": "pnpm --filter @workspace/scripts search:sync",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"

@@ -15,7 +15,7 @@ interface QuickViewModalProps {
 
 export function QuickViewModal({ productId, isOpen, onClose }: QuickViewModalProps) {
   const { data: product, isLoading } = useGetProduct(productId!, {
-    query: { enabled: isOpen && !!productId },
+    query: { queryKey: ['/api/products', productId], enabled: isOpen && !!productId } as any,
   });
   const { addItem, isAdding } = useCart();
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);

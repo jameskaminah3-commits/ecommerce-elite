@@ -23,9 +23,10 @@ function interleavedGrid(products: any[], promos: React.ReactNode[], everyN = 4)
 }
 
 export default function Home() {
-  const { data: productsData, isLoading: isFeaturedLoading } = useListProducts({
-    query: { queryKey: ['products', 'home'] },
-  } as any);
+  const { data: productsData, isLoading: isFeaturedLoading } = useListProducts(
+    { featured: true, limit: 12 },
+    { query: { queryKey: ['products', 'home'] } as any },
+  );
   const { data: categories, isLoading: isCategoriesLoading } = useListCategories();
 
   const allProducts = productsData?.items || [];

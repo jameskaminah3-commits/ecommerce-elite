@@ -11,7 +11,7 @@ export default function OrderPage() {
   const orderId = parseInt(id || '0', 10);
   
   const { data: order, isLoading } = useGetOrder(orderId, {
-    query: { enabled: !!orderId }
+    query: { queryKey: ['/api/orders', orderId], enabled: !!orderId } as any,
   });
 
   if (isLoading) {

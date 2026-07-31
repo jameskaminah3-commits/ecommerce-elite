@@ -39,9 +39,10 @@ export default function CheckoutPage() {
   // Poll for payment status if we have a pending order
   const { data: paymentStatus, isSuccess: hasPaymentStatus } = useGetPaymentStatus(pendingOrderId || 0, {
     query: {
+      queryKey: ['/api/payments', pendingOrderId, 'status'],
       enabled: !!pendingOrderId,
-      refetchInterval: (data) => (data?.paymentStatus === 'pending' ? 5000 : false), // Poll every 5s while pending
-    }
+      refetchInterval: (query: any) => (query.state.data?.paymentStatus === 'pending' ? 5000 : false),
+    } as any,
   });
 
   // Handle successful payment

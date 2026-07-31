@@ -24,9 +24,10 @@ export default function AdminOrders() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   
-  const { data: ordersData, isLoading } = useListOrders({ 
-    query: { queryKey: ['admin', 'orders', statusFilter] }
-  }); // Using queryKey to force refetch manually on filter change for now if API doesn't handle it
+  const { data: ordersData, isLoading } = useListOrders(
+    statusFilter === 'all' ? undefined : { status: statusFilter as any },
+    { query: { queryKey: ['admin', 'orders', statusFilter] } as any },
+  );
   
   const updateStatus = useUpdateOrderStatus();
 

@@ -79,7 +79,7 @@ export default function ProductDetail() {
   const productId = parseInt(id || '0', 10);
 
   const { data: product, isLoading } = useGetProduct(productId, {
-    query: { enabled: !!productId },
+    query: { queryKey: ['/api/products', productId], enabled: !!productId } as any,
   });
 
   const { addItem, isAdding } = useCart();
@@ -156,7 +156,7 @@ export default function ProductDetail() {
         <div className="container mx-auto px-4 py-3 text-sm text-muted-foreground flex items-center gap-1.5 flex-wrap">
           <a href="/" className="hover:text-foreground transition-colors">Home</a>
           <ChevronRight className="w-3 h-3 shrink-0" />
-          <a href={`/products?category=${product.categorySlug || ''}`} className="hover:text-foreground transition-colors">
+          <a href="/products" className="hover:text-foreground transition-colors">
             {product.categoryName || 'Products'}
           </a>
           <ChevronRight className="w-3 h-3 shrink-0" />

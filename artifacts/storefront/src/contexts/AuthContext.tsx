@@ -11,11 +11,12 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { data: user, isLoading: isQueryLoading, refetch } = useGetMe({
+  const { data: user, isLoading: isQueryLoading } = useGetMe({
     query: {
+      queryKey: ['/api/auth/me'],
       retry: false,
       staleTime: 5 * 60 * 1000,
-    }
+    } as any,
   });
 
   const [localUser, setLocalUser] = useState<User | null>(null);

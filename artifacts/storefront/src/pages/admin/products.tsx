@@ -18,7 +18,10 @@ import { getListProductsQueryKey } from '@workspace/api-client-react';
 
 export default function AdminProducts() {
   const [search, setSearch] = useState('');
-  const { data: productsData, isLoading } = useListProducts({ query: { queryKey: ['admin', 'products', search] }});
+  const { data: productsData, isLoading } = useListProducts(
+    { search: search || undefined, limit: 100 },
+    { query: { queryKey: ['admin', 'products', search] } as any },
+  );
   const deleteMutation = useDeleteProduct();
   const { toast } = useToast();
   const queryClient = useQueryClient();
