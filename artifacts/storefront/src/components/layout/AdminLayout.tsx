@@ -3,9 +3,10 @@ import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   LayoutDashboard, 
-  Package, 
-  ShoppingCart, 
-  Grid, 
+  Package,
+  ShoppingCart,
+  Grid,
+  Tag,
   AlertTriangle,
   LogOut,
   ChevronLeft
@@ -26,6 +27,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
     { name: 'Products', href: '/admin/products', icon: Package },
     { name: 'Categories', href: '/admin/categories', icon: Grid },
+    { name: 'Offers', href: '/admin/offers', icon: Tag },
     { name: 'Inventory Alerts', href: '/admin/inventory', icon: AlertTriangle },
   ];
 
