@@ -4,8 +4,8 @@ import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useGetAnalyticsOverview, useGetRecentOrders } from '@workspace/api-client-react';
 import { formatCurrency } from '@/lib/utils';
 import { Link } from 'wouter';
-import { 
-  TrendingUp, Users, Package, ShoppingCart, ArrowUpRight, AlertTriangle 
+import {
+  TrendingUp, Users, Package, ShoppingCart, ArrowUpRight, AlertTriangle, Grid
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -152,5 +152,3 @@ export default function AdminDashboard() {
     </AuthGuard>
   );
 }
-// Needed Grid icon
-import { Grid } from 'lucide-react';

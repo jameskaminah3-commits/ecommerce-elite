@@ -11,6 +11,22 @@ function hashPassword(pwd: string): string {
   return crypto.createHash("sha256").update(pwd + "happyfine_salt").digest("hex");
 }
 
+const SESSION_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+
+// In production the storefront and API are typically served from different
+// origins, which requires SameSite=None + Secure for the cookie to be sent on
+// cross-site requests. In development we keep Lax so it works over plain HTTP.
+function sessionCookieOptions() {
+  const isProd = process.env["NODE_ENV"] === "production";
+  return {
+    httpOnly: true,
+    sameSite: isProd ? ("none" as const) : ("lax" as const),
+    secure: isProd,
+    maxAge: SESSION_MAX_AGE,
+    path: "/",
+  };
+}
+
 function userToPublic(u: typeof usersTable.$inferSelect) {
   return {
     id: u.id,
@@ -43,7 +59,8 @@ router.post("/auth/register", async (req, res): Promise<void> => {
       role: "customer",
     })
     .returning();
-  (req as any).session = { userId: user.id };
+  // Log the newly registered user in, mirroring the login flow.
+  res.cookie("userId", String(user.id), sessionCookieOptions());
   res.status(201).json({ user: userToPublic(user) });
 });
 
@@ -59,7 +76,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     return;
   }
   // Store userId in a simple cookie-based session
-  res.cookie("userId", String(user.id), { httpOnly: true, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
+  res.cookie("userId", String(user.id), sessionCookieOptions());
   res.json({ user: userToPublic(user) });
 });
 

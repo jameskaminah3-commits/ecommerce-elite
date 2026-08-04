@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { User, useGetMe } from "@workspace/api-client-react";
+import { User, useGetMe, useLogoutUser } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface AuthContextType {
   user: User | null;
@@ -21,6 +22,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const [localUser, setLocalUser] = useState<User | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const logoutMutation = useLogoutUser();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!isQueryLoading) {
@@ -30,7 +33,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, isQueryLoading]);
 
   const logout = () => {
+    // Clear the UI immediately, then invalidate the server session cookie so a
+    // refresh doesn't silently re-authenticate.
     setLocalUser(null);
+    logoutMutation.mutate(undefined, {
+      onSettled: () => {
+        queryClient.removeQueries();
+      },
+    });
   };
 
   return (

@@ -360,7 +360,16 @@ export async function customFetch<T = unknown>(
 
   const requestInfo = { method, url: resolveUrl(input) };
 
-  const response = await fetch(input, { ...init, method, headers });
+  // Send cookies with every request so the session cookie is included even
+  // when the API is served from a different origin (e.g. a separate API host
+  // configured via `setBaseUrl`). Without this, cross-origin auth cookies are
+  // silently dropped by the browser. Callers may still override per request.
+  const response = await fetch(input, {
+    credentials: "include",
+    ...init,
+    method,
+    headers,
+  });
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);
