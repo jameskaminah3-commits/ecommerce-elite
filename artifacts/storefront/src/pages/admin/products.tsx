@@ -39,6 +39,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { MediaPicker } from '@/components/media/MediaPicker';
+import { ManageVariantsDialog } from '@/components/admin/ManageVariantsDialog';
+import { Boxes } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 
 type ProductRow = {
@@ -70,6 +72,7 @@ export default function AdminProducts() {
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ProductRow | null>(null);
+  const [stockFor, setStockFor] = useState<ProductRow | null>(null);
 
   const { data: productsData, isLoading } = useListProducts(
     { search: search || undefined, limit: 100 },
@@ -187,6 +190,9 @@ export default function AdminProducts() {
                             <DropdownMenuItem className="cursor-pointer" onClick={() => openEdit(product as ProductRow)}>
                               <Pencil className="w-4 h-4 mr-2" /> Edit
                             </DropdownMenuItem>
+                            <DropdownMenuItem className="cursor-pointer" onClick={() => setStockFor(product as ProductRow)}>
+                              <Boxes className="w-4 h-4 mr-2" /> Manage stock
+                            </DropdownMenuItem>
                             <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={() => handleDelete(product.id)}>
                               <Trash2 className="w-4 h-4 mr-2" /> Delete
                             </DropdownMenuItem>
@@ -211,6 +217,13 @@ export default function AdminProducts() {
             await refetchProducts();
             queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
           }}
+        />
+
+        <ManageVariantsDialog
+          productId={stockFor?.id ?? null}
+          productName={stockFor?.name ?? ''}
+          open={stockFor != null}
+          onOpenChange={(open) => !open && setStockFor(null)}
         />
       </AdminLayout>
     </AuthGuard>
