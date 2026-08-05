@@ -1,11 +1,24 @@
 import { eq } from "drizzle-orm";
+import crypto from "crypto";
 import {
   categoriesTable,
   db,
   pool,
   productsTable,
   productVariantsTable,
+  usersTable,
 } from "@workspace/db";
+
+// Mirrors hashPassword() in artifacts/api-server/src/routes/auth.ts so the
+// seeded accounts can log in locally. (Swap both for bcrypt in production.)
+function hashPassword(pwd: string): string {
+  return crypto.createHash("sha256").update(pwd + "happyfine_salt").digest("hex");
+}
+
+const seedUsers = [
+  { name: "Happyfine Admin", email: "admin@happyfine.co.ke", phone: "0700000000", role: "admin" as const, password: "password" },
+  { name: "Jane Customer", email: "jane@example.com", phone: "0711111111", role: "customer" as const, password: "password" },
+];
 
 const categories = [
   {
@@ -161,6 +174,27 @@ async function upsertCategory(category: (typeof categories)[number]) {
 }
 
 async function main(): Promise<void> {
+  for (const user of seedUsers) {
+    await db
+      .insert(usersTable)
+      .values({
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        passwordHash: hashPassword(user.password),
+      })
+      .onConflictDoUpdate({
+        target: usersTable.email,
+        set: {
+          name: user.name,
+          phone: user.phone,
+          role: user.role,
+          passwordHash: hashPassword(user.password),
+        },
+      });
+  }
+
   const categoryBySlug = new Map<string, number>();
 
   for (const category of categories) {
@@ -233,7 +267,10 @@ async function main(): Promise<void> {
     }
   }
 
-  console.log(`Seeded ${categories.length} categories and ${products.length} products.`);
+  console.log(
+    `Seeded ${seedUsers.length} users, ${categories.length} categories and ${products.length} products.`,
+  );
+  console.log('Admin login: admin@happyfine.co.ke / password');
 }
 
 main()
