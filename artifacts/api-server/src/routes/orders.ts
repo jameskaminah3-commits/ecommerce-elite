@@ -94,6 +94,11 @@ router.post("/orders", async (req, res): Promise<void> => {
     return;
   }
 
+  // Attribute the order to the logged-in user when there is one, so verified
+  // purchases can gate product reviews. Anonymous checkout still works.
+  const rawUserId = req.cookies?.userId;
+  const userId = rawUserId && !Number.isNaN(parseInt(rawUserId, 10)) ? parseInt(rawUserId, 10) : null;
+
   const cartRows = await db
     .select({
       id: cartItemsTable.id,
@@ -147,6 +152,7 @@ router.post("/orders", async (req, res): Promise<void> => {
       total: String(total),
       status: "pending",
       paymentStatus: "pending",
+      userId,
     })
     .returning();
 

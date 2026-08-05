@@ -4,6 +4,7 @@ import { useGetProduct, ProductVariant } from '@workspace/api-client-react';
 import { useCart } from '@/contexts/CartContext';
 import { useParams } from 'wouter';
 import { formatCurrency, classNames, cn, getPriceInfo } from '@/lib/utils';
+import { ReviewsSection } from '@/components/products/ReviewsSection';
 import { Star, Truck, ShieldCheck, ChevronRight, Minus, Plus, ShoppingBag, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -467,6 +468,8 @@ export default function ProductDetail() {
                 <p className="text-sm text-muted-foreground leading-relaxed">{product.description}</p>
               </div>
             )}
+
+            <ReviewsSection productId={product.id} />
           </div>
         </div>
       </div>
