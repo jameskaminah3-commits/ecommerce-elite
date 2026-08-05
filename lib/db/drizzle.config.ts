@@ -1,9 +1,20 @@
 import { defineConfig } from "drizzle-kit";
 import path from "path";
 
-if (!process.env.DATABASE_URL) {
+const databaseUrl = process.env.DATABASE_URL;
+
+if (!databaseUrl) {
   throw new Error("DATABASE_URL, ensure the database is provisioned");
 }
+
+// Mirror the runtime pool (lib/db/src/index.ts): when the connection requires
+// SSL (Supabase pooler etc.), connect with relaxed verification. Recent `pg`
+// versions treat `sslmode=require` as strict `verify-full`, which rejects the
+// pooler certificate on a stock Node install and breaks `db push`.
+const useSsl =
+  process.env.DATABASE_SSL === "true" ||
+  process.env.PGSSLMODE === "require" ||
+  databaseUrl.includes("sslmode=require");
 
 export default defineConfig({
   // Use forward slashes even on Windows — drizzle-kit's schema file glob does
@@ -12,6 +23,7 @@ export default defineConfig({
   schema: path.join(__dirname, "src", "schema", "index.ts").replace(/\\/g, "/"),
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL,
+    url: databaseUrl,
+    ...(useSsl ? { ssl: { rejectUnauthorized: false } } : {}),
   },
 });
