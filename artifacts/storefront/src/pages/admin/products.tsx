@@ -38,6 +38,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { MediaPicker } from '@/components/media/MediaPicker';
 import { useQueryClient } from '@tanstack/react-query';
 
 type ProductRow = {
@@ -368,10 +369,7 @@ function ProductFormDialog({
               </Select>
             </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="imageUrl">Image URL</Label>
-            <Input id="imageUrl" value={form.imageUrl} onChange={(e) => set('imageUrl', e.target.value)} placeholder="https://..." />
-          </div>
+          <MediaPicker value={form.imageUrl} onChange={(url) => set('imageUrl', url)} label="Image" />
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div>
               <Label htmlFor="featured" className="font-medium">Featured</Label>

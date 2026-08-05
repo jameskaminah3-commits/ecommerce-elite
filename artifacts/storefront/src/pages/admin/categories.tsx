@@ -23,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { MediaPicker } from '@/components/media/MediaPicker';
 import { useQueryClient } from '@tanstack/react-query';
 
 function slugify(value: string): string {
@@ -248,10 +249,7 @@ function CategoryFormDialog({
             <Label htmlFor="cat-description">Description</Label>
             <Textarea id="cat-description" value={form.description} onChange={(e) => set('description', e.target.value)} rows={3} />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="cat-image">Image URL</Label>
-            <Input id="cat-image" value={form.imageUrl} onChange={(e) => set('imageUrl', e.target.value)} placeholder="https://..." />
-          </div>
+          <MediaPicker value={form.imageUrl} onChange={(url) => set('imageUrl', url)} label="Image" />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>Cancel</Button>
             <Button type="submit" disabled={isPending}>
