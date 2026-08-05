@@ -3,7 +3,7 @@ import { StorefrontLayout } from '@/components/layout/StorefrontLayout';
 import { useGetProduct, ProductVariant } from '@workspace/api-client-react';
 import { useCart } from '@/contexts/CartContext';
 import { useParams } from 'wouter';
-import { formatCurrency, classNames, cn } from '@/lib/utils';
+import { formatCurrency, classNames, cn, getPriceInfo } from '@/lib/utils';
 import { Star, Truck, ShieldCheck, ChevronRight, Minus, Plus, ShoppingBag, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -142,7 +142,9 @@ export default function ProductDetail() {
 
   const colors = Array.from(new Set(product.variants.map((v) => v.color).filter(Boolean))) as string[];
   const sizes = Array.from(new Set(product.variants.map((v) => v.size).filter(Boolean))) as string[];
-  const displayPrice = selectedVariant?.price ?? product.basePrice;
+  const rawPrice = selectedVariant?.price ?? product.basePrice;
+  const priceInfo = getPriceInfo(product, rawPrice);
+  const displayPrice = priceInfo.price;
   const stockCount = selectedVariant?.stock ?? 0;
   const inStock = stockCount > 0;
   const lowStock = inStock && stockCount <= 5;
@@ -183,9 +185,9 @@ export default function ProductDetail() {
                 )}
                 style={{ willChange: 'opacity' }}
               />
-              {product.compareAtPrice && product.compareAtPrice > product.basePrice && (
+              {priceInfo.onSale && (
                 <div className="absolute top-4 left-4 bg-destructive text-destructive-foreground text-xs font-black px-2.5 py-1 rounded">
-                  -{Math.round(((product.compareAtPrice - product.basePrice) / product.compareAtPrice) * 100)}% OFF
+                  -{priceInfo.discountPct}% OFF
                 </div>
               )}
             </div>
@@ -266,9 +268,9 @@ export default function ProductDetail() {
               >
                 {formatCurrency(displayPrice)}
               </span>
-              {product.compareAtPrice && product.compareAtPrice > displayPrice && (
+              {priceInfo.onSale && priceInfo.original != null && (
                 <span className="text-lg text-muted-foreground line-through">
-                  {formatCurrency(product.compareAtPrice)}
+                  {formatCurrency(priceInfo.original)}
                 </span>
               )}
             </div>

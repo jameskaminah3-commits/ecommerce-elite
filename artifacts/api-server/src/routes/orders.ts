@@ -106,6 +106,7 @@ router.post("/orders", async (req, res): Promise<void> => {
       variantSize: productVariantsTable.size,
       variantColor: productVariantsTable.color,
       price: productVariantsTable.price,
+      discountPercent: productsTable.discountPercent,
       stock: productVariantsTable.stock,
     })
     .from(cartItemsTable)
@@ -126,7 +127,13 @@ router.post("/orders", async (req, res): Promise<void> => {
     }
   }
 
-  const total = cartRows.reduce((s, r) => s + parseFloat(r.price) * r.quantity, 0);
+  // Apply the product's active promotional discount to the charged unit price.
+  const unitPrice = (r: (typeof cartRows)[number]): number => {
+    const pct = Math.min(Math.max(r.discountPercent ?? 0, 0), 90);
+    return Math.round(parseFloat(r.price) * (1 - pct / 100) * 100) / 100;
+  };
+
+  const total = cartRows.reduce((s, r) => s + unitPrice(r) * r.quantity, 0);
 
   // Create order + items atomically
   const [order] = await db
@@ -151,9 +158,9 @@ router.post("/orders", async (req, res): Promise<void> => {
     variantSku: r.variantSku,
     variantSize: r.variantSize,
     variantColor: r.variantColor,
-    price: r.price,
+    price: String(unitPrice(r)),
     quantity: r.quantity,
-    subtotal: String(parseFloat(r.price) * r.quantity),
+    subtotal: String(unitPrice(r) * r.quantity),
   }));
 
   const items = await db.insert(orderItemsTable).values(itemsToInsert).returning();

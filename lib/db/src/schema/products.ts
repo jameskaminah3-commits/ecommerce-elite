@@ -15,6 +15,8 @@ export const productsTable = pgTable("products", {
   images: text("images").array().notNull().default([]),
   status: text("status", { enum: ["active", "inactive", "draft"] }).notNull().default("active"),
   featured: boolean("featured").notNull().default(false),
+  // Active promotional discount (0-90). Applied to the charged price at checkout.
+  discountPercent: integer("discount_percent").notNull().default(0),
   rating: numeric("rating", { precision: 3, scale: 2 }),
   reviewCount: integer("review_count").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

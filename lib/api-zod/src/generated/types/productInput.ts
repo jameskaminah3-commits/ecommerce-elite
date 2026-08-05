@@ -20,4 +20,9 @@ export interface ProductInput {
   images?: string[];
   status?: ProductInputStatus;
   featured?: boolean;
+  /**
+     * @minimum 0
+     * @maximum 90
+     */
+  discountPercent?: number;
 }

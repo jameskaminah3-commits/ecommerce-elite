@@ -140,6 +140,7 @@ export const ListProductsResponse = zod.object({
   "totalStock": zod.int().optional(),
   "rating": zod.number().nullish(),
   "reviewCount": zod.int().optional(),
+  "discountPercent": zod.int().optional(),
   "createdAt": zod.string().optional()
 })),
   "total": zod.int(),
@@ -153,6 +154,9 @@ export const ListProductsResponse = zod.object({
  */
 
 
+export const createProductBodyDiscountPercentMin = 0;
+export const createProductBodyDiscountPercentMax = 90;
+
 
 
 export const CreateProductBody = zod.object({
@@ -165,7 +169,8 @@ export const CreateProductBody = zod.object({
   "imageUrl": zod.string().optional(),
   "images": zod.array(zod.string()).optional(),
   "status": zod.enum(['active', 'inactive', 'draft']).optional(),
-  "featured": zod.boolean().optional()
+  "featured": zod.boolean().optional(),
+  "discountPercent": zod.int().min(createProductBodyDiscountPercentMin).max(createProductBodyDiscountPercentMax).optional()
 })
 
 export const CreateProductResponse = zod.object({
@@ -184,6 +189,7 @@ export const CreateProductResponse = zod.object({
   "totalStock": zod.int().optional(),
   "rating": zod.number().nullish(),
   "reviewCount": zod.int().optional(),
+  "discountPercent": zod.int().optional(),
   "createdAt": zod.string().optional()
 })
 
@@ -211,6 +217,7 @@ export const GetProductResponse = zod.object({
   "totalStock": zod.int().optional(),
   "rating": zod.number().nullish(),
   "reviewCount": zod.int().optional(),
+  "discountPercent": zod.int().optional(),
   "createdAt": zod.string().optional(),
   "variants": zod.array(zod.object({
   "id": zod.int(),
@@ -234,6 +241,11 @@ export const UpdateProductParams = zod.object({
   "id": zod.coerce.number().int()
 })
 
+export const updateProductBodyDiscountPercentMin = 0;
+export const updateProductBodyDiscountPercentMax = 90;
+
+
+
 export const UpdateProductBody = zod.object({
   "name": zod.string().optional(),
   "slug": zod.string().optional(),
@@ -244,7 +256,8 @@ export const UpdateProductBody = zod.object({
   "imageUrl": zod.string().optional(),
   "images": zod.array(zod.string()).optional(),
   "status": zod.enum(['active', 'inactive', 'draft']).optional(),
-  "featured": zod.boolean().optional()
+  "featured": zod.boolean().optional(),
+  "discountPercent": zod.int().min(updateProductBodyDiscountPercentMin).max(updateProductBodyDiscountPercentMax).optional()
 })
 
 export const UpdateProductResponse = zod.object({
@@ -263,6 +276,7 @@ export const UpdateProductResponse = zod.object({
   "totalStock": zod.int().optional(),
   "rating": zod.number().nullish(),
   "reviewCount": zod.int().optional(),
+  "discountPercent": zod.int().optional(),
   "createdAt": zod.string().optional()
 })
 

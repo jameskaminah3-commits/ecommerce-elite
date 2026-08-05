@@ -18,4 +18,9 @@ export interface ProductPatch {
   images?: string[];
   status?: ProductPatchStatus;
   featured?: boolean;
+  /**
+     * @minimum 0
+     * @maximum 90
+     */
+  discountPercent?: number;
 }

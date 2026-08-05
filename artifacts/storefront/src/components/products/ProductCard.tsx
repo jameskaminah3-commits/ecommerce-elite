@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Product } from '@workspace/api-client-react';
 import { Link } from 'wouter';
-import { formatCurrency, classNames } from '@/lib/utils';
+import { formatCurrency, classNames, getPriceInfo } from '@/lib/utils';
 import { ShoppingBag, Star, Eye } from 'lucide-react';
 import { QuickViewModal } from './QuickViewModal';
 
@@ -12,11 +12,7 @@ interface ProductCardProps {
 
 export function ProductCard({ product, className }: ProductCardProps) {
   const [quickViewOpen, setQuickViewOpen] = useState(false);
-  const hasDiscount =
-    product.compareAtPrice && product.compareAtPrice > product.basePrice;
-  const discountPct = hasDiscount
-    ? Math.round(((product.compareAtPrice! - product.basePrice) / product.compareAtPrice!) * 100)
-    : 0;
+  const { price, original, discountPct, onSale } = getPriceInfo(product);
 
   return (
     <>
@@ -28,7 +24,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
       >
         {/* Badges */}
         <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5">
-          {hasDiscount && (
+          {onSale && (
             <span className="bg-destructive text-destructive-foreground text-[9px] font-black px-2 py-0.5 rounded tracking-wider">
               -{discountPct}%
             </span>
@@ -90,13 +86,16 @@ export function ProductCard({ product, className }: ProductCardProps) {
 
           <div className="mt-auto flex items-end justify-between gap-2">
             <div>
-              {hasDiscount && (
+              {onSale && original != null && (
                 <span className="text-[11px] text-muted-foreground line-through block leading-none mb-0.5">
-                  {formatCurrency(product.compareAtPrice!)}
+                  {formatCurrency(original)}
                 </span>
               )}
-              <span className="font-extrabold text-base text-primary tracking-tight leading-none">
-                {formatCurrency(product.basePrice)}
+              <span className={classNames(
+                'font-extrabold text-base tracking-tight leading-none',
+                onSale ? 'text-destructive' : 'text-primary',
+              )}>
+                {formatCurrency(price)}
               </span>
             </div>
 

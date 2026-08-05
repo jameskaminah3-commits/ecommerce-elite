@@ -29,6 +29,7 @@ export interface ProductDetail {
   /** @nullable */
   rating?: number | null;
   reviewCount?: number;
+  discountPercent?: number;
   createdAt?: string;
   variants: ProductVariant[];
 }

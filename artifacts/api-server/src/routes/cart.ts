@@ -31,25 +31,31 @@ async function buildCart(sessionId: string) {
       variantSize: productVariantsTable.size,
       variantColor: productVariantsTable.color,
       price: productVariantsTable.price,
+      discountPercent: productsTable.discountPercent,
     })
     .from(cartItemsTable)
     .innerJoin(productVariantsTable, eq(cartItemsTable.variantId, productVariantsTable.id))
     .innerJoin(productsTable, eq(productVariantsTable.productId, productsTable.id))
     .where(eq(cartItemsTable.sessionId, sessionId));
 
-  const items = rows.map((r) => ({
-    id: r.id,
-    variantId: r.variantId,
-    productId: r.productId,
-    productName: r.productName,
-    productImageUrl: r.productImageUrl,
-    variantSku: r.variantSku,
-    variantSize: r.variantSize,
-    variantColor: r.variantColor,
-    price: parseFloat(r.price),
-    quantity: r.quantity,
-    subtotal: parseFloat(r.price) * r.quantity,
-  }));
+  const items = rows.map((r) => {
+    // Charge the discounted unit price so the cart matches what checkout bills.
+    const pct = Math.min(Math.max(r.discountPercent ?? 0, 0), 90);
+    const price = Math.round(parseFloat(r.price) * (1 - pct / 100) * 100) / 100;
+    return {
+      id: r.id,
+      variantId: r.variantId,
+      productId: r.productId,
+      productName: r.productName,
+      productImageUrl: r.productImageUrl,
+      variantSku: r.variantSku,
+      variantSize: r.variantSize,
+      variantColor: r.variantColor,
+      price,
+      quantity: r.quantity,
+      subtotal: price * r.quantity,
+    };
+  });
 
   return {
     items,

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useGetProduct } from '@workspace/api-client-react';
 import { useCart } from '@/contexts/CartContext';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, getPriceInfo } from '@/lib/utils';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Star, ShoppingBag, ArrowRight, Minus, Plus } from 'lucide-react';
@@ -33,7 +33,11 @@ export function QuickViewModal({ productId, isOpen, onClose }: QuickViewModalPro
   const colors = [...new Set(variants.filter((v) => v.color).map((v) => v.color as string))];
   const sizes = [...new Set(variants.filter((v) => v.size).map((v) => v.size as string))];
 
-  const displayPrice = selectedVariant?.price ?? product?.basePrice ?? 0;
+  const rawPrice = selectedVariant?.price ?? product?.basePrice ?? 0;
+  const priceInfo = product
+    ? getPriceInfo(product, rawPrice)
+    : { price: rawPrice, original: null, discountPct: 0, onSale: false };
+  const displayPrice = priceInfo.price;
   const inStock = selectedVariant ? (selectedVariant.stock ?? 0) > 0 : true;
 
   return (
@@ -53,9 +57,9 @@ export function QuickViewModal({ productId, isOpen, onClose }: QuickViewModalPro
                 className="w-full h-full object-cover"
                 style={{ minHeight: 320 }}
               />
-              {product.compareAtPrice && product.compareAtPrice > product.basePrice && (
+              {priceInfo.onSale && (
                 <div className="absolute top-4 left-4 bg-destructive text-destructive-foreground text-xs font-bold px-2.5 py-1 rounded">
-                  SALE
+                  -{priceInfo.discountPct}%
                 </div>
               )}
             </div>
@@ -91,9 +95,9 @@ export function QuickViewModal({ productId, isOpen, onClose }: QuickViewModalPro
                 <span className="text-2xl font-bold text-primary tracking-tight">
                   {formatCurrency(displayPrice)}
                 </span>
-                {product.compareAtPrice && product.compareAtPrice > product.basePrice && (
+                {priceInfo.onSale && priceInfo.original != null && (
                   <span className="text-sm text-muted-foreground line-through">
-                    {formatCurrency(product.compareAtPrice)}
+                    {formatCurrency(priceInfo.original)}
                   </span>
                 )}
               </div>

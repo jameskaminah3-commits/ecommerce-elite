@@ -833,6 +833,8 @@ components:
           type: ["number", "null"]
         reviewCount:
           type: integer
+        discountPercent:
+          type: integer
         createdAt:
           type: string
 
@@ -872,6 +874,8 @@ components:
         rating:
           type: ["number", "null"]
         reviewCount:
+          type: integer
+        discountPercent:
           type: integer
         createdAt:
           type: string
@@ -924,6 +928,10 @@ components:
           enum: [active, inactive, draft]
         featured:
           type: boolean
+        discountPercent:
+          type: integer
+          minimum: 0
+          maximum: 90
 
     ProductPatch:
       type: object
@@ -951,6 +959,10 @@ components:
           enum: [active, inactive, draft]
         featured:
           type: boolean
+        discountPercent:
+          type: integer
+          minimum: 0
+          maximum: 90
 
     # ── VARIANT ──
     ProductVariant:

@@ -37,6 +37,7 @@ function productRow(p: any, categoryName: string | null, totalStock: number) {
     images: p.images ?? [],
     status: p.status,
     featured: p.featured,
+    discountPercent: p.discountPercent ?? 0,
     totalStock,
     rating: p.rating ? parseFloat(p.rating) : null,
     reviewCount: p.reviewCount,

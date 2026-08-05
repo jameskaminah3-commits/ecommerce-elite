@@ -67,6 +67,7 @@ export interface Product {
   /** @nullable */
   rating?: number | null;
   reviewCount?: number;
+  discountPercent?: number;
   createdAt?: string;
 }
 
@@ -117,6 +118,7 @@ export interface ProductDetail {
   /** @nullable */
   rating?: number | null;
   reviewCount?: number;
+  discountPercent?: number;
   createdAt?: string;
   variants: ProductVariant[];
 }
@@ -150,6 +152,11 @@ export interface ProductInput {
   images?: string[];
   status?: ProductInputStatus;
   featured?: boolean;
+  /**
+     * @minimum 0
+     * @maximum 90
+     */
+  discountPercent?: number;
 }
 
 export type ProductPatchStatus = typeof ProductPatchStatus[keyof typeof ProductPatchStatus];
@@ -172,6 +179,11 @@ export interface ProductPatch {
   images?: string[];
   status?: ProductPatchStatus;
   featured?: boolean;
+  /**
+     * @minimum 0
+     * @maximum 90
+     */
+  discountPercent?: number;
 }
 
 export interface ProductVariantInput {
