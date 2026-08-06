@@ -23,6 +23,51 @@ const seedUsers = [
   { name: "Jane Customer", email: "jane@example.com", phone: "0711111111", role: "customer" as const, password: "password" },
 ];
 
+// Expanse-style top-of-homepage: full-width hero, two half-width tiles, then a
+// three-across category row (12 -> 6+6 -> 4+4+4).
+const sampleHomepageBlocks = [
+  {
+    kind: "image" as const, columnSpan: 12, aspectRatio: "21/9", overlayOpacity: 45,
+    imageUrl: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&auto=format&fit=crop&q=80",
+    heading: "Wholesale prices. Delivered across Kenya.",
+    subheading: "Home, electronics, beauty and fitness — quality stock in bulk.",
+    ctaLabel: "Shop all products", ctaHref: "/products",
+    textAlign: "center-center", textColor: "#ffffff", sortOrder: 0,
+  },
+  {
+    kind: "image" as const, columnSpan: 6, aspectRatio: "4/3", overlayOpacity: 35,
+    imageUrl: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=1000&auto=format&fit=crop&q=80",
+    heading: "Electronics", subheading: "Audio, smart devices & accessories.",
+    ctaLabel: "Browse", ctaHref: "/products",
+    textAlign: "bottom-left", textColor: "#ffffff", sortOrder: 1,
+  },
+  {
+    kind: "color" as const, columnSpan: 6, aspectRatio: "4/3", overlayOpacity: 0,
+    backgroundColor: "#0f5132",
+    heading: "Buy 10+, save 15%", subheading: "Automatic bulk pricing — no code needed.",
+    ctaLabel: "Shop in bulk", ctaHref: "/products",
+    textAlign: "center-left", textColor: "#ffffff", sortOrder: 2,
+  },
+  {
+    kind: "image" as const, columnSpan: 4, aspectRatio: "1/1", overlayOpacity: 30,
+    imageUrl: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&auto=format&fit=crop&q=80",
+    heading: "Home & Living", ctaLabel: "Shop", ctaHref: "/products",
+    textAlign: "bottom-center", textColor: "#ffffff", sortOrder: 3,
+  },
+  {
+    kind: "image" as const, columnSpan: 4, aspectRatio: "1/1", overlayOpacity: 30,
+    imageUrl: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=800&auto=format&fit=crop&q=80",
+    heading: "Beauty", ctaLabel: "Shop", ctaHref: "/products",
+    textAlign: "bottom-center", textColor: "#ffffff", sortOrder: 4,
+  },
+  {
+    kind: "image" as const, columnSpan: 4, aspectRatio: "1/1", overlayOpacity: 30,
+    imageUrl: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&auto=format&fit=crop&q=80",
+    heading: "Gym & Fitness", ctaLabel: "Shop", ctaHref: "/products",
+    textAlign: "bottom-center", textColor: "#ffffff", sortOrder: 5,
+  },
+];
+
 const seedDeliveryLocations = [
   { name: "Nairobi", cost: "300.00" },
   { name: "Mombasa", cost: "650.00" },
@@ -223,30 +268,7 @@ async function main(): Promise<void> {
 
   const existingBlocks = await db.select().from(homepageBlocksTable);
   if (existingBlocks.length === 0) {
-    await db.insert(homepageBlocksTable).values([
-      {
-        kind: "image", columnSpan: 12, aspectRatio: "21/9", overlayOpacity: 40,
-        imageUrl: "https://images.unsplash.com/photo-1486325212027-8081e485255e?w=1600&auto=format&fit=crop&q=80",
-        heading: "Wholesale prices, delivered across Kenya",
-        subheading: "Quality home, electronics and beauty products in bulk.",
-        ctaLabel: "Shop all products", ctaHref: "/products",
-        textAlign: "center-center", textColor: "#ffffff", sortOrder: 0,
-      },
-      {
-        kind: "image", columnSpan: 6, aspectRatio: "4/3", overlayOpacity: 35,
-        imageUrl: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=900&auto=format&fit=crop&q=80",
-        heading: "Electronics", subheading: "Audio, smart devices & accessories.",
-        ctaLabel: "Browse", ctaHref: "/products?category=1",
-        textAlign: "bottom-left", textColor: "#ffffff", sortOrder: 1,
-      },
-      {
-        kind: "color", columnSpan: 6, aspectRatio: "4/3", overlayOpacity: 0,
-        backgroundColor: "#0f5132",
-        heading: "Buy 10+, save 15%", subheading: "Automatic bulk pricing — no code needed.",
-        ctaLabel: "Shop in bulk", ctaHref: "/products",
-        textAlign: "center-left", textColor: "#ffffff", sortOrder: 2,
-      },
-    ]);
+    await db.insert(homepageBlocksTable).values(sampleHomepageBlocks);
   }
 
   const categoryBySlug = new Map<string, number>();
