@@ -29,5 +29,7 @@ export interface Product {
   rating?: number | null;
   reviewCount?: number;
   discountPercent?: number;
+  /** @nullable */
+  deliveryClassId?: number | null;
   createdAt?: string;
 }

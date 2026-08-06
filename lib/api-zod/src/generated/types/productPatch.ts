@@ -23,4 +23,6 @@ export interface ProductPatch {
      * @maximum 90
      */
   discountPercent?: number;
+  /** @nullable */
+  deliveryClassId?: number | null;
 }

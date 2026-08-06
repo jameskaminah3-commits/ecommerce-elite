@@ -68,6 +68,8 @@ export interface Product {
   rating?: number | null;
   reviewCount?: number;
   discountPercent?: number;
+  /** @nullable */
+  deliveryClassId?: number | null;
   createdAt?: string;
 }
 
@@ -119,6 +121,8 @@ export interface ProductDetail {
   rating?: number | null;
   reviewCount?: number;
   discountPercent?: number;
+  /** @nullable */
+  deliveryClassId?: number | null;
   createdAt?: string;
   variants: ProductVariant[];
 }
@@ -157,6 +161,8 @@ export interface ProductInput {
      * @maximum 90
      */
   discountPercent?: number;
+  /** @nullable */
+  deliveryClassId?: number | null;
 }
 
 export type ProductPatchStatus = typeof ProductPatchStatus[keyof typeof ProductPatchStatus];
@@ -184,6 +190,8 @@ export interface ProductPatch {
      * @maximum 90
      */
   discountPercent?: number;
+  /** @nullable */
+  deliveryClassId?: number | null;
 }
 
 export interface ProductVariantInput {

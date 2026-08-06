@@ -17,6 +17,8 @@ export const productsTable = pgTable("products", {
   featured: boolean("featured").notNull().default(false),
   // Active promotional discount (0-90). Applied to the charged price at checkout.
   discountPercent: integer("discount_percent").notNull().default(0),
+  // Delivery class (null = Standard/base town rate). Drives per-town shipping cost.
+  deliveryClassId: integer("delivery_class_id"),
   rating: numeric("rating", { precision: 3, scale: 2 }),
   reviewCount: integer("review_count").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

@@ -835,6 +835,8 @@ components:
           type: integer
         discountPercent:
           type: integer
+        deliveryClassId:
+          type: ["integer", "null"]
         createdAt:
           type: string
 
@@ -877,6 +879,8 @@ components:
           type: integer
         discountPercent:
           type: integer
+        deliveryClassId:
+          type: ["integer", "null"]
         createdAt:
           type: string
         variants:
@@ -932,6 +936,8 @@ components:
           type: integer
           minimum: 0
           maximum: 90
+        deliveryClassId:
+          type: ["integer", "null"]
 
     ProductPatch:
       type: object
@@ -963,6 +969,8 @@ components:
           type: integer
           minimum: 0
           maximum: 90
+        deliveryClassId:
+          type: ["integer", "null"]
 
     # ── VARIANT ──
     ProductVariant:

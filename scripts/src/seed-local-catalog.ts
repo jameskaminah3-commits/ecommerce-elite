@@ -4,6 +4,7 @@ import {
   categoriesTable,
   db,
   deliveryLocationsTable,
+  deliveryClassesTable,
   pool,
   productsTable,
   productVariantsTable,
@@ -210,6 +211,13 @@ async function main(): Promise<void> {
       .insert(deliveryLocationsTable)
       .values({ name: loc.name, cost: loc.cost, active: true })
       .onConflictDoUpdate({ target: deliveryLocationsTable.name, set: { cost: loc.cost } });
+  }
+
+  for (const name of ["Standard", "Bulky"]) {
+    await db
+      .insert(deliveryClassesTable)
+      .values({ name })
+      .onConflictDoNothing({ target: deliveryClassesTable.name });
   }
 
   const categoryBySlug = new Map<string, number>();

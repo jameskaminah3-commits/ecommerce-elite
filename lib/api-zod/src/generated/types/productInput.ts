@@ -25,4 +25,6 @@ export interface ProductInput {
      * @maximum 90
      */
   discountPercent?: number;
+  /** @nullable */
+  deliveryClassId?: number | null;
 }

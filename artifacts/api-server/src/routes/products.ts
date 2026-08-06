@@ -38,6 +38,7 @@ function productRow(p: any, categoryName: string | null, totalStock: number) {
     status: p.status,
     featured: p.featured,
     discountPercent: p.discountPercent ?? 0,
+    deliveryClassId: p.deliveryClassId ?? null,
     totalStock,
     rating: p.rating ? parseFloat(p.rating) : null,
     reviewCount: p.reviewCount,

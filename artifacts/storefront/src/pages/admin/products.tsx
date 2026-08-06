@@ -41,7 +41,8 @@ import {
 import { MediaPicker } from '@/components/media/MediaPicker';
 import { ManageVariantsDialog } from '@/components/admin/ManageVariantsDialog';
 import { Boxes } from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { fetchDeliveryClasses } from '@/lib/deliveryApi';
 
 type ProductRow = {
   id: number;
@@ -55,6 +56,7 @@ type ProductRow = {
   imageUrl?: string | null;
   status?: string;
   featured?: boolean;
+  deliveryClassId?: number | null;
   totalStock?: number;
 };
 
@@ -246,6 +248,7 @@ function ProductFormDialog({
   const { toast } = useToast();
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct();
+  const { data: deliveryClasses } = useQuery({ queryKey: ['delivery-classes'], queryFn: fetchDeliveryClasses });
   const isEdit = Boolean(product);
 
   const initial = useMemo(
@@ -259,6 +262,7 @@ function ProductFormDialog({
       imageUrl: product?.imageUrl ?? '',
       status: product?.status ?? 'active',
       featured: product?.featured ?? false,
+      deliveryClassId: product?.deliveryClassId != null ? String(product.deliveryClassId) : 'none',
     }),
     [product],
   );
@@ -291,6 +295,7 @@ function ProductFormDialog({
       imageUrl: form.imageUrl.trim() || undefined,
       status: form.status as ProductInput['status'],
       featured: form.featured,
+      deliveryClassId: form.deliveryClassId && form.deliveryClassId !== 'none' ? Number(form.deliveryClassId) : null,
     };
 
     try {
@@ -382,6 +387,22 @@ function ProductFormDialog({
               </Select>
             </div>
           </div>
+          <div className="space-y-2">
+            <Label>Delivery class</Label>
+            <Select value={form.deliveryClassId} onValueChange={(v) => set('deliveryClassId', v)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Standard (town base rate)</SelectItem>
+                {(deliveryClasses ?? []).map((c) => (
+                  <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Controls this product's delivery cost per town.</p>
+          </div>
+
           <MediaPicker value={form.imageUrl} onChange={(url) => set('imageUrl', url)} label="Image" />
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div>

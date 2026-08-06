@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, desc, sql } from "drizzle-orm";
-import { db, ordersTable, orderItemsTable, cartItemsTable, productVariantsTable, productsTable, deliveryLocationsTable } from "@workspace/db";
+import { db, ordersTable, orderItemsTable, cartItemsTable, productVariantsTable, productsTable, deliveryLocationsTable, deliveryRatesTable } from "@workspace/db";
 import { syncProductToSearchInBackground } from "../lib/meilisearch";
 import {
   CreateOrderBody,
@@ -114,6 +114,7 @@ router.post("/orders", async (req, res): Promise<void> => {
       variantColor: productVariantsTable.color,
       price: productVariantsTable.price,
       discountPercent: productsTable.discountPercent,
+      deliveryClassId: productsTable.deliveryClassId,
       stock: productVariantsTable.stock,
     })
     .from(cartItemsTable)
@@ -156,7 +157,25 @@ router.post("/orders", async (req, res): Promise<void> => {
       return;
     }
     deliveryLocationName = loc.name;
-    deliveryFee = parseFloat(loc.cost);
+
+    const baseCost = parseFloat(loc.cost);
+    const rateRows = await db
+      .select()
+      .from(deliveryRatesTable)
+      .where(eq(deliveryRatesTable.locationId, loc.id));
+    const rateByClass = new Map<number, number>();
+    for (const r of rateRows) rateByClass.set(r.classId, parseFloat(r.cost));
+
+    // Highest applicable class cost across the cart; a product with no class
+    // (or no rate for this town) uses the town's base cost.
+    deliveryFee = baseCost;
+    for (const row of cartRows) {
+      const itemCost =
+        row.deliveryClassId != null && rateByClass.has(row.deliveryClassId)
+          ? (rateByClass.get(row.deliveryClassId) as number)
+          : baseCost;
+      if (itemCost > deliveryFee) deliveryFee = itemCost;
+    }
   }
 
   const total = itemsTotal + deliveryFee;

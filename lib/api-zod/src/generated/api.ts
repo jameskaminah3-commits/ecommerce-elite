@@ -141,6 +141,7 @@ export const ListProductsResponse = zod.object({
   "rating": zod.number().nullish(),
   "reviewCount": zod.int().optional(),
   "discountPercent": zod.int().optional(),
+  "deliveryClassId": zod.int().nullish(),
   "createdAt": zod.string().optional()
 })),
   "total": zod.int(),
@@ -170,7 +171,8 @@ export const CreateProductBody = zod.object({
   "images": zod.array(zod.string()).optional(),
   "status": zod.enum(['active', 'inactive', 'draft']).optional(),
   "featured": zod.boolean().optional(),
-  "discountPercent": zod.int().min(createProductBodyDiscountPercentMin).max(createProductBodyDiscountPercentMax).optional()
+  "discountPercent": zod.int().min(createProductBodyDiscountPercentMin).max(createProductBodyDiscountPercentMax).optional(),
+  "deliveryClassId": zod.int().nullish()
 })
 
 export const CreateProductResponse = zod.object({
@@ -190,6 +192,7 @@ export const CreateProductResponse = zod.object({
   "rating": zod.number().nullish(),
   "reviewCount": zod.int().optional(),
   "discountPercent": zod.int().optional(),
+  "deliveryClassId": zod.int().nullish(),
   "createdAt": zod.string().optional()
 })
 
@@ -218,6 +221,7 @@ export const GetProductResponse = zod.object({
   "rating": zod.number().nullish(),
   "reviewCount": zod.int().optional(),
   "discountPercent": zod.int().optional(),
+  "deliveryClassId": zod.int().nullish(),
   "createdAt": zod.string().optional(),
   "variants": zod.array(zod.object({
   "id": zod.int(),
@@ -257,7 +261,8 @@ export const UpdateProductBody = zod.object({
   "images": zod.array(zod.string()).optional(),
   "status": zod.enum(['active', 'inactive', 'draft']).optional(),
   "featured": zod.boolean().optional(),
-  "discountPercent": zod.int().min(updateProductBodyDiscountPercentMin).max(updateProductBodyDiscountPercentMax).optional()
+  "discountPercent": zod.int().min(updateProductBodyDiscountPercentMin).max(updateProductBodyDiscountPercentMax).optional(),
+  "deliveryClassId": zod.int().nullish()
 })
 
 export const UpdateProductResponse = zod.object({
@@ -277,6 +282,7 @@ export const UpdateProductResponse = zod.object({
   "rating": zod.number().nullish(),
   "reviewCount": zod.int().optional(),
   "discountPercent": zod.int().optional(),
+  "deliveryClassId": zod.int().nullish(),
   "createdAt": zod.string().optional()
 })
 

@@ -8,7 +8,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Trash2, Save, MapPin } from 'lucide-react';
+import { Plus, Trash2, Save, MapPin, Layers } from 'lucide-react';
+import {
+  fetchDeliveryClasses,
+  createDeliveryClass,
+  deleteDeliveryClass,
+  fetchDeliveryRates,
+  putDeliveryRate,
+  type DeliveryClass,
+  type DeliveryRate,
+} from '@/lib/deliveryApi';
 
 const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
 
@@ -123,8 +132,139 @@ export default function AdminDelivery() {
             </table>
           </div>
         </div>
+
+        <DeliveryClassesCard />
+        <RateMatrixCard locations={locations ?? []} />
       </AdminLayout>
     </AuthGuard>
+  );
+}
+
+function DeliveryClassesCard() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { data: classes } = useQuery({ queryKey: ['delivery-classes'], queryFn: fetchDeliveryClasses });
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['delivery-classes'] });
+
+  const add = async () => {
+    if (!name.trim()) return;
+    setBusy(true);
+    try {
+      await createDeliveryClass(name.trim());
+      setName('');
+      refresh();
+      toast({ title: 'Class added' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Failed', variant: 'destructive' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (c: DeliveryClass) => {
+    if (!confirm(`Delete class "${c.name}"? Products using it fall back to the town base rate.`)) return;
+    await deleteDeliveryClass(c.id);
+    refresh();
+    queryClient.invalidateQueries({ queryKey: ['delivery-rates'] });
+  };
+
+  return (
+    <div className="bg-card border rounded-xl shadow-sm overflow-hidden mb-6">
+      <div className="p-4 border-b bg-muted/10 flex items-center gap-2">
+        <Layers className="w-4 h-4 text-muted-foreground" />
+        <h2 className="font-bold">Delivery Classes</h2>
+      </div>
+      <div className="p-4 space-y-3">
+        <p className="text-sm text-muted-foreground">
+          Group products by how they ship (e.g. Standard, Bulky). Set each class's cost per town in the matrix below.
+          Products with no class use the town's base cost.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {(classes ?? []).map((c) => (
+            <span key={c.id} className="inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 rounded-full bg-muted text-sm font-medium">
+              {c.name}
+              <button className="p-0.5 rounded-full hover:bg-destructive/10 text-destructive" onClick={() => remove(c)} title="Delete">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2 max-w-sm">
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="New class name" />
+          <Button onClick={add} disabled={busy}><Plus className="w-4 h-4 mr-1.5" /> Add</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RateMatrixCard({ locations }: { locations: DeliveryLocation[] }) {
+  const { data: classes } = useQuery({ queryKey: ['delivery-classes'], queryFn: fetchDeliveryClasses });
+  const { data: rates } = useQuery({ queryKey: ['delivery-rates'], queryFn: fetchDeliveryRates });
+  const queryClient = useQueryClient();
+
+  const rateFor = (locationId: number, classId: number): DeliveryRate | undefined =>
+    (rates ?? []).find((r) => r.locationId === locationId && r.classId === classId);
+
+  const save = async (locationId: number, classId: number, raw: string) => {
+    const value = raw.trim() === '' ? null : Number(raw);
+    if (value !== null && (Number.isNaN(value) || value < 0)) return;
+    await putDeliveryRate(locationId, classId, value);
+    queryClient.invalidateQueries({ queryKey: ['delivery-rates'] });
+  };
+
+  if (!classes || classes.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="bg-card border rounded-xl shadow-sm overflow-hidden">
+      <div className="p-4 border-b bg-muted/10">
+        <h2 className="font-bold">Class rates by town</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">Leave a cell blank to use the town's base cost. Checkout charges the highest class in the cart.</p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm text-left">
+          <thead className="text-xs text-muted-foreground uppercase bg-muted/30 border-b">
+            <tr>
+              <th className="px-4 py-3 font-bold">Town</th>
+              <th className="px-4 py-3 font-bold">Base</th>
+              {classes.map((c) => (
+                <th key={c.id} className="px-4 py-3 font-bold">{c.name}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {locations.map((loc) => (
+              <tr key={loc.id}>
+                <td className="px-4 py-3 font-medium">{loc.name}</td>
+                <td className="px-4 py-3 text-muted-foreground">{formatCurrency(loc.cost)}</td>
+                {classes.map((c) => {
+                  const rate = rateFor(loc.id, c.id);
+                  return (
+                    <td key={c.id} className="px-4 py-2">
+                      <Input
+                        key={`${loc.id}-${c.id}-${rate ? rate.cost : 'base'}`}
+                        className="h-9 w-24"
+                        type="number"
+                        min="0"
+                        step="1"
+                        defaultValue={rate ? String(rate.cost) : ''}
+                        placeholder={String(loc.cost)}
+                        onBlur={(e) => save(loc.id, c.id, e.target.value)}
+                      />
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 
