@@ -128,7 +128,7 @@ export default function AdminHomepage() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gap: '0.75rem' }}>
                 {blocks.filter((b) => b.active).map((b) => (
                   <div key={b.id} style={{ gridColumn: `span ${Math.min(Math.max(b.columnSpan, 1), 12)}` }}>
-                    <PromoBlock block={b} />
+                    <PromoBlock block={b} animate={false} />
                   </div>
                 ))}
               </div>
@@ -192,7 +192,7 @@ function BlockDialog({ block, open, onOpenChange, onSaved }: { block: HomepageBl
 
         <div className="rounded-lg overflow-hidden border mb-2">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12,minmax(0,1fr))' }}>
-            <div style={{ gridColumn: 'span 12' }}><PromoBlock block={previewBlock} /></div>
+            <div style={{ gridColumn: 'span 12' }}><PromoBlock block={previewBlock} animate={false} /></div>
           </div>
         </div>
 
