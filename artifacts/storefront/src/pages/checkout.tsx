@@ -10,9 +10,26 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { ShoppingBag, CreditCard, Smartphone, CheckCircle2, AlertCircle, Truck } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+
+const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
+
+interface DeliveryLocation {
+  id: number;
+  name: string;
+  cost: number;
+  active: boolean;
+}
+
+async function fetchDeliveryLocations(): Promise<DeliveryLocation[]> {
+  const res = await fetch(`${API_BASE}/api/delivery-locations`, { credentials: 'include' });
+  if (!res.ok) return [];
+  return res.json();
+}
 
 export default function CheckoutPage() {
   const { cart, isLoading: isCartLoading, clear } = useCart();
@@ -30,6 +47,14 @@ export default function CheckoutPage() {
     shippingAddress: '',
   });
   const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'pesapal' | 'cash_on_delivery'>('mpesa');
+  const [deliveryLocationId, setDeliveryLocationId] = useState<string>('');
+
+  const { data: deliveryLocations } = useQuery({
+    queryKey: ['delivery-locations'],
+    queryFn: fetchDeliveryLocations,
+  });
+  const activeLocations = (deliveryLocations ?? []).filter((l) => l.active);
+  const selectedLocation = activeLocations.find((l) => String(l.id) === deliveryLocationId) ?? null;
   
   // Payment state
   const [pendingOrderId, setPendingOrderId] = useState<number | null>(null);
@@ -67,7 +92,11 @@ export default function CheckoutPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cart?.items || cart.items.length === 0) return;
-    
+    if (!selectedLocation) {
+      toast({ title: "Select a delivery town", description: "Please choose where your order should be delivered.", variant: "destructive" });
+      return;
+    }
+
     try {
       const order = await createOrder.mutateAsync({
         data: {
@@ -76,6 +105,7 @@ export default function CheckoutPage() {
           customerPhone: formData.customerPhone,
           shippingAddress: formData.shippingAddress,
           paymentMethod,
+          deliveryLocationId: selectedLocation.id,
         }
       });
       
@@ -130,8 +160,8 @@ export default function CheckoutPage() {
     );
   }
 
-  const shipping = 500; // Flat rate mockup
-  const finalTotal = cart.total + shipping;
+  const deliveryFee = selectedLocation?.cost ?? 0;
+  const finalTotal = cart.total + deliveryFee;
 
   return (
     <StorefrontLayout>
@@ -167,6 +197,26 @@ export default function CheckoutPage() {
             <div className="bg-card border rounded-xl p-6 shadow-sm">
               <h2 className="text-xl font-bold mb-6 pb-4 border-b">Delivery Details</h2>
               <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Delivery Town *</Label>
+                  <Select value={deliveryLocationId} onValueChange={setDeliveryLocationId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select your town" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activeLocations.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-muted-foreground">No delivery towns configured yet.</div>
+                      ) : (
+                        activeLocations.map((loc) => (
+                          <SelectItem key={loc.id} value={String(loc.id)}>
+                            {loc.name} — {formatCurrency(loc.cost)}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Delivery cost depends on your town.</p>
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="shippingAddress">Full Delivery Address *</Label>
                   <Textarea 
@@ -251,8 +301,8 @@ export default function CheckoutPage() {
                   <span>{formatCurrency(cart.total)}</span>
                 </div>
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Delivery (Nairobi)</span>
-                  <span>{formatCurrency(shipping)}</span>
+                  <span>Delivery{selectedLocation ? ` (${selectedLocation.name})` : ''}</span>
+                  <span>{selectedLocation ? formatCurrency(deliveryFee) : '—'}</span>
                 </div>
                 <div className="flex justify-between font-extrabold text-lg pt-3 border-t text-foreground">
                   <span>Total</span>

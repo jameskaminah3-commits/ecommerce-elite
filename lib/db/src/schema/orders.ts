@@ -13,6 +13,8 @@ export const ordersTable = pgTable("orders", {
   paymentMethod: text("payment_method", { enum: ["mpesa", "pesapal", "cash_on_delivery"] }),
   paymentStatus: text("payment_status", { enum: ["pending", "paid", "failed", "refunded"] }).notNull().default("pending"),
   total: numeric("total", { precision: 12, scale: 2 }).notNull(),
+  deliveryLocation: text("delivery_location"),
+  deliveryFee: numeric("delivery_fee", { precision: 12, scale: 2 }).notNull().default("0"),
   mpesaCheckoutRequestId: text("mpesa_checkout_request_id"),
   paidAt: timestamp("paid_at", { withTimezone: true }),
   userId: integer("user_id"),

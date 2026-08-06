@@ -1137,6 +1137,10 @@ components:
         paymentStatus:
           type: string
           enum: [pending, paid, failed, refunded]
+        deliveryLocation:
+          type: ["string", "null"]
+        deliveryFee:
+          type: number
         items:
           type: array
           items:
@@ -1178,6 +1182,8 @@ components:
         paymentMethod:
           type: string
           enum: [mpesa, pesapal, cash_on_delivery]
+        deliveryLocationId:
+          type: integer
 
     OrderStatusPatch:
       type: object

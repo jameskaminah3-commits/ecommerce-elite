@@ -22,6 +22,9 @@ export interface Order {
   /** @nullable */
   paymentMethod?: string | null;
   paymentStatus?: OrderPaymentStatus;
+  /** @nullable */
+  deliveryLocation?: string | null;
+  deliveryFee?: number;
   items?: OrderItem[];
   createdAt: string;
   updatedAt?: string;

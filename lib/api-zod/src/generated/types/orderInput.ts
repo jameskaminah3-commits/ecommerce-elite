@@ -15,4 +15,5 @@ export interface OrderInput {
   customerPhone: string;
   shippingAddress?: string;
   paymentMethod: OrderInputPaymentMethod;
+  deliveryLocationId?: number;
 }

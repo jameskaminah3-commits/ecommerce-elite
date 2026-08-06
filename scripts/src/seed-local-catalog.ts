@@ -3,6 +3,7 @@ import crypto from "crypto";
 import {
   categoriesTable,
   db,
+  deliveryLocationsTable,
   pool,
   productsTable,
   productVariantsTable,
@@ -18,6 +19,15 @@ function hashPassword(pwd: string): string {
 const seedUsers = [
   { name: "Happyfine Admin", email: "admin@happyfine.co.ke", phone: "0700000000", role: "admin" as const, password: "password" },
   { name: "Jane Customer", email: "jane@example.com", phone: "0711111111", role: "customer" as const, password: "password" },
+];
+
+const seedDeliveryLocations = [
+  { name: "Nairobi", cost: "300.00" },
+  { name: "Mombasa", cost: "650.00" },
+  { name: "Kisumu", cost: "600.00" },
+  { name: "Nakuru", cost: "450.00" },
+  { name: "Eldoret", cost: "550.00" },
+  { name: "Thika", cost: "350.00" },
 ];
 
 const categories = [
@@ -193,6 +203,13 @@ async function main(): Promise<void> {
           passwordHash: hashPassword(user.password),
         },
       });
+  }
+
+  for (const loc of seedDeliveryLocations) {
+    await db
+      .insert(deliveryLocationsTable)
+      .values({ name: loc.name, cost: loc.cost, active: true })
+      .onConflictDoUpdate({ target: deliveryLocationsTable.name, set: { cost: loc.cost } });
   }
 
   const categoryBySlug = new Map<string, number>();

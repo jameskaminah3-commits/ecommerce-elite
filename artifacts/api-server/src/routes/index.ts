@@ -9,6 +9,7 @@ import authRouter from "./auth";
 import adminRouter from "./admin";
 import mediaRouter from "./media";
 import reviewsRouter from "./reviews";
+import deliveryRouter from "./delivery";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(paymentsRouter);
 router.use(adminRouter);
 router.use(mediaRouter);
 router.use(reviewsRouter);
+router.use(deliveryRouter);
 
 export default router;

@@ -7,6 +7,7 @@ import {
   ShoppingCart,
   Grid,
   Tag,
+  Truck,
   AlertTriangle,
   LogOut,
   ChevronLeft
@@ -28,6 +29,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { name: 'Products', href: '/admin/products', icon: Package },
     { name: 'Categories', href: '/admin/categories', icon: Grid },
     { name: 'Offers', href: '/admin/offers', icon: Tag },
+    { name: 'Delivery', href: '/admin/delivery', icon: Truck },
     { name: 'Inventory Alerts', href: '/admin/inventory', icon: AlertTriangle },
   ];
 

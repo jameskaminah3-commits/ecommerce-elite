@@ -292,6 +292,9 @@ export interface Order {
   /** @nullable */
   paymentMethod?: string | null;
   paymentStatus?: OrderPaymentStatus;
+  /** @nullable */
+  deliveryLocation?: string | null;
+  deliveryFee?: number;
   items?: OrderItem[];
   createdAt: string;
   updatedAt?: string;
@@ -321,6 +324,7 @@ export interface OrderInput {
   customerPhone: string;
   shippingAddress?: string;
   paymentMethod: OrderInputPaymentMethod;
+  deliveryLocationId?: number;
 }
 
 export type OrderStatusPatchStatus = typeof OrderStatusPatchStatus[keyof typeof OrderStatusPatchStatus];

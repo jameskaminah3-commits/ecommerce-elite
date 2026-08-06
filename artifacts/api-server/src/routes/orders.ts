@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, desc, sql } from "drizzle-orm";
-import { db, ordersTable, orderItemsTable, cartItemsTable, productVariantsTable, productsTable } from "@workspace/db";
+import { db, ordersTable, orderItemsTable, cartItemsTable, productVariantsTable, productsTable, deliveryLocationsTable } from "@workspace/db";
 import { syncProductToSearchInBackground } from "../lib/meilisearch";
 import {
   CreateOrderBody,
@@ -23,6 +23,8 @@ function formatOrder(order: any, items: any[]) {
     shippingAddress: order.shippingAddress,
     paymentMethod: order.paymentMethod,
     paymentStatus: order.paymentStatus,
+    deliveryLocation: order.deliveryLocation ?? null,
+    deliveryFee: order.deliveryFee != null ? parseFloat(order.deliveryFee) : 0,
     createdAt: order.createdAt instanceof Date ? order.createdAt.toISOString() : order.createdAt,
     updatedAt: order.updatedAt instanceof Date ? order.updatedAt.toISOString() : order.updatedAt,
     items: items.map((i) => ({
@@ -138,7 +140,26 @@ router.post("/orders", async (req, res): Promise<void> => {
     return Math.round(parseFloat(r.price) * (1 - pct / 100) * 100) / 100;
   };
 
-  const total = cartRows.reduce((s, r) => s + unitPrice(r) * r.quantity, 0);
+  const itemsTotal = cartRows.reduce((s, r) => s + unitPrice(r) * r.quantity, 0);
+
+  // Resolve delivery cost server-side from the chosen town — never trust a
+  // client-supplied fee.
+  let deliveryLocationName: string | null = null;
+  let deliveryFee = 0;
+  if (parsed.data.deliveryLocationId != null) {
+    const [loc] = await db
+      .select()
+      .from(deliveryLocationsTable)
+      .where(eq(deliveryLocationsTable.id, parsed.data.deliveryLocationId));
+    if (!loc || !loc.active) {
+      res.status(400).json({ error: "Selected delivery location is unavailable." });
+      return;
+    }
+    deliveryLocationName = loc.name;
+    deliveryFee = parseFloat(loc.cost);
+  }
+
+  const total = itemsTotal + deliveryFee;
 
   // Create order + items atomically
   const [order] = await db
@@ -152,6 +173,8 @@ router.post("/orders", async (req, res): Promise<void> => {
       total: String(total),
       status: "pending",
       paymentStatus: "pending",
+      deliveryLocation: deliveryLocationName,
+      deliveryFee: String(deliveryFee),
       userId,
     })
     .returning();

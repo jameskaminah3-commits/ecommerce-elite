@@ -525,6 +525,8 @@ export const ListOrdersResponse = zod.object({
   "shippingAddress": zod.string().nullish(),
   "paymentMethod": zod.string().nullish(),
   "paymentStatus": zod.enum(['pending', 'paid', 'failed', 'refunded']).optional(),
+  "deliveryLocation": zod.string().nullish(),
+  "deliveryFee": zod.number().optional(),
   "items": zod.array(zod.object({
   "id": zod.int(),
   "variantId": zod.int(),
@@ -558,7 +560,8 @@ export const CreateOrderBody = zod.object({
   "customerEmail": zod.string().optional(),
   "customerPhone": zod.string().min(1),
   "shippingAddress": zod.string().optional(),
-  "paymentMethod": zod.enum(['mpesa', 'pesapal', 'cash_on_delivery'])
+  "paymentMethod": zod.enum(['mpesa', 'pesapal', 'cash_on_delivery']),
+  "deliveryLocationId": zod.int().optional()
 })
 
 export const CreateOrderResponse = zod.object({
@@ -571,6 +574,8 @@ export const CreateOrderResponse = zod.object({
   "shippingAddress": zod.string().nullish(),
   "paymentMethod": zod.string().nullish(),
   "paymentStatus": zod.enum(['pending', 'paid', 'failed', 'refunded']).optional(),
+  "deliveryLocation": zod.string().nullish(),
+  "deliveryFee": zod.number().optional(),
   "items": zod.array(zod.object({
   "id": zod.int(),
   "variantId": zod.int(),
@@ -605,6 +610,8 @@ export const GetOrderResponse = zod.object({
   "shippingAddress": zod.string().nullish(),
   "paymentMethod": zod.string().nullish(),
   "paymentStatus": zod.enum(['pending', 'paid', 'failed', 'refunded']).optional(),
+  "deliveryLocation": zod.string().nullish(),
+  "deliveryFee": zod.number().optional(),
   "items": zod.array(zod.object({
   "id": zod.int(),
   "variantId": zod.int(),
@@ -643,6 +650,8 @@ export const UpdateOrderStatusResponse = zod.object({
   "shippingAddress": zod.string().nullish(),
   "paymentMethod": zod.string().nullish(),
   "paymentStatus": zod.enum(['pending', 'paid', 'failed', 'refunded']).optional(),
+  "deliveryLocation": zod.string().nullish(),
+  "deliveryFee": zod.number().optional(),
   "items": zod.array(zod.object({
   "id": zod.int(),
   "variantId": zod.int(),
@@ -875,6 +884,8 @@ export const GetRecentOrdersResponseItem = zod.object({
   "shippingAddress": zod.string().nullish(),
   "paymentMethod": zod.string().nullish(),
   "paymentStatus": zod.enum(['pending', 'paid', 'failed', 'refunded']).optional(),
+  "deliveryLocation": zod.string().nullish(),
+  "deliveryFee": zod.number().optional(),
   "items": zod.array(zod.object({
   "id": zod.int(),
   "variantId": zod.int(),
