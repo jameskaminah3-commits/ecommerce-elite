@@ -149,7 +149,7 @@ export interface ProductInput {
   /** @minLength 1 */
   slug: string;
   description?: string;
-  basePrice: number;
+  basePrice?: number;
   compareAtPrice?: number;
   categoryId: number;
   imageUrl?: string;

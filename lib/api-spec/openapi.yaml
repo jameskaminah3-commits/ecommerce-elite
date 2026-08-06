@@ -905,7 +905,7 @@ components:
 
     ProductInput:
       type: object
-      required: [name, slug, basePrice, categoryId]
+      required: [name, slug, categoryId]
       properties:
         name:
           type: string

@@ -51,8 +51,15 @@ export function ManageVariantsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>Stock &amp; Variants — {productName}</DialogTitle>
+          <DialogTitle>Stock, variants &amp; pricing — {productName}</DialogTitle>
         </DialogHeader>
+
+        <p className="text-xs text-muted-foreground -mt-1">
+          Each variant is a buyable option (e.g. a size or colour).
+          <span className="text-foreground font-medium"> Price</span> is what the customer pays;
+          <span className="text-foreground font-medium"> Stock</span> is how many you have;
+          <span className="text-foreground font-medium"> SKU</span> is your own unique code to track the item.
+        </p>
 
         <div className="overflow-y-auto -mx-1 px-1 space-y-4">
           {isLoading ? (
@@ -73,7 +80,7 @@ export function ManageVariantsDialog({
           )}
 
           {productId != null && (
-            <AddVariantForm productId={productId} onAdded={invalidate} />
+            <AddVariantForm productId={productId} productName={productName} onAdded={invalidate} />
           )}
         </div>
       </DialogContent>
@@ -150,10 +157,15 @@ function VariantRow({ variant, onChanged }: { variant: ProductVariant; onChanged
   );
 }
 
-function AddVariantForm({ productId, onAdded }: { productId: number; onAdded: () => void }) {
+function suggestSku(productName: string): string {
+  const base = productName.toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 12) || 'SKU';
+  return `${base}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+}
+
+function AddVariantForm({ productId, productName, onAdded }: { productId: number; productName: string; onAdded: () => void }) {
   const { toast } = useToast();
   const createMutation = useCreateProductVariant();
-  const [sku, setSku] = useState('');
+  const [sku, setSku] = useState(() => suggestSku(productName));
   const [size, setSize] = useState('');
   const [color, setColor] = useState('');
   const [price, setPrice] = useState('');

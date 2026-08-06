@@ -46,6 +46,19 @@ function productRow(p: any, categoryName: string | null, totalStock: number) {
   };
 }
 
+// Keep the product's displayed "from" price in sync with its cheapest variant,
+// so variant pricing is the single source of truth.
+async function syncBasePrice(productId: number): Promise<void> {
+  const [row] = await db
+    .select({ min: sql<string | null>`min(${productVariantsTable.price})` })
+    .from(productVariantsTable)
+    .where(eq(productVariantsTable.productId, productId));
+  await db
+    .update(productsTable)
+    .set({ basePrice: row?.min ?? "0" })
+    .where(eq(productsTable.id, productId));
+}
+
 router.get("/products", async (req, res): Promise<void> => {
   const params = ListProductsQueryParams.safeParse(req.query);
   if (!params.success) {
@@ -125,7 +138,9 @@ router.post("/products", async (req, res): Promise<void> => {
     return;
   }
   const data: any = { ...parsed.data };
-  if (data.basePrice != null) data.basePrice = String(data.basePrice);
+  // Base price is derived from variants; default to 0 for a product created
+  // before its variants exist.
+  data.basePrice = data.basePrice != null ? String(data.basePrice) : "0";
   if (data.compareAtPrice != null) data.compareAtPrice = String(data.compareAtPrice);
   const [prod] = await db.insert(productsTable).values(data).returning();
   const [cat] = await db.select({ name: categoriesTable.name }).from(categoriesTable).where(eq(categoriesTable.id, prod.categoryId));
@@ -236,6 +251,7 @@ router.post("/products/:id/variants", async (req, res): Promise<void> => {
   const data: any = { ...parsed.data, productId: params.data.id };
   data.price = String(data.price);
   const [variant] = await db.insert(productVariantsTable).values(data).returning();
+  await syncBasePrice(params.data.id);
   syncProductToSearchInBackground(params.data.id);
   res.status(201).json({ ...variant, price: parseFloat(variant.price), createdAt: variant.createdAt instanceof Date ? variant.createdAt.toISOString() : variant.createdAt });
 });
@@ -258,6 +274,7 @@ router.patch("/variants/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Variant not found" });
     return;
   }
+  await syncBasePrice(variant.productId);
   syncProductToSearchInBackground(variant.productId);
   res.json({ ...variant, price: parseFloat(variant.price), createdAt: variant.createdAt instanceof Date ? variant.createdAt.toISOString() : variant.createdAt });
 });
@@ -270,7 +287,10 @@ router.delete("/variants/:id", async (req, res): Promise<void> => {
   }
   const [variant] = await db.select().from(productVariantsTable).where(eq(productVariantsTable.id, params.data.id));
   await db.delete(productVariantsTable).where(eq(productVariantsTable.id, params.data.id));
-  if (variant) syncProductToSearchInBackground(variant.productId);
+  if (variant) {
+    await syncBasePrice(variant.productId);
+    syncProductToSearchInBackground(variant.productId);
+  }
   res.sendStatus(204);
 });
 

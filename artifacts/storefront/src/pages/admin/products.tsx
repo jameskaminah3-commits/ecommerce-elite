@@ -256,8 +256,6 @@ function ProductFormDialog({
       name: product?.name ?? '',
       slug: product?.slug ?? '',
       description: product?.description ?? '',
-      basePrice: product?.basePrice != null ? String(product.basePrice) : '',
-      compareAtPrice: product?.compareAtPrice != null ? String(product.compareAtPrice) : '',
       categoryId: product?.categoryId != null ? String(product.categoryId) : '',
       imageUrl: product?.imageUrl ?? '',
       status: product?.status ?? 'active',
@@ -278,19 +276,17 @@ function ProductFormDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const basePrice = Number(form.basePrice);
     const categoryId = Number(form.categoryId);
-    if (!form.name.trim() || !form.slug.trim() || !categoryId || Number.isNaN(basePrice)) {
-      toast({ title: 'Please fill in name, slug, category and a valid price.', variant: 'destructive' });
+    if (!form.name.trim() || !form.slug.trim() || !categoryId) {
+      toast({ title: 'Please fill in name, slug and category.', variant: 'destructive' });
       return;
     }
 
+    // Price is set per variant (under Manage stock) and derived from there.
     const payload: ProductInput = {
       name: form.name.trim(),
       slug: form.slug.trim(),
       description: form.description.trim() || undefined,
-      basePrice,
-      compareAtPrice: form.compareAtPrice ? Number(form.compareAtPrice) : undefined,
       categoryId,
       imageUrl: form.imageUrl.trim() || undefined,
       status: form.status as ProductInput['status'],
@@ -349,15 +345,9 @@ function ProductFormDialog({
             <Label htmlFor="description">Description</Label>
             <Textarea id="description" value={form.description} onChange={(e) => set('description', e.target.value)} rows={3} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="basePrice">Base Price (KES)</Label>
-              <Input id="basePrice" type="number" min="0" step="1" value={form.basePrice} onChange={(e) => set('basePrice', e.target.value)} required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="compareAtPrice">Compare At (KES)</Label>
-              <Input id="compareAtPrice" type="number" min="0" step="1" value={form.compareAtPrice} onChange={(e) => set('compareAtPrice', e.target.value)} />
-            </div>
+          <div className="rounded-lg border border-dashed bg-muted/20 p-3 text-xs text-muted-foreground">
+            Pricing and stock are set per variant under <span className="font-medium text-foreground">Manage stock</span>.
+            The product's shown price is the lowest variant price.
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

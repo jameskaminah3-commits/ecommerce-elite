@@ -164,7 +164,7 @@ export const CreateProductBody = zod.object({
   "name": zod.string().min(1),
   "slug": zod.string().min(1),
   "description": zod.string().optional(),
-  "basePrice": zod.number(),
+  "basePrice": zod.number().optional(),
   "compareAtPrice": zod.number().optional(),
   "categoryId": zod.int(),
   "imageUrl": zod.string().optional(),
