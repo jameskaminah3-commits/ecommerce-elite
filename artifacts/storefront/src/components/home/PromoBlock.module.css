@@ -1,0 +1,119 @@
+/* Scoped module — class names are hashed per-build, so styling one block can
+   never structurally affect another. Dynamic values arrive as CSS variables. */
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+/* 12-column blueprint on desktop; single-column stack on mobile. */
+@media (min-width: 768px) {
+  .grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 1rem;
+  }
+}
+
+.block {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.85rem;
+  isolation: isolate;
+  grid-column: span 1 / span 1;
+  aspect-ratio: var(--aspect, 16 / 9);
+  background: var(--bg, #111827);
+}
+
+@media (min-width: 768px) {
+  .block {
+    grid-column: span var(--col-span, 12) / span var(--col-span, 12);
+  }
+}
+
+/* Drop heavy blocks entirely on small screens without disturbing the layout. */
+.hideMobile {
+  display: none;
+}
+@media (min-width: 768px) {
+  .hideMobile {
+    display: block;
+  }
+}
+
+.media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: rgba(0, 0, 0, var(--overlay, 0.3));
+}
+
+.link {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: block;
+}
+
+.content {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  /* Padding tightens automatically on small screens so text never overflows. */
+  padding: clamp(0.9rem, 3vw, 2.75rem);
+  color: var(--text-color, #ffffff);
+  justify-content: var(--v-align, flex-end);
+  align-items: var(--h-align, flex-start);
+  text-align: var(--text-align, left);
+  pointer-events: none;
+}
+
+.heading {
+  margin: 0;
+  font-weight: 800;
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+  /* Fluid typography. */
+  font-size: clamp(1.35rem, 3vw, 2.75rem);
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.25);
+}
+
+.subheading {
+  margin: 0;
+  max-width: 44ch;
+  opacity: 0.92;
+  font-size: clamp(0.85rem, 1.4vw, 1.1rem);
+  line-height: 1.4;
+}
+
+.cta {
+  margin-top: 0.35rem;
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: fit-content;
+  background: #ffffff;
+  color: #111111;
+  font-weight: 700;
+  font-size: clamp(0.75rem, 1vw, 0.9rem);
+  padding: 0.6rem 1.15rem;
+  border-radius: 999px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+}

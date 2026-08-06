@@ -4,9 +4,18 @@ import { useListProducts, useListCategories } from '@workspace/api-client-react'
 import { ProductCard } from '@/components/products/ProductCard';
 import { SkeletonCard, SkeletonCategoryCard } from '@/components/products/SkeletonCard';
 import { PromoTile } from '@/components/products/PromoTile';
+import { PromoGrid, type HomepageBlock } from '@/components/home/PromoBlock';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { ArrowRight, ChevronRight, Truck, ShieldCheck, Clock, Headphones, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+
+const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
+async function fetchHomepageBlocks(): Promise<HomepageBlock[]> {
+  const res = await fetch(`${API_BASE}/api/homepage-blocks`);
+  if (!res.ok) return [];
+  return res.json();
+}
 
 // Injects a promo tile at every Nth slot in the product grid
 function interleavedGrid(products: any[], promos: React.ReactNode[], everyN = 4) {
@@ -28,6 +37,8 @@ export default function Home() {
     { query: { queryKey: ['products', 'home'] } as any },
   );
   const { data: categories, isLoading: isCategoriesLoading } = useListCategories();
+  const { data: homepageBlocks } = useQuery({ queryKey: ['homepage-blocks'], queryFn: fetchHomepageBlocks });
+  const hasBlocks = (homepageBlocks?.length ?? 0) > 0;
 
   const allProducts = productsData?.items || [];
   const featuredProducts = allProducts.slice(0, 8);
@@ -43,7 +54,17 @@ export default function Home() {
   return (
     <StorefrontLayout>
 
-      {/* ── HERO — Asymmetric 2/3 + 1/3 editorial collage ─────────────── */}
+      {/* ── Dynamic homepage blocks (admin-managed 12-col grid) ────────── */}
+      {hasBlocks && (
+        <section className="w-full">
+          <div className="container mx-auto px-4 py-6 md:py-8">
+            <PromoGrid blocks={homepageBlocks!} />
+          </div>
+        </section>
+      )}
+
+      {/* ── HERO — Asymmetric 2/3 + 1/3 editorial collage (fallback) ───── */}
+      {!hasBlocks && (
       <section className="w-full">
         <div className="grid grid-cols-1 lg:grid-cols-3 min-h-[540px]">
           {/* Left 2/3 — lifestyle image block */}
@@ -127,6 +148,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ── Value props bar ────────────────────────────────────────────── */}
       <section className="border-b bg-card">

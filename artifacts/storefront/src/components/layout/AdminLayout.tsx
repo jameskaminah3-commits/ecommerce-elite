@@ -8,6 +8,7 @@ import {
   Grid,
   Tag,
   Truck,
+  LayoutGrid,
   AlertTriangle,
   LogOut,
   ChevronLeft
@@ -25,6 +26,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
   const navigation = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+    { name: 'Homepage', href: '/admin/homepage', icon: LayoutGrid },
     { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
     { name: 'Products', href: '/admin/products', icon: Package },
     { name: 'Categories', href: '/admin/categories', icon: Grid },

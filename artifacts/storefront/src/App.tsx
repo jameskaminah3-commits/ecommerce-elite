@@ -23,6 +23,7 @@ import AdminCategories from '@/pages/admin/categories';
 import AdminInventory from '@/pages/admin/inventory';
 import AdminOffers from '@/pages/admin/offers';
 import AdminDelivery from '@/pages/admin/delivery';
+import AdminHomepage from '@/pages/admin/homepage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -50,6 +51,7 @@ function Router() {
       <Route path="/admin/categories" component={AdminCategories} />
       <Route path="/admin/offers" component={AdminOffers} />
       <Route path="/admin/delivery" component={AdminDelivery} />
+      <Route path="/admin/homepage" component={AdminHomepage} />
       <Route path="/admin/inventory" component={AdminInventory} />
       
       <Route component={NotFound} />

@@ -10,6 +10,7 @@ import adminRouter from "./admin";
 import mediaRouter from "./media";
 import reviewsRouter from "./reviews";
 import deliveryRouter from "./delivery";
+import homepageRouter from "./homepage";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(adminRouter);
 router.use(mediaRouter);
 router.use(reviewsRouter);
 router.use(deliveryRouter);
+router.use(homepageRouter);
 
 export default router;

@@ -5,6 +5,7 @@ import {
   db,
   deliveryLocationsTable,
   deliveryClassesTable,
+  homepageBlocksTable,
   pool,
   productsTable,
   productVariantsTable,
@@ -218,6 +219,34 @@ async function main(): Promise<void> {
       .insert(deliveryClassesTable)
       .values({ name })
       .onConflictDoNothing({ target: deliveryClassesTable.name });
+  }
+
+  const existingBlocks = await db.select().from(homepageBlocksTable);
+  if (existingBlocks.length === 0) {
+    await db.insert(homepageBlocksTable).values([
+      {
+        kind: "image", columnSpan: 12, aspectRatio: "21/9", overlayOpacity: 40,
+        imageUrl: "https://images.unsplash.com/photo-1486325212027-8081e485255e?w=1600&auto=format&fit=crop&q=80",
+        heading: "Wholesale prices, delivered across Kenya",
+        subheading: "Quality home, electronics and beauty products in bulk.",
+        ctaLabel: "Shop all products", ctaHref: "/products",
+        textAlign: "center-center", textColor: "#ffffff", sortOrder: 0,
+      },
+      {
+        kind: "image", columnSpan: 6, aspectRatio: "4/3", overlayOpacity: 35,
+        imageUrl: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=900&auto=format&fit=crop&q=80",
+        heading: "Electronics", subheading: "Audio, smart devices & accessories.",
+        ctaLabel: "Browse", ctaHref: "/products?category=1",
+        textAlign: "bottom-left", textColor: "#ffffff", sortOrder: 1,
+      },
+      {
+        kind: "color", columnSpan: 6, aspectRatio: "4/3", overlayOpacity: 0,
+        backgroundColor: "#0f5132",
+        heading: "Buy 10+, save 15%", subheading: "Automatic bulk pricing — no code needed.",
+        ctaLabel: "Shop in bulk", ctaHref: "/products",
+        textAlign: "center-left", textColor: "#ffffff", sortOrder: 2,
+      },
+    ]);
   }
 
   const categoryBySlug = new Map<string, number>();

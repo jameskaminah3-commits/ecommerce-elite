@@ -9,3 +9,4 @@ export * from "./reviews";
 export * from "./deliveryLocations";
 export * from "./deliveryClasses";
 export * from "./deliveryRates";
+export * from "./homepageBlocks";
