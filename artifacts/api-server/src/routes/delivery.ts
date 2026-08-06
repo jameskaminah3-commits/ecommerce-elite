@@ -2,6 +2,13 @@ import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, deliveryLocationsTable } from "@workspace/db";
 import { requireAdmin } from "../middlewares/requireAdmin";
+import { logger } from "../lib/logger";
+
+// Postgres unique-violation code, whether the pg error is raw or drizzle-wrapped.
+function isUniqueViolation(err: unknown): boolean {
+  const e = err as { code?: string; cause?: { code?: string } };
+  return e?.code === "23505" || e?.cause?.code === "23505";
+}
 
 const router: IRouter = Router();
 
@@ -29,8 +36,13 @@ router.post("/delivery-locations", requireAdmin, async (req, res): Promise<void>
       .values({ name, cost: String(cost), active })
       .returning();
     res.status(201).json(toPublic(row));
-  } catch {
-    res.status(400).json({ error: "A location with that name already exists." });
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      res.status(409).json({ error: `"${name}" already exists. Edit its cost in the list instead.` });
+    } else {
+      logger.error({ err }, "Failed to create delivery location");
+      res.status(500).json({ error: "Failed to create delivery location." });
+    }
   }
 });
 
