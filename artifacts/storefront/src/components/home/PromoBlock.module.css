@@ -50,6 +50,43 @@
   }
 }
 
+/* Hero slideshow: an auto-rotating full-width stage of cross-fading slides. */
+.hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  isolation: isolate;
+  aspect-ratio: var(--hero-aspect, 21 / 9);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+.slide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 1.1s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.slideActive {
+  opacity: 1;
+}
+/* A block rendered as a slide fills the stage instead of owning an aspect box. */
+.block.fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  grid-column: auto;
+  border-radius: 0;
+  opacity: 1;
+  transform: none;
+  box-shadow: none;
+}
+@media (min-width: 768px) {
+  .block.fill {
+    grid-column: auto;
+  }
+}
+
 /* Drop heavy blocks entirely on small screens without disturbing the layout. */
 .hideMobile {
   display: none;

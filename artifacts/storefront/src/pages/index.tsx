@@ -3,8 +3,8 @@ import { StorefrontLayout } from '@/components/layout/StorefrontLayout';
 import { useListProducts, useListCategories } from '@workspace/api-client-react';
 import { ProductCard } from '@/components/products/ProductCard';
 import { SkeletonCard, SkeletonCategoryCard } from '@/components/products/SkeletonCard';
-import { PromoTile } from '@/components/products/PromoTile';
 import { PromoGrid, type HomepageBlock } from '@/components/home/PromoBlock';
+import { HeroSlideshow } from '@/components/home/HeroSlideshow';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { ArrowRight, ChevronRight, Truck, ShieldCheck, Clock, Headphones, Zap } from 'lucide-react';
@@ -17,20 +17,6 @@ async function fetchHomepageBlocks(): Promise<HomepageBlock[]> {
   return res.json();
 }
 
-// Injects a promo tile at every Nth slot in the product grid
-function interleavedGrid(products: any[], promos: React.ReactNode[], everyN = 4) {
-  const result: { type: 'product' | 'promo'; content: any; key: string }[] = [];
-  let promoIdx = 0;
-  products.forEach((p, i) => {
-    result.push({ type: 'product', content: p, key: `p-${p.id}` });
-    if ((i + 1) % everyN === 0 && promoIdx < promos.length) {
-      result.push({ type: 'promo', content: promos[promoIdx], key: `promo-${promoIdx}` });
-      promoIdx++;
-    }
-  });
-  return result;
-}
-
 export default function Home() {
   const { data: productsData, isLoading: isFeaturedLoading } = useListProducts(
     { featured: true, limit: 12 },
@@ -38,27 +24,33 @@ export default function Home() {
   );
   const { data: categories, isLoading: isCategoriesLoading } = useListCategories();
   const { data: homepageBlocks } = useQuery({ queryKey: ['homepage-blocks'], queryFn: fetchHomepageBlocks });
-  const hasBlocks = (homepageBlocks?.length ?? 0) > 0;
+  const heroBlocks = (homepageBlocks ?? []).filter((b) => (b.placement ?? 'grid') === 'hero');
+  const gridBlocks = (homepageBlocks ?? []).filter((b) => (b.placement ?? 'grid') === 'grid');
+  const hasHero = heroBlocks.length > 0;
+  const hasGrid = gridBlocks.length > 0;
+  const hasBlocks = hasHero || hasGrid;
 
   const allProducts = productsData?.items || [];
   const featuredProducts = allProducts.slice(0, 8);
   const newArrivals = allProducts.slice(4, 12);
 
-  const promoNodes = [
-    <PromoTile key="local" variant="local-brands" className="h-full" />,
-    <PromoTile key="wholesale" variant="wholesale" className="h-full" />,
-  ];
-
-  const interleavedFeatured = interleavedGrid(featuredProducts, promoNodes, 4);
-
   return (
     <StorefrontLayout>
 
+      {/* ── Auto-rotating hero slideshow (admin 'hero' blocks) ─────────── */}
+      {hasHero && (
+        <section className="w-full">
+          <div className="container mx-auto px-4 pt-6 md:pt-8">
+            <HeroSlideshow blocks={heroBlocks} />
+          </div>
+        </section>
+      )}
+
       {/* ── Dynamic homepage blocks (admin-managed 12-col grid) ────────── */}
-      {hasBlocks && (
+      {hasGrid && (
         <section className="w-full">
           <div className="container mx-auto px-4 py-6 md:py-8">
-            <PromoGrid blocks={homepageBlocks!} />
+            <PromoGrid blocks={gridBlocks} />
           </div>
         </section>
       )}
@@ -268,29 +260,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Story banner #1 — parallax ─────────────────────────────────── */}
-      <div
-        className="relative h-52 md:h-64 overflow-hidden"
-        style={{
-          backgroundImage: 'url(https://images.unsplash.com/photo-1607082349566-187342175e2f?w=1800&auto=format&fit=crop&q=70)',
-          backgroundAttachment: 'fixed',
-          backgroundPosition: 'center 30%',
-          backgroundSize: 'cover',
-        }}
-      >
-        <div className="absolute inset-0 bg-secondary/75" />
-        <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-4">
-          <span className="text-[9px] font-black tracking-[0.2em] uppercase text-primary mb-3">Happyfine Promise</span>
-          <h2 className="text-2xl md:text-3xl font-extrabold text-secondary-foreground tracking-tight">
-            Wholesale Prices. Retail Convenience.
-          </h2>
-          <p className="text-secondary-foreground/60 text-sm mt-2 max-w-md">
-            Everything your business needs, in one catalogue. No bulk minimums on most products.
-          </p>
-        </div>
-      </div>
-
-      {/* ── Featured products — polymorphic promo tiles ────────────────── */}
+      {/* ── Featured products ──────────────────────────────────────────── */}
       <section className="py-14 md:py-20 bg-muted/20 border-y">
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-end mb-8">
@@ -311,25 +281,15 @@ export default function Home() {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 items-start">
-              {interleavedFeatured.map((slot, i) =>
-                slot.type === 'product' ? (
-                  <div
-                    key={slot.key}
-                    className="animate-in fade-in slide-in-from-bottom-6 duration-500 fill-mode-both"
-                    style={{ animationDelay: `${(i % 5) * 60}ms`, willChange: 'transform' }}
-                  >
-                    <ProductCard product={slot.content} />
-                  </div>
-                ) : (
-                  <div
-                    key={slot.key}
-                    className="animate-in fade-in duration-700 fill-mode-both"
-                    style={{ animationDelay: `${(i % 5) * 60}ms` }}
-                  >
-                    {slot.content}
-                  </div>
-                ),
-              )}
+              {featuredProducts.map((product, i) => (
+                <div
+                  key={product.id}
+                  className="animate-in fade-in slide-in-from-bottom-6 duration-500 fill-mode-both"
+                  style={{ animationDelay: `${(i % 5) * 60}ms`, willChange: 'transform' }}
+                >
+                  <ProductCard product={product} />
+                </div>
+              ))}
             </div>
           )}
 
@@ -340,31 +300,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      {/* ── Story banner #2 ────────────────────────────────────────────── */}
-      <div
-        className="relative h-64 md:h-80 overflow-hidden"
-        style={{
-          backgroundImage: 'url(https://images.unsplash.com/photo-1586528116311-ad8ed7c8d763?w=1800&auto=format&fit=crop&q=70)',
-          backgroundAttachment: 'fixed',
-          backgroundPosition: 'center 60%',
-          backgroundSize: 'cover',
-        }}
-      >
-        <div className="absolute inset-0 bg-primary/85" />
-        <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-4">
-          <span className="text-[9px] font-black tracking-[0.2em] uppercase text-primary-foreground/60 mb-4">For Businesses</span>
-          <h2 className="text-2xl md:text-4xl font-extrabold text-primary-foreground tracking-tight mb-3">
-            Bulk Orders? Open a Business Account.
-          </h2>
-          <p className="text-primary-foreground/75 text-sm md:text-base max-w-xl mx-auto mb-7">
-            Exclusive tier pricing, dedicated account managers, and flexible credit terms for Kenyan retailers.
-          </p>
-          <Button asChild size="lg" variant="secondary" className="h-12 px-8 font-bold shadow-xl" style={{ willChange: 'transform' }}>
-            <Link href="/account">Apply for Wholesale</Link>
-          </Button>
-        </div>
-      </div>
 
       {/* ── New Arrivals ───────────────────────────────────────────────── */}
       <section className="py-14 md:py-20">
@@ -394,7 +329,6 @@ export default function Home() {
                   <ProductCard product={product} />
                 </div>
               ))}
-              <PromoTile variant="clearance" />
             </div>
           )}
         </div>

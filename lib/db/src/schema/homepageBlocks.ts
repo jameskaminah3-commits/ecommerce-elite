@@ -7,6 +7,9 @@ import { z } from "zod/v4";
 // mobile behaviour, aspect ratio, text content, overlay and alignment.
 export const homepageBlocksTable = pgTable("homepage_blocks", {
   id: serial("id").primaryKey(),
+  // Where the block lives: "hero" blocks form the auto-rotating hero slideshow;
+  // "grid" blocks flow through the 12-column grid below it.
+  placement: text("placement", { enum: ["hero", "grid"] }).notNull().default("grid"),
   // Background kind: static image, solid colour, or looping muted video.
   kind: text("kind", { enum: ["image", "color", "video"] }).notNull().default("image"),
   imageUrl: text("image_url"),

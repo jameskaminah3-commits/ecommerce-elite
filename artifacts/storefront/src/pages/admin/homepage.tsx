@@ -41,6 +41,7 @@ const ASPECTS = ['16/9', '21/9', '4/3', '3/2', '1/1', '4/5', '3/4'];
 const SPANS = [12, 8, 6, 4, 3];
 
 type BlockForm = {
+  placement: 'hero' | 'grid';
   kind: 'image' | 'color' | 'video';
   imageUrl: string;
   videoUrl: string;
@@ -61,6 +62,7 @@ type BlockForm = {
 
 function toForm(b: HomepageBlock | null): BlockForm {
   return {
+    placement: b?.placement ?? 'grid',
     kind: b?.kind ?? 'image',
     imageUrl: b?.imageUrl ?? '',
     videoUrl: b?.videoUrl ?? '',
@@ -143,7 +145,7 @@ export default function AdminHomepage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm line-clamp-1">{b.heading || <span className="text-muted-foreground">(no heading)</span>}</p>
                     <p className="text-xs text-muted-foreground">
-                      {b.kind} · span {b.columnSpan} · {b.textAlign}{b.hideOnMobile ? ' · hidden on mobile' : ''}{!b.active ? ' · inactive' : ''}
+                      {(b.placement ?? 'grid') === 'hero' ? 'hero' : `grid · span ${b.columnSpan}`} · {b.kind} · {b.textAlign}{b.hideOnMobile ? ' · hidden on mobile' : ''}{!b.active ? ' · inactive' : ''}
                     </p>
                   </div>
                   <span className="text-xs text-muted-foreground shrink-0">#{b.sortOrder}</span>
@@ -198,6 +200,16 @@ function BlockDialog({ block, open, onOpenChange, onSaved }: { block: HomepageBl
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
+            <Label>Placement</Label>
+            <Select value={form.placement} onValueChange={(v) => set('placement', v as BlockForm['placement'])}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="hero">Hero slideshow (rotates at top)</SelectItem>
+                <SelectItem value="grid">Grid block (below the hero)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
             <Label>Background type</Label>
             <Select value={form.kind} onValueChange={(v) => set('kind', v as BlockForm['kind'])}>
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -208,8 +220,11 @@ function BlockDialog({ block, open, onOpenChange, onSaved }: { block: HomepageBl
               </SelectContent>
             </Select>
           </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label>Column span (of 12)</Label>
+            <Label>Column span (of 12){form.placement === 'hero' ? ' — hero is always full-width' : ''}</Label>
             <Select value={String(form.columnSpan)} onValueChange={(v) => set('columnSpan', Number(v))}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>

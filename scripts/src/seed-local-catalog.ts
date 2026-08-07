@@ -23,11 +23,12 @@ const seedUsers = [
   { name: "Jane Customer", email: "jane@example.com", phone: "0711111111", role: "customer" as const, password: "password" },
 ];
 
-// Expanse-style top-of-homepage: full-width hero, two half-width tiles, then a
-// three-across category row (12 -> 6+6 -> 4+4+4).
+// Expanse-style top-of-homepage: a rotating hero (image + video slides) over a
+// grid of tiles (6+6) and a three-across category row (4+4+4).
 const sampleHomepageBlocks = [
+  // ── HERO slideshow (auto-rotates) ──
   {
-    kind: "image" as const, columnSpan: 12, aspectRatio: "21/9", overlayOpacity: 45,
+    placement: "hero" as const, kind: "image" as const, columnSpan: 12, aspectRatio: "21/9", overlayOpacity: 45,
     imageUrl: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&auto=format&fit=crop&q=80",
     heading: "Wholesale prices. Delivered across Kenya.",
     subheading: "Home, electronics, beauty and fitness — quality stock in bulk.",
@@ -35,33 +36,43 @@ const sampleHomepageBlocks = [
     textAlign: "center-center", textColor: "#ffffff", sortOrder: 0,
   },
   {
-    kind: "image" as const, columnSpan: 6, aspectRatio: "4/3", overlayOpacity: 35,
+    placement: "hero" as const, kind: "video" as const, columnSpan: 12, aspectRatio: "21/9", overlayOpacity: 40,
+    videoUrl: "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+    imageUrl: "https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=1600&auto=format&fit=crop&q=80",
+    heading: "New stock every week",
+    subheading: "Straight from our Nairobi warehouse to your shelves.",
+    ctaLabel: "See what's new", ctaHref: "/products",
+    textAlign: "bottom-left", textColor: "#ffffff", sortOrder: 1,
+  },
+  // ── GRID blocks ──
+  {
+    placement: "grid" as const, kind: "image" as const, columnSpan: 6, aspectRatio: "4/3", overlayOpacity: 35,
     imageUrl: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=1000&auto=format&fit=crop&q=80",
     heading: "Electronics", subheading: "Audio, smart devices & accessories.",
     ctaLabel: "Browse", ctaHref: "/products",
     textAlign: "bottom-left", textColor: "#ffffff", sortOrder: 1,
   },
   {
-    kind: "color" as const, columnSpan: 6, aspectRatio: "4/3", overlayOpacity: 0,
+    placement: "grid" as const, kind: "color" as const, columnSpan: 6, aspectRatio: "4/3", overlayOpacity: 0,
     backgroundColor: "#0f5132",
     heading: "Buy 10+, save 15%", subheading: "Automatic bulk pricing — no code needed.",
     ctaLabel: "Shop in bulk", ctaHref: "/products",
     textAlign: "center-left", textColor: "#ffffff", sortOrder: 2,
   },
   {
-    kind: "image" as const, columnSpan: 4, aspectRatio: "1/1", overlayOpacity: 30,
+    placement: "grid" as const, kind: "image" as const, columnSpan: 4, aspectRatio: "1/1", overlayOpacity: 30,
     imageUrl: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&auto=format&fit=crop&q=80",
     heading: "Home & Living", ctaLabel: "Shop", ctaHref: "/products",
     textAlign: "bottom-center", textColor: "#ffffff", sortOrder: 3,
   },
   {
-    kind: "image" as const, columnSpan: 4, aspectRatio: "1/1", overlayOpacity: 30,
+    placement: "grid" as const, kind: "image" as const, columnSpan: 4, aspectRatio: "1/1", overlayOpacity: 30,
     imageUrl: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=800&auto=format&fit=crop&q=80",
     heading: "Beauty", ctaLabel: "Shop", ctaHref: "/products",
     textAlign: "bottom-center", textColor: "#ffffff", sortOrder: 4,
   },
   {
-    kind: "image" as const, columnSpan: 4, aspectRatio: "1/1", overlayOpacity: 30,
+    placement: "grid" as const, kind: "image" as const, columnSpan: 4, aspectRatio: "1/1", overlayOpacity: 30,
     imageUrl: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&auto=format&fit=crop&q=80",
     heading: "Gym & Fitness", ctaLabel: "Shop", ctaHref: "/products",
     textAlign: "bottom-center", textColor: "#ffffff", sortOrder: 5,

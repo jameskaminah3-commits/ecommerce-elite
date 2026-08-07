@@ -5,6 +5,7 @@ import styles from './PromoBlock.module.css';
 
 export interface HomepageBlock {
   id: number;
+  placement?: 'hero' | 'grid';
   kind: 'image' | 'color' | 'video';
   imageUrl: string | null;
   videoUrl: string | null;
@@ -77,7 +78,7 @@ function useReveal(enabled: boolean) {
   return { ref, shown };
 }
 
-export function PromoBlock({ block, index = 0, animate = true }: { block: HomepageBlock; index?: number; animate?: boolean }) {
+export function PromoBlock({ block, index = 0, animate = true, fill = false }: { block: HomepageBlock; index?: number; animate?: boolean; fill?: boolean }) {
   const { v, h, text, scrim } = alignment(block.textAlign);
   const { ref, shown } = useReveal(animate);
 
@@ -94,7 +95,12 @@ export function PromoBlock({ block, index = 0, animate = true }: { block: Homepa
     ['--bg' as any]: block.kind === 'color' ? block.backgroundColor || '#0b1220' : '#0b1220',
   } as React.CSSProperties;
 
-  const classes = [styles.block, shown ? styles.revealed : '', block.hideOnMobile ? styles.hideMobile : '']
+  const classes = [
+    styles.block,
+    fill ? styles.fill : '',
+    shown ? styles.revealed : '',
+    block.hideOnMobile ? styles.hideMobile : '',
+  ]
     .filter(Boolean)
     .join(' ');
   const isMedia = block.kind === 'image' || block.kind === 'video';

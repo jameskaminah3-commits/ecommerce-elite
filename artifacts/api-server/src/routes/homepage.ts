@@ -10,6 +10,7 @@ type Block = typeof homepageBlocksTable.$inferSelect;
 function toPublic(b: Block) {
   return {
     id: b.id,
+    placement: b.placement,
     kind: b.kind,
     imageUrl: b.imageUrl,
     videoUrl: b.videoUrl,
@@ -30,9 +31,11 @@ function toPublic(b: Block) {
 }
 
 const KINDS = new Set(["image", "color", "video"]);
+const PLACEMENTS = new Set(["hero", "grid"]);
 
 function sanitize(body: any): Record<string, unknown> {
   const out: Record<string, unknown> = {};
+  if (typeof body?.placement === "string" && PLACEMENTS.has(body.placement)) out.placement = body.placement;
   if (typeof body?.kind === "string" && KINDS.has(body.kind)) out.kind = body.kind;
   if ("imageUrl" in body) out.imageUrl = body.imageUrl || null;
   if ("videoUrl" in body) out.videoUrl = body.videoUrl || null;
