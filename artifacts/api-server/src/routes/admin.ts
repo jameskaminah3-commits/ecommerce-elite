@@ -7,8 +7,13 @@ import {
   GetLowStockVariantsQueryParams,
   GetRecentOrdersQueryParams,
 } from "@workspace/api-zod";
+import { requireAdmin } from "../middlewares/requireAdmin";
 
 const router: IRouter = Router();
+
+// Every route in this module exposes business analytics or customer PII and is
+// restricted to admins.
+router.use(requireAdmin);
 
 router.get("/admin/analytics/overview", async (_req, res): Promise<void> => {
   const now = new Date();

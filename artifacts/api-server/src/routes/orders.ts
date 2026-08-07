@@ -9,6 +9,7 @@ import {
   UpdateOrderStatusBody,
   UpdateOrderStatusParams,
 } from "@workspace/api-zod";
+import { requireAdmin, requireAuth, getUserId, type SessionUser } from "../middlewares/requireAdmin";
 
 const router: IRouter = Router();
 
@@ -42,7 +43,8 @@ function formatOrder(order: any, items: any[]) {
   };
 }
 
-router.get("/orders", async (req, res): Promise<void> => {
+// Listing every order exposes customer PII and is admin-only.
+router.get("/orders", requireAdmin, async (req, res): Promise<void> => {
   const params = ListOrdersQueryParams.safeParse(req.query);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -97,9 +99,9 @@ router.post("/orders", async (req, res): Promise<void> => {
   }
 
   // Attribute the order to the logged-in user when there is one, so verified
-  // purchases can gate product reviews. Anonymous checkout still works.
-  const rawUserId = req.cookies?.userId;
-  const userId = rawUserId && !Number.isNaN(parseInt(rawUserId, 10)) ? parseInt(rawUserId, 10) : null;
+  // purchases can gate product reviews. Anonymous checkout still works. The id
+  // comes from the signed cookie, so it can't be forged to another user.
+  const userId = getUserId(req);
 
   const cartRows = await db
     .select({
@@ -228,7 +230,8 @@ router.post("/orders", async (req, res): Promise<void> => {
   res.status(201).json(formatOrder(order, items));
 });
 
-router.get("/orders/:id", async (req, res): Promise<void> => {
+// An order carries customer PII, so only its owner or an admin may read it.
+router.get("/orders/:id", requireAuth, async (req, res): Promise<void> => {
   const params = GetOrderParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -239,11 +242,17 @@ router.get("/orders/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Order not found" });
     return;
   }
+  const viewer = (req as typeof req & { user?: SessionUser }).user;
+  const isOwner = order.userId != null && viewer?.id === order.userId;
+  if (!isOwner && viewer?.role !== "admin") {
+    res.status(403).json({ error: "You do not have access to this order." });
+    return;
+  }
   const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, order.id));
   res.json(formatOrder(order, items));
 });
 
-router.patch("/orders/:id/status", async (req, res): Promise<void> => {
+router.patch("/orders/:id/status", requireAdmin, async (req, res): Promise<void> => {
   const params = UpdateOrderStatusParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });

@@ -20,6 +20,7 @@ import {
   UpdateVariantParams,
   DeleteVariantParams,
 } from "@workspace/api-zod";
+import { requireAdmin } from "../middlewares/requireAdmin";
 
 const router: IRouter = Router();
 
@@ -131,7 +132,7 @@ router.get("/products", async (req, res): Promise<void> => {
   });
 });
 
-router.post("/products", async (req, res): Promise<void> => {
+router.post("/products", requireAdmin, async (req, res): Promise<void> => {
   const parsed = CreateProductBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -187,7 +188,7 @@ router.get("/products/:id", async (req, res): Promise<void> => {
   });
 });
 
-router.patch("/products/:id", async (req, res): Promise<void> => {
+router.patch("/products/:id", requireAdmin, async (req, res): Promise<void> => {
   const params = UpdateProductParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -211,7 +212,7 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
   res.json(productRow(prod, cat?.name ?? null, 0));
 });
 
-router.delete("/products/:id", async (req, res): Promise<void> => {
+router.delete("/products/:id", requireAdmin, async (req, res): Promise<void> => {
   const params = DeleteProductParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -237,7 +238,7 @@ router.get("/products/:id/variants", async (req, res): Promise<void> => {
   res.json(variants.map((v) => ({ ...v, price: parseFloat(v.price), createdAt: v.createdAt instanceof Date ? v.createdAt.toISOString() : v.createdAt })));
 });
 
-router.post("/products/:id/variants", async (req, res): Promise<void> => {
+router.post("/products/:id/variants", requireAdmin, async (req, res): Promise<void> => {
   const params = CreateProductVariantParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -256,7 +257,7 @@ router.post("/products/:id/variants", async (req, res): Promise<void> => {
   res.status(201).json({ ...variant, price: parseFloat(variant.price), createdAt: variant.createdAt instanceof Date ? variant.createdAt.toISOString() : variant.createdAt });
 });
 
-router.patch("/variants/:id", async (req, res): Promise<void> => {
+router.patch("/variants/:id", requireAdmin, async (req, res): Promise<void> => {
   const params = UpdateVariantParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -279,7 +280,7 @@ router.patch("/variants/:id", async (req, res): Promise<void> => {
   res.json({ ...variant, price: parseFloat(variant.price), createdAt: variant.createdAt instanceof Date ? variant.createdAt.toISOString() : variant.createdAt });
 });
 
-router.delete("/variants/:id", async (req, res): Promise<void> => {
+router.delete("/variants/:id", requireAdmin, async (req, res): Promise<void> => {
   const params = DeleteVariantParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });

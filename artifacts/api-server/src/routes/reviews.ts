@@ -9,14 +9,14 @@ import {
   productVariantsTable,
   productsTable,
 } from "@workspace/db";
+import { getUserId } from "../middlewares/requireAdmin";
 
 const router: IRouter = Router();
 
+// The reviewer identity must come from the signed cookie so a forged `userId`
+// can't post reviews as (or gate "verified purchase" on) another account.
 function viewerId(req: any): number | null {
-  const raw = req.cookies?.userId;
-  if (!raw) return null;
-  const id = parseInt(raw, 10);
-  return Number.isNaN(id) ? null : id;
+  return getUserId(req);
 }
 
 // Has this user bought (ordered) at least one variant of this product?

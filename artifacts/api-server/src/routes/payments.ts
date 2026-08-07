@@ -42,8 +42,25 @@ router.post("/payments/mpesa/initiate", async (req, res): Promise<void> => {
   });
 });
 
-// M-Pesa callback webhook (called by Safaricom)
+// M-Pesa callback webhook (called by Safaricom). This endpoint marks orders as
+// paid, so it must not be openly callable. We require a shared secret that is
+// embedded in the callback URL registered with Daraja (e.g.
+// `.../payments/mpesa/callback?token=<MPESA_CALLBACK_TOKEN>`). When the token
+// is configured, a missing/incorrect token is rejected. If it is unset we log a
+// warning rather than silently trusting every caller.
 router.post("/payments/mpesa/callback", async (req, res): Promise<void> => {
+  const expectedToken = process.env["MPESA_CALLBACK_TOKEN"];
+  if (expectedToken) {
+    const provided = req.query?.["token"] ?? req.header("x-callback-token");
+    if (provided !== expectedToken) {
+      logger.warn("Rejected M-Pesa callback with missing/invalid token");
+      res.status(401).json({ error: "Unauthorized callback" });
+      return;
+    }
+  } else {
+    logger.warn("MPESA_CALLBACK_TOKEN is not set — M-Pesa callback is unauthenticated");
+  }
+
   const parsed = MpesaCallbackBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });

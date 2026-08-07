@@ -8,6 +8,7 @@ import {
   GetCategoryParams,
   DeleteCategoryParams,
 } from "@workspace/api-zod";
+import { requireAdmin } from "../middlewares/requireAdmin";
 
 const router: IRouter = Router();
 
@@ -29,7 +30,7 @@ router.get("/categories", async (req, res): Promise<void> => {
   res.json(rows);
 });
 
-router.post("/categories", async (req, res): Promise<void> => {
+router.post("/categories", requireAdmin, async (req, res): Promise<void> => {
   const parsed = CreateCategoryBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -66,7 +67,7 @@ router.get("/categories/:id", async (req, res): Promise<void> => {
   res.json(row);
 });
 
-router.patch("/categories/:id", async (req, res): Promise<void> => {
+router.patch("/categories/:id", requireAdmin, async (req, res): Promise<void> => {
   const params = UpdateCategoryParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -89,7 +90,7 @@ router.patch("/categories/:id", async (req, res): Promise<void> => {
   res.json({ ...cat, productCount: 0 });
 });
 
-router.delete("/categories/:id", async (req, res): Promise<void> => {
+router.delete("/categories/:id", requireAdmin, async (req, res): Promise<void> => {
   const params = DeleteCategoryParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });

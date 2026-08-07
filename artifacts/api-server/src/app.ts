@@ -26,8 +26,21 @@ app.use(
     },
   }),
 );
-app.use(cors({ origin: true, credentials: true }));
-app.use(cookieParser());
+// Restrict CORS to an explicit allowlist when configured; reflect the origin
+// only in local dev. Credentials are allowed either way.
+const corsOrigins = (process.env["CORS_ORIGINS"] ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+app.use(cors({ origin: corsOrigins.length > 0 ? corsOrigins : true, credentials: true }));
+
+// Sign cookies so the session cookie cannot be forged. A secret is mandatory
+// in production; a clearly-insecure fallback is used only for local dev.
+const cookieSecret = process.env["SESSION_SECRET"];
+if (!cookieSecret && process.env["NODE_ENV"] === "production") {
+  throw new Error("SESSION_SECRET must be set in production to sign session cookies.");
+}
+app.use(cookieParser(cookieSecret || "happyfine-dev-secret-do-not-use-in-production"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
