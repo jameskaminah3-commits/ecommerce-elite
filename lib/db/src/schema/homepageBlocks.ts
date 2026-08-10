@@ -8,8 +8,9 @@ import { z } from "zod/v4";
 export const homepageBlocksTable = pgTable("homepage_blocks", {
   id: serial("id").primaryKey(),
   // Where the block lives: "hero" blocks form the auto-rotating hero slideshow;
-  // "grid" blocks flow through the 12-column grid below it.
-  placement: text("placement", { enum: ["hero", "grid"] }).notNull().default("grid"),
+  // "grid" blocks flow through the 12-column grid below it; "pinned" blocks form
+  // a sticky split section (the first pins while the rest scroll past it).
+  placement: text("placement", { enum: ["hero", "grid", "pinned"] }).notNull().default("grid"),
   // Background kind: static image, solid colour, or looping muted video.
   kind: text("kind", { enum: ["image", "color", "video"] }).notNull().default("image"),
   imageUrl: text("image_url"),
@@ -25,6 +26,9 @@ export const homepageBlocksTable = pgTable("homepage_blocks", {
   rowSpan: integer("row_span").notNull().default(0),
   // Drop heavy blocks on small viewports.
   hideOnMobile: boolean("hide_on_mobile").notNull().default(false),
+  // Parallax: the background media drifts slower than the page as it scrolls
+  // through the viewport, for a sense of depth.
+  parallax: boolean("parallax").notNull().default(false),
   // CSS aspect-ratio for the media box, e.g. "16/9", "1/1", "4/5", "21/9".
   aspectRatio: text("aspect_ratio").notNull().default("16/9"),
   heading: text("heading"),

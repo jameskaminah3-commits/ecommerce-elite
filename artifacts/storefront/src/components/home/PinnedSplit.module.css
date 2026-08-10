@@ -1,0 +1,61 @@
+/* Sticky split: left column pins, right column scrolls past. On mobile it
+   collapses to a single stacked column (no pinning). */
+.wrap {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .wrap {
+    grid-template-columns: 1fr 1fr;
+    gap: 1.1rem;
+    align-items: start;
+  }
+}
+
+.pinCol {
+  position: relative;
+}
+
+/* The pinned panel holds at the top of the viewport (below the sticky header)
+   while the right column scrolls. Height leaves a little breathing room. */
+.pinSticky {
+  position: relative;
+  border-radius: 1rem;
+  overflow: hidden;
+  isolation: isolate;
+  aspect-ratio: 4 / 5;
+}
+
+@media (min-width: 768px) {
+  .pinSticky {
+    position: sticky;
+    top: 5rem;
+    aspect-ratio: auto;
+    height: min(80vh, 640px);
+  }
+}
+
+.scrollCol {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .scrollCol {
+    gap: 1.1rem;
+  }
+}
+
+/* Each gallery item establishes its own box; the PromoBlock fills it. */
+.scrollItem {
+  position: relative;
+  width: 100%;
+}
+
+.solo {
+  position: relative;
+  width: 100%;
+}

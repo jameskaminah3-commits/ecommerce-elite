@@ -43,7 +43,7 @@ const SPANS = [12, 8, 6, 4, 3];
 const ROW_SPANS = [0, 2, 3, 4, 5, 6, 8];
 
 type BlockForm = {
-  placement: 'hero' | 'grid';
+  placement: 'hero' | 'grid' | 'pinned';
   kind: 'image' | 'color' | 'video';
   imageUrl: string;
   videoUrl: string;
@@ -52,6 +52,7 @@ type BlockForm = {
   columnSpan: number;
   rowSpan: number;
   hideOnMobile: boolean;
+  parallax: boolean;
   aspectRatio: string;
   heading: string;
   subheading: string;
@@ -74,6 +75,7 @@ function toForm(b: HomepageBlock | null): BlockForm {
     columnSpan: b?.columnSpan ?? 12,
     rowSpan: b?.rowSpan ?? 0,
     hideOnMobile: b?.hideOnMobile ?? false,
+    parallax: b?.parallax ?? false,
     aspectRatio: b?.aspectRatio ?? '16/9',
     heading: b?.heading ?? '',
     subheading: b?.subheading ?? '',
@@ -210,6 +212,7 @@ function BlockDialog({ block, open, onOpenChange, onSaved }: { block: HomepageBl
               <SelectContent>
                 <SelectItem value="hero">Hero slideshow (rotates at top)</SelectItem>
                 <SelectItem value="grid">Grid block (below the hero)</SelectItem>
+                <SelectItem value="pinned">Pinned split (first pins, rest scroll past)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -328,6 +331,10 @@ function BlockDialog({ block, open, onOpenChange, onSaved }: { block: HomepageBl
             <label className="flex items-center justify-between">
               <span className="text-sm">Hide on mobile</span>
               <Switch checked={form.hideOnMobile} onCheckedChange={(v) => set('hideOnMobile', v)} />
+            </label>
+            <label className="flex items-center justify-between">
+              <span className="text-sm">Parallax scroll {form.kind === 'color' ? '(image/video only)' : ''}</span>
+              <Switch checked={form.parallax} onCheckedChange={(v) => set('parallax', v)} />
             </label>
             <label className="flex items-center justify-between">
               <span className="text-sm">Active</span>

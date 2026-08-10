@@ -5,7 +5,7 @@ import styles from './PromoBlock.module.css';
 
 export interface HomepageBlock {
   id: number;
-  placement?: 'hero' | 'grid';
+  placement?: 'hero' | 'grid' | 'pinned';
   kind: 'image' | 'color' | 'video';
   imageUrl: string | null;
   videoUrl: string | null;
@@ -14,6 +14,7 @@ export interface HomepageBlock {
   columnSpan: number;
   rowSpan?: number;
   hideOnMobile: boolean;
+  parallax?: boolean;
   aspectRatio: string;
   heading: string | null;
   subheading: string | null;
@@ -96,9 +97,67 @@ function useReveal(enabled: boolean) {
   return { ref, shown };
 }
 
+// Parallax: drift the media slower than the page while the block is in view.
+// Gated by an IntersectionObserver so the scroll work only runs on-screen, and
+// disabled under prefers-reduced-motion. The offset is written to a CSS custom
+// property (--parallax-y) so the compositor handles the transform.
+function useParallax(enabled: boolean) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+
+    const media = el.querySelector<HTMLElement>('[data-parallax-media]');
+    if (!media) return;
+
+    const STRENGTH = 0.14; // fraction of block height the media travels
+    let raf = 0;
+    let visible = false;
+
+    const update = () => {
+      raf = 0;
+      const rect = el.getBoundingClientRect();
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      // -1 (block below viewport) … 0 (centered) … +1 (above); centered = no shift.
+      const progress = (rect.top + rect.height / 2 - vh / 2) / (vh / 2 + rect.height / 2);
+      const shift = -progress * rect.height * STRENGTH;
+      media.style.setProperty('--parallax-y', `${shift.toFixed(1)}px`);
+    };
+    const onScroll = () => {
+      if (!visible || raf) return;
+      raf = window.requestAnimationFrame(update);
+    };
+
+    const io = new IntersectionObserver((entries) => {
+      visible = entries.some((e) => e.isIntersecting);
+      if (visible) update();
+    });
+    io.observe(el);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    update();
+    return () => {
+      io.disconnect();
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      if (raf) window.cancelAnimationFrame(raf);
+    };
+  }, [enabled]);
+  return ref;
+}
+
 export function PromoBlock({ block, index = 0, animate = true, fill = false }: { block: HomepageBlock; index?: number; animate?: boolean; fill?: boolean }) {
   const { v, h, text, scrim } = alignment(block.textAlign);
   const { ref, shown } = useReveal(animate);
+  const isMediaBlock = block.kind === 'image' || block.kind === 'video';
+  const parallaxOn = !!block.parallax && isMediaBlock;
+  const parallaxRef = useParallax(parallaxOn);
+  const setRefs = (node: HTMLDivElement | null) => {
+    ref.current = node;
+    parallaxRef.current = node;
+  };
 
   const style = {
     ['--col-span' as any]: String(Math.min(Math.max(block.columnSpan, 1), 12)),
@@ -119,20 +178,22 @@ export function PromoBlock({ block, index = 0, animate = true, fill = false }: {
     fill ? styles.fill : '',
     shown ? styles.revealed : '',
     block.hideOnMobile ? styles.hideMobile : '',
+    parallaxOn ? styles.parallax : '',
   ]
     .filter(Boolean)
     .join(' ');
-  const isMedia = block.kind === 'image' || block.kind === 'video';
+  const isMedia = isMediaBlock;
   const hasText = block.heading || block.subheading || block.ctaLabel;
+  const mediaClass = `${styles.media}${parallaxOn ? ` ${styles.mediaParallax}` : ''}`;
 
   return (
-    <div ref={ref} className={classes} style={style}>
+    <div ref={setRefs} className={classes} style={style}>
       {block.kind === 'video' && block.videoUrl ? (
-        <video className={styles.media} autoPlay muted loop playsInline poster={block.imageUrl ?? undefined}>
+        <video className={mediaClass} data-parallax-media autoPlay muted loop playsInline poster={block.imageUrl ?? undefined}>
           <source src={block.videoUrl} />
         </video>
       ) : block.kind === 'image' && block.imageUrl ? (
-        <img className={styles.media} src={block.imageUrl} alt={block.heading ?? ''} loading="lazy" />
+        <img className={mediaClass} data-parallax-media src={block.imageUrl} alt={block.heading ?? ''} loading="lazy" />
       ) : null}
 
       {isMedia && block.overlayOpacity > 0 && <div className={styles.overlay} />}

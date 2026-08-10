@@ -50,6 +50,7 @@ const sampleHomepageBlocks = [
   // the grid's row unit equals one column width, every tile aligns exactly.
   {
     placement: "grid" as const, kind: "image" as const, columnSpan: 8, rowSpan: 8, aspectRatio: "1/1", overlayOpacity: 38,
+    parallax: true,
     imageUrl: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=1200&auto=format&fit=crop&q=80",
     heading: "Electronics", subheading: "Audio, smart devices & accessories.",
     ctaLabel: "Browse", ctaHref: "/products",
@@ -79,6 +80,38 @@ const sampleHomepageBlocks = [
     imageUrl: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&auto=format&fit=crop&q=80",
     heading: "Gym & Fitness", ctaLabel: "Shop", ctaHref: "/products",
     textAlign: "bottom-center", textColor: "#ffffff", sortOrder: 5,
+  },
+  // ── PINNED split — the first block pins while the rest scroll past it ──
+  {
+    placement: "pinned" as const, kind: "image" as const, columnSpan: 6, aspectRatio: "4/5", overlayOpacity: 50,
+    imageUrl: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=1000&auto=format&fit=crop&q=80",
+    heading: "Built for Kenyan business", subheading: "Wholesale stock, fair prices, delivered nationwide — no middlemen.",
+    ctaLabel: "Our story", ctaHref: "/products",
+    textAlign: "bottom-left", textColor: "#ffffff", sortOrder: 10,
+  },
+  {
+    placement: "pinned" as const, kind: "image" as const, columnSpan: 6, aspectRatio: "4/3", overlayOpacity: 35,
+    parallax: true,
+    imageUrl: "https://images.unsplash.com/photo-1553413077-190dd305871c?w=1000&auto=format&fit=crop&q=80",
+    heading: "Fast nationwide delivery", subheading: "From our Nairobi warehouse to your shelves.",
+    ctaLabel: "See delivery", ctaHref: "/products",
+    textAlign: "bottom-left", textColor: "#ffffff", sortOrder: 11,
+  },
+  {
+    placement: "pinned" as const, kind: "image" as const, columnSpan: 6, aspectRatio: "4/3", overlayOpacity: 35,
+    parallax: true,
+    imageUrl: "https://images.unsplash.com/photo-1556909212-d5b604d0c90d?w=1000&auto=format&fit=crop&q=80",
+    heading: "Quality you can trust", subheading: "Authentic products, guaranteed.",
+    ctaLabel: "Browse catalogue", ctaHref: "/products",
+    textAlign: "bottom-left", textColor: "#ffffff", sortOrder: 12,
+  },
+  {
+    placement: "pinned" as const, kind: "image" as const, columnSpan: 6, aspectRatio: "4/3", overlayOpacity: 35,
+    parallax: true,
+    imageUrl: "https://images.unsplash.com/photo-1607082349566-187342175e2f?w=1000&auto=format&fit=crop&q=80",
+    heading: "Buy more, save more", subheading: "Automatic bulk pricing on every order.",
+    ctaLabel: "Shop in bulk", ctaHref: "/products",
+    textAlign: "bottom-left", textColor: "#ffffff", sortOrder: 13,
   },
 ];
 

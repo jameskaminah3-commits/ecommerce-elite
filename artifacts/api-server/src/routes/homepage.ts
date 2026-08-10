@@ -19,6 +19,7 @@ function toPublic(b: Block) {
     columnSpan: b.columnSpan,
     rowSpan: b.rowSpan,
     hideOnMobile: b.hideOnMobile,
+    parallax: b.parallax,
     aspectRatio: b.aspectRatio,
     heading: b.heading,
     subheading: b.subheading,
@@ -32,7 +33,7 @@ function toPublic(b: Block) {
 }
 
 const KINDS = new Set(["image", "color", "video"]);
-const PLACEMENTS = new Set(["hero", "grid"]);
+const PLACEMENTS = new Set(["hero", "grid", "pinned"]);
 
 function sanitize(body: any): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -46,6 +47,7 @@ function sanitize(body: any): Record<string, unknown> {
   // 0 = auto (derive height from aspect); otherwise an explicit desktop row span.
   if (body?.rowSpan !== undefined) out.rowSpan = Math.min(Math.max(parseInt(body.rowSpan, 10) || 0, 0), 12);
   if (typeof body?.hideOnMobile === "boolean") out.hideOnMobile = body.hideOnMobile;
+  if (typeof body?.parallax === "boolean") out.parallax = body.parallax;
   if (typeof body?.aspectRatio === "string" && body.aspectRatio.trim()) out.aspectRatio = body.aspectRatio.trim();
   if ("heading" in body) out.heading = body.heading || null;
   if ("subheading" in body) out.subheading = body.subheading || null;

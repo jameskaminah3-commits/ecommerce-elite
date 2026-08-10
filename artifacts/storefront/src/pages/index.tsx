@@ -4,6 +4,7 @@ import { useListProducts, useListCategories } from '@workspace/api-client-react'
 import { ProductCard } from '@/components/products/ProductCard';
 import { SkeletonCard, SkeletonCategoryCard } from '@/components/products/SkeletonCard';
 import { PromoGrid, type HomepageBlock } from '@/components/home/PromoBlock';
+import { PinnedSplit } from '@/components/home/PinnedSplit';
 import { HeroSlideshow } from '@/components/home/HeroSlideshow';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
@@ -26,9 +27,11 @@ export default function Home() {
   const { data: homepageBlocks } = useQuery({ queryKey: ['homepage-blocks'], queryFn: fetchHomepageBlocks });
   const heroBlocks = (homepageBlocks ?? []).filter((b) => (b.placement ?? 'grid') === 'hero');
   const gridBlocks = (homepageBlocks ?? []).filter((b) => (b.placement ?? 'grid') === 'grid');
+  const pinnedBlocks = (homepageBlocks ?? []).filter((b) => b.placement === 'pinned');
   const hasHero = heroBlocks.length > 0;
   const hasGrid = gridBlocks.length > 0;
-  const hasBlocks = hasHero || hasGrid;
+  const hasPinned = pinnedBlocks.length > 0;
+  const hasBlocks = hasHero || hasGrid || hasPinned;
 
   const allProducts = productsData?.items || [];
   const featuredProducts = allProducts.slice(0, 8);
@@ -51,6 +54,15 @@ export default function Home() {
         <section className="w-full">
           <div className="container mx-auto px-4 py-6 md:py-8">
             <PromoGrid blocks={gridBlocks} />
+          </div>
+        </section>
+      )}
+
+      {/* ── Sticky pinned split (admin 'pinned' blocks) ─────────────────── */}
+      {hasPinned && (
+        <section className="w-full">
+          <div className="container mx-auto px-4 py-6 md:py-8">
+            <PinnedSplit blocks={pinnedBlocks} />
           </div>
         </section>
       )}

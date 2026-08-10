@@ -48,7 +48,9 @@
 }
 
 @media (min-width: 768px) {
-  .block {
+  /* Grid sizing only applies to blocks inside the 12-col grid. Standalone
+     blocks (e.g. in the pinned split) keep their aspect-ratio height. */
+  .grid .block {
     grid-column: span var(--col-span, 12) / span var(--col-span, 12);
     /* On desktop the height comes from the row span (× the row unit), not the
        aspect ratio, so multi-row bento tiles align to the grid exactly. */
@@ -113,14 +115,25 @@
   height: 100%;
   object-fit: cover;
   z-index: 0;
-  transform: scale(1.001);
+  /* Individual transform properties so the hover zoom (scale) and the parallax
+     drift (translate) compose without overwriting each other. */
+  scale: 1.001;
+  translate: 0 0;
   transform-origin: center;
-  transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: scale 0.9s cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
 }
 /* Slow cinematic zoom on hover — the Expanse signature, dialled up. */
 .block:hover .media {
-  transform: scale(1.07);
+  scale: 1.07;
+}
+/* Parallax media is over-scanned so the vertical drift never exposes an edge.
+   translate is driven every frame from JS via --parallax-y (no transition). */
+.mediaParallax {
+  top: -14%;
+  bottom: auto;
+  height: 128%;
+  translate: 0 var(--parallax-y, 0px);
 }
 
 /* Flat legibility tint. */
@@ -235,16 +248,45 @@
   transform: translateX(4px);
 }
 
+/* Subtle inner stagger: once the block reveals, its heading, subheading and CTA
+   settle upward in sequence for an editorial finish (on top of the block's own
+   fade-and-rise). */
+.content > * {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.revealed .content > * {
+  opacity: 1;
+  transform: translateY(0);
+}
+.revealed .heading {
+  transition-delay: calc(var(--reveal-delay, 0ms) + 90ms);
+}
+.revealed .subheading {
+  transition-delay: calc(var(--reveal-delay, 0ms) + 170ms);
+}
+.revealed .cta {
+  transition-delay: calc(var(--reveal-delay, 0ms) + 250ms);
+}
+
 /* Respect reduced-motion and guarantee content is visible without JS/animation. */
 @media (prefers-reduced-motion: reduce) {
   .block,
   .block.revealed,
   .media,
+  .mediaParallax,
+  .content > *,
+  .revealed .content > *,
   .cta,
   .ctaArrow,
   .scrim {
     transition: none !important;
     transform: none !important;
+    translate: none !important;
+    scale: none !important;
     opacity: 1 !important;
   }
 }
