@@ -6,6 +6,7 @@
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "seed:local": "tsx ./src/seed-local-catalog.ts",
+    "reset:admin": "tsx ./src/reset-admin.ts",
     "search:sync": "tsx ./src/sync-meilisearch.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
