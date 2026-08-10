@@ -117,7 +117,10 @@ export function PromoBlock({ block, index = 0, animate = true, fill = false }: {
       ) : null}
 
       {isMedia && block.overlayOpacity > 0 && <div className={styles.overlay} />}
-      {isMedia && hasText && <div className={styles.scrim} />}
+      {/* Universal legibility gradient over every media asset (stronger when the
+          block carries text, subtle otherwise) so overlaid copy stays readable
+          regardless of image contrast. */}
+      {isMedia && <div className={`${styles.scrim} ${hasText ? styles.scrimText : ''}`} />}
 
       {hasText && (
         <div className={styles.content}>

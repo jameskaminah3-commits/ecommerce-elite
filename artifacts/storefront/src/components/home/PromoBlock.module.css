@@ -122,15 +122,21 @@
   background: rgba(0, 0, 0, var(--overlay, 0.3));
   transition: background 0.45s ease;
 }
-/* Directional depth scrim anchored toward the text — adds richness beyond a
-   flat darken. Direction is set per block from its text alignment. */
+/* Universal legibility gradient over every media asset. Subtle by default so
+   bare imagery still gets depth; the directional variant below anchors a
+   stronger gradient toward the text when a block carries copy. */
 .scrim {
   position: absolute;
   inset: 0;
   z-index: 1;
-  background: linear-gradient(var(--scrim-dir, to top), rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0) 62%);
-  opacity: 0.85;
+  background: linear-gradient(rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, 0.28) 100%);
+  opacity: 0.9;
   transition: opacity 0.45s ease;
+}
+/* Stronger, direction-aware scrim for blocks with headings/CTAs. Direction is
+   set per block from its text alignment so the darkening sits under the copy. */
+.scrimText {
+  background: linear-gradient(var(--scrim-dir, to top), rgba(0, 0, 0, 0.58), rgba(0, 0, 0, 0) 64%);
 }
 .block:hover .scrim {
   opacity: 1;

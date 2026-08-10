@@ -45,15 +45,17 @@ const sampleHomepageBlocks = [
     textAlign: "bottom-left", textColor: "#ffffff", sortOrder: 1,
   },
   // ── GRID blocks ──
+  // Asymmetric editorial row: a wide 8-col feature beside a narrow 4-col tile.
+  // The aspect ratios are tuned (16/9 vs 7/8) so the two blocks align in height.
   {
-    placement: "grid" as const, kind: "image" as const, columnSpan: 6, aspectRatio: "4/3", overlayOpacity: 35,
+    placement: "grid" as const, kind: "image" as const, columnSpan: 8, aspectRatio: "16/9", overlayOpacity: 35,
     imageUrl: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=1000&auto=format&fit=crop&q=80",
     heading: "Electronics", subheading: "Audio, smart devices & accessories.",
     ctaLabel: "Browse", ctaHref: "/products",
     textAlign: "bottom-left", textColor: "#ffffff", sortOrder: 1,
   },
   {
-    placement: "grid" as const, kind: "color" as const, columnSpan: 6, aspectRatio: "4/3", overlayOpacity: 0,
+    placement: "grid" as const, kind: "color" as const, columnSpan: 4, aspectRatio: "7/8", overlayOpacity: 0,
     backgroundColor: "#0f5132",
     heading: "Buy 10+, save 15%", subheading: "Automatic bulk pricing — no code needed.",
     ctaLabel: "Shop in bulk", ctaHref: "/products",
