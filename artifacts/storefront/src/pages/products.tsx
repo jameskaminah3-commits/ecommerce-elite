@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearch } from 'wouter';
 import { StorefrontLayout } from '@/components/layout/StorefrontLayout';
 import { useListProducts, useListCategories, ListProductsSort, Product } from '@workspace/api-client-react';
 import { ProductCard } from '@/components/products/ProductCard';
@@ -35,6 +36,10 @@ export default function ProductsPage() {
   const isResetting = useRef(false);
 
   const { data: categories } = useListCategories();
+
+  // Reactive query string (updates on wouter navigation without a remount), so
+  // clicking a mega-menu link while already on this page re-applies the filters.
+  const searchString = useSearch();
 
   const selectedCategoryId =
     category !== 'all' ? categories?.find((c) => c.slug === category)?.id : undefined;
@@ -100,6 +105,22 @@ export default function ProductsPage() {
   const handleSort = (val: ListProductsSort) => {
     applyFilters(search, category, val);
   };
+
+  // When the URL query string changes via navigation (e.g. a mega-menu link
+  // clicked while already on /products), pull the new filters into state. The
+  // guard makes this a no-op when our own URL-sync effect wrote the change, so
+  // there is no feedback loop.
+  useEffect(() => {
+    const p = new URLSearchParams(searchString);
+    const urlSearch = p.get('search') || '';
+    const urlCategory = p.get('category') || 'all';
+    const urlSort = (p.get('sort') as ListProductsSort) || 'newest';
+    if (urlSearch !== search || urlCategory !== category || urlSort !== sort) {
+      setSearchInput(urlSearch);
+      applyFilters(urlSearch, urlCategory, urlSort);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchString]);
 
   // Sync URL (no page reload)
   useEffect(() => {

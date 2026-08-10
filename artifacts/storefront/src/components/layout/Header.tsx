@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
-import { useListProducts } from '@workspace/api-client-react';
+import { useListProducts, useListCategories } from '@workspace/api-client-react';
 import { ShoppingBag, Search, Menu, User, LogOut, ChevronDown, X, TrendingUp, Tag, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,133 +14,100 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { formatCurrency } from '@/lib/utils';
 
-// ── Mega-menu data ──────────────────────────────────────────────────────────
-const MEGA_MENU: Record<string, {
-  slug: string;
-  featuredImage: string;
+// ── Mega-menu facets ─────────────────────────────────────────────────────────
+// The categories themselves are loaded live from the API, so the menu always
+// mirrors what actually exists in the catalogue. This map only supplies the
+// *presentation* for each category (keyed by its real slug): a featured overlay
+// label and curated sub-category "facets". Every facet link is a REAL query —
+// it filters the catalogue by category AND a search term, so clicking e.g.
+// "Office Chairs" lands on the actual matching products, not a dead link.
+// Categories without an entry here still get a working menu (featured tile +
+// "Shop all"); the panel simply omits the curated columns.
+interface MegaFacet {
   featuredLabel: string;
   featuredSub: string;
-  columns: { heading: string; links: { name: string; image: string; href: string }[] }[];
-}> = {
-  Electronics: {
-    slug: 'electronics',
-    featuredImage: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=600&auto=format&fit=crop',
-    featuredLabel: 'Smart TVs on Sale',
-    featuredSub: 'Up to 20% off 4K displays',
+  columns: { heading: string; links: { name: string; search: string; image: string }[] }[];
+}
+
+const MEGA_FACETS: Record<string, MegaFacet> = {
+  electronics: {
+    featuredLabel: 'Smart TVs & Audio',
+    featuredSub: 'Big-screen entertainment, wholesale',
     columns: [
       {
-        heading: 'Devices',
+        heading: 'Screens & Devices',
         links: [
-          { name: 'Smart TVs', image: 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=56&auto=format&fit=crop', href: '/products?category=electronics' },
-          { name: 'Laptops & Tablets', image: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=56&auto=format&fit=crop', href: '/products?category=electronics' },
-          { name: 'Smartphones', image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=56&auto=format&fit=crop', href: '/products?category=electronics' },
+          { name: 'Smart TVs', search: 'Smart TV', image: 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=56&auto=format&fit=crop' },
+          { name: 'Laptops & Tablets', search: 'Laptop', image: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=56&auto=format&fit=crop' },
+          { name: 'Smartphones', search: 'Phone', image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=56&auto=format&fit=crop' },
         ],
       },
       {
         heading: 'Audio & Wearables',
         links: [
-          { name: 'Headphones', image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=56&auto=format&fit=crop', href: '/products?category=electronics' },
-          { name: 'Smart Watches', image: 'https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?w=56&auto=format&fit=crop', href: '/products?category=electronics' },
-          { name: 'Accessories', image: 'https://images.unsplash.com/photo-1583394838336-acd977736f90?w=56&auto=format&fit=crop', href: '/products?category=electronics' },
+          { name: 'Headphones', search: 'Headphones', image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=56&auto=format&fit=crop' },
+          { name: 'Wireless Audio', search: 'Wireless', image: 'https://images.unsplash.com/photo-1583394838336-acd977736f90?w=56&auto=format&fit=crop' },
+          { name: 'Smart Watches', search: 'Watch', image: 'https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?w=56&auto=format&fit=crop' },
         ],
       },
     ],
   },
-  'Home & Living': {
-    slug: 'home-living',
-    featuredImage: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&auto=format&fit=crop',
+  'home-living': {
     featuredLabel: 'Kitchen Essentials',
     featuredSub: 'Professional-grade cookware',
     columns: [
       {
         heading: 'Cookware',
         links: [
-          { name: 'Cookware Sets', image: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=56&auto=format&fit=crop', href: '/products?category=home-living' },
-          { name: 'Frying Pans', image: 'https://images.unsplash.com/photo-1585515320310-259814833e62?w=56&auto=format&fit=crop', href: '/products?category=home-living' },
-          { name: 'Small Appliances', image: 'https://images.unsplash.com/photo-1559825481-12a05cc00344?w=56&auto=format&fit=crop', href: '/products?category=home-living' },
+          { name: 'Cookware Sets', search: 'Cookware', image: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=56&auto=format&fit=crop' },
+          { name: 'Non-Stick Pans', search: 'Non-Stick', image: 'https://images.unsplash.com/photo-1585515320310-259814833e62?w=56&auto=format&fit=crop' },
         ],
       },
       {
         heading: 'Furniture & Comfort',
         links: [
-          { name: 'Office Chairs', image: 'https://images.unsplash.com/photo-1580480055273-228ff5388ef8?w=56&auto=format&fit=crop', href: '/products?category=home-living' },
-          { name: 'Storage Solutions', image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=56&auto=format&fit=crop', href: '/products?category=home-living' },
-          { name: 'Bedding & Linen', image: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=56&auto=format&fit=crop', href: '/products?category=home-living' },
+          { name: 'Office Chairs', search: 'Office Chair', image: 'https://images.unsplash.com/photo-1580480055273-228ff5388ef8?w=56&auto=format&fit=crop' },
+          { name: 'Ergonomic Seating', search: 'Ergo', image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=56&auto=format&fit=crop' },
         ],
       },
     ],
   },
-  Decor: {
-    slug: 'decor',
-    featuredImage: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=600&auto=format&fit=crop',
-    featuredLabel: 'Artisan Ceramics',
-    featuredSub: 'Handcrafted in Kenya',
-    columns: [
-      {
-        heading: 'Decor',
-        links: [
-          { name: 'Vases & Ceramics', image: 'https://images.unsplash.com/photo-1612196808214-b8e1d6145a8c?w=56&auto=format&fit=crop', href: '/products?category=decor' },
-          { name: 'Wall Art', image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=56&auto=format&fit=crop', href: '/products?category=decor' },
-          { name: 'Lighting', image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=56&auto=format&fit=crop', href: '/products?category=decor' },
-        ],
-      },
-    ],
-  },
-  Fashion: {
-    slug: 'fashion',
-    featuredImage: 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=600&auto=format&fit=crop',
-    featuredLabel: 'Smart Business Wear',
-    featuredSub: 'Look sharp, buy wholesale',
-    columns: [
-      {
-        heading: "Men's",
-        links: [
-          { name: 'Blazers & Suits', image: 'https://images.unsplash.com/photo-1594938298603-c8148c4b4c15?w=56&auto=format&fit=crop', href: '/products?category=fashion' },
-          { name: 'Shirts & Tops', image: 'https://images.unsplash.com/photo-1602810316693-3667c854239a?w=56&auto=format&fit=crop', href: '/products?category=fashion' },
-        ],
-      },
-      {
-        heading: "Women's",
-        links: [
-          { name: 'Dresses', image: 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=56&auto=format&fit=crop', href: '/products?category=fashion' },
-          { name: 'Accessories', image: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=56&auto=format&fit=crop', href: '/products?category=fashion' },
-        ],
-      },
-    ],
-  },
-  Beauty: {
-    slug: 'beauty',
-    featuredImage: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=600&auto=format&fit=crop',
+  beauty: {
     featuredLabel: 'Bestselling Serums',
     featuredSub: 'Vitamin C, Retinol & more',
     columns: [
       {
         heading: 'Skincare',
         links: [
-          { name: 'Face Serums', image: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=56&auto=format&fit=crop', href: '/products?category=beauty' },
-          { name: 'Moisturisers', image: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=56&auto=format&fit=crop', href: '/products?category=beauty' },
-          { name: 'Haircare', image: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=56&auto=format&fit=crop', href: '/products?category=beauty' },
+          { name: 'Face Serums', search: 'Serum', image: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=56&auto=format&fit=crop' },
+          { name: 'Vitamin C', search: 'Vitamin C', image: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=56&auto=format&fit=crop' },
         ],
       },
     ],
   },
-  'Gym & Fitness': {
-    slug: 'gym-fitness',
-    featuredImage: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&auto=format&fit=crop',
+  'gym-fitness': {
     featuredLabel: 'Home Gym Setup',
     featuredSub: 'Everything you need, delivered',
     columns: [
       {
         heading: 'Equipment',
         links: [
-          { name: 'Dumbbells & Weights', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=56&auto=format&fit=crop', href: '/products?category=gym-fitness' },
-          { name: 'Yoga & Pilates', image: 'https://images.unsplash.com/photo-1601925228008-22d2a5090f0c?w=56&auto=format&fit=crop', href: '/products?category=gym-fitness' },
-          { name: 'Cardio Equipment', image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=56&auto=format&fit=crop', href: '/products?category=gym-fitness' },
+          { name: 'Yoga Mats', search: 'Yoga', image: 'https://images.unsplash.com/photo-1601925228008-22d2a5090f0c?w=56&auto=format&fit=crop' },
+          { name: 'Weights & Grips', search: 'Grip', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=56&auto=format&fit=crop' },
         ],
       },
     ],
   },
 };
+
+// Fallback featured image for a category that has no imageUrl set in admin.
+const CATEGORY_FALLBACK_IMAGE =
+  'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&auto=format&fit=crop';
+
+// Build a real, category-scoped search link for a sub-category facet.
+function facetHref(slug: string, search: string): string {
+  return `/products?category=${encodeURIComponent(slug)}&search=${encodeURIComponent(search)}`;
+}
 
 const TRENDING_SEARCHES = ['Office chairs', 'Vitamin C serum', '4K Smart TV', 'Yoga mats', 'Cookware sets'];
 const SUGGESTED_COLLECTIONS = ['New Arrivals', 'Best Sellers', 'Wholesale Deals', 'Home Essentials'];
@@ -167,6 +134,15 @@ export function Header() {
     },
   );
 
+  // Real categories power the nav and mega-menu, so it always mirrors the
+  // catalogue. Sorted by how many products they contain (most stocked first).
+  const { data: categories } = useListCategories();
+  const megaCategories = (categories ?? [])
+    .slice()
+    .sort((a, b) => (b.productCount ?? 0) - (a.productCount ?? 0));
+  const activeCat = megaCategories.find((c) => c.slug === activeMega) ?? null;
+  const activeFacet = activeCat ? MEGA_FACETS[activeCat.slug] : undefined;
+
   // Close search on outside click
   useEffect(() => {
     function handler(e: MouseEvent) {
@@ -186,8 +162,6 @@ export function Header() {
   const handleMegaLeave = useCallback(() => {
     megaTimer.current = setTimeout(() => setActiveMega(null), 120);
   }, []);
-
-  const navCategories = Object.keys(MEGA_MENU);
 
   return (
     <>
@@ -220,19 +194,19 @@ export function Header() {
 
             {/* Desktop nav */}
             <nav className="hidden md:flex items-center gap-1 ml-4 text-sm font-medium">
-              {navCategories.map((cat) => (
+              {megaCategories.map((cat) => (
                 <button
-                  key={cat}
+                  key={cat.slug}
                   className={`flex items-center gap-1 px-3 py-1.5 rounded-md transition-colors whitespace-nowrap ${
-                    activeMega === cat
+                    activeMega === cat.slug
                       ? 'text-primary bg-primary/5'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                   }`}
-                  onMouseEnter={() => handleMegaEnter(cat)}
+                  onMouseEnter={() => handleMegaEnter(cat.slug)}
                 >
-                  {cat}
+                  {cat.name}
                   <ChevronDown
-                    className={`w-3.5 h-3.5 transition-transform duration-200 ${activeMega === cat ? 'rotate-180' : ''}`}
+                    className={`w-3.5 h-3.5 transition-transform duration-200 ${activeMega === cat.slug ? 'rotate-180' : ''}`}
                   />
                 </button>
               ))}
@@ -435,74 +409,87 @@ export function Header() {
         </div>
 
         {/* Mega-menu panel */}
-        {activeMega && MEGA_MENU[activeMega] && (
+        {activeCat && (
           <div
             className="absolute left-0 right-0 top-full bg-background border-b border-border shadow-2xl z-50"
             onMouseEnter={() => { if (megaTimer.current) clearTimeout(megaTimer.current); }}
             onMouseLeave={handleMegaLeave}
           >
             <div className="container mx-auto px-4 py-6 flex gap-8">
-              {/* Featured image */}
+              {/* Featured image — the category's real admin-set cover image */}
               <Link
-                href={`/products?category=${MEGA_MENU[activeMega].slug}`}
+                href={`/products?category=${activeCat.slug}`}
                 className="group relative w-60 shrink-0 rounded-xl overflow-hidden bg-muted"
                 onClick={() => setActiveMega(null)}
               >
                 <img
-                  src={MEGA_MENU[activeMega].featuredImage}
-                  alt={activeMega}
+                  src={activeCat.imageUrl || CATEGORY_FALLBACK_IMAGE}
+                  alt={activeCat.name}
                   className="w-full h-44 object-cover transition-transform duration-500 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex flex-col justify-end p-4">
-                  <p className="text-white font-bold text-sm leading-tight">{MEGA_MENU[activeMega].featuredLabel}</p>
-                  <p className="text-white/70 text-xs mt-0.5">{MEGA_MENU[activeMega].featuredSub}</p>
+                  <p className="text-white font-bold text-sm leading-tight">
+                    {activeFacet?.featuredLabel ?? activeCat.name}
+                  </p>
+                  <p className="text-white/70 text-xs mt-0.5">
+                    {activeFacet?.featuredSub ?? `${activeCat.productCount ?? 0} products in stock`}
+                  </p>
                   <span className="text-primary text-xs font-bold flex items-center gap-1 mt-2 group-hover:gap-2 transition-all">
                     Shop Now <ArrowRight className="w-3 h-3" />
                   </span>
                 </div>
               </Link>
 
-              {/* Sub-category columns */}
-              <div className="flex gap-12 flex-1">
-                {MEGA_MENU[activeMega].columns.map((col) => (
-                  <div key={col.heading}>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-4">
-                      {col.heading}
-                    </p>
-                    <ul className="space-y-3">
-                      {col.links.map((link) => (
-                        <li key={link.name}>
-                          <Link
-                            href={link.href}
-                            onClick={() => setActiveMega(null)}
-                            className="flex items-center gap-3 group/link"
-                          >
-                            <div className="w-9 h-9 rounded-md bg-muted overflow-hidden shrink-0 border border-border/50">
-                              <img
-                                src={link.image}
-                                alt={link.name}
-                                className="w-full h-full object-cover transition-transform duration-300 group-hover/link:scale-110"
-                              />
-                            </div>
-                            <span className="text-sm font-medium text-muted-foreground group-hover/link:text-foreground group-hover/link:text-primary transition-colors">
-                              {link.name}
-                            </span>
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
+              {/* Sub-category columns — each link is a real category-scoped search */}
+              {activeFacet ? (
+                <div className="flex gap-12 flex-1">
+                  {activeFacet.columns.map((col) => (
+                    <div key={col.heading}>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-4">
+                        {col.heading}
+                      </p>
+                      <ul className="space-y-3">
+                        {col.links.map((link) => (
+                          <li key={link.name}>
+                            <Link
+                              href={facetHref(activeCat.slug, link.search)}
+                              onClick={() => setActiveMega(null)}
+                              className="flex items-center gap-3 group/link"
+                            >
+                              <div className="w-9 h-9 rounded-md bg-muted overflow-hidden shrink-0 border border-border/50">
+                                <img
+                                  src={link.image}
+                                  alt={link.name}
+                                  className="w-full h-full object-cover transition-transform duration-300 group-hover/link:scale-110"
+                                />
+                              </div>
+                              <span className="text-sm font-medium text-muted-foreground group-hover/link:text-foreground group-hover/link:text-primary transition-colors">
+                                {link.name}
+                              </span>
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex-1 flex items-center">
+                  <p className="text-sm text-muted-foreground">
+                    Browse everything in{' '}
+                    <span className="font-semibold text-foreground">{activeCat.name}</span>.
+                  </p>
+                </div>
+              )}
 
               {/* View all */}
               <div className="shrink-0 self-start">
                 <Link
-                  href={`/products?category=${MEGA_MENU[activeMega].slug}`}
+                  href={`/products?category=${activeCat.slug}`}
                   onClick={() => setActiveMega(null)}
                   className="inline-flex items-center gap-2 text-sm font-bold text-primary border border-primary/30 rounded-lg px-4 py-2 hover:bg-primary hover:text-primary-foreground transition-colors"
                 >
-                  All {activeMega} <ArrowRight className="w-3.5 h-3.5" />
+                  All {activeCat.name} <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
             </div>
@@ -522,14 +509,14 @@ export function Header() {
               </Button>
             </div>
             <nav className="flex-1 overflow-y-auto py-4">
-              {navCategories.map((cat) => (
+              {megaCategories.map((cat) => (
                 <Link
-                  key={cat}
-                  href={`/products?category=${MEGA_MENU[cat].slug}`}
+                  key={cat.slug}
+                  href={`/products?category=${cat.slug}`}
                   onClick={() => setMobileOpen(false)}
                   className="flex items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/50 hover:text-primary transition-colors"
                 >
-                  {cat}
+                  {cat.name}
                   <ArrowRight className="w-4 h-4 opacity-40" />
                 </Link>
               ))}
