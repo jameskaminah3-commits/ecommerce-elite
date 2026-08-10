@@ -12,10 +12,11 @@ import { requireAdmin } from "../middlewares/requireAdmin";
 const router: IRouter = Router();
 
 // Every route in this module exposes business analytics or customer PII and is
-// restricted to admins.
-router.use(requireAdmin);
-
-router.get("/admin/analytics/overview", async (_req, res): Promise<void> => {
+// restricted to admins. requireAdmin is applied per-route (NOT via a router-wide
+// `router.use`): this router is mounted at the root path alongside the others,
+// so a pathless middleware here would also intercept every public route
+// registered after it (delivery, reviews, homepage) and 401 anonymous callers.
+router.get("/admin/analytics/overview", requireAdmin, async (_req, res): Promise<void> => {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
@@ -40,7 +41,7 @@ router.get("/admin/analytics/overview", async (_req, res): Promise<void> => {
   });
 });
 
-router.get("/admin/analytics/sales", async (req, res): Promise<void> => {
+router.get("/admin/analytics/sales", requireAdmin, async (req, res): Promise<void> => {
   const params = GetAnalyticsSalesQueryParams.safeParse(req.query);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -64,7 +65,7 @@ router.get("/admin/analytics/sales", async (req, res): Promise<void> => {
   res.json(rows);
 });
 
-router.get("/admin/analytics/top-products", async (req, res): Promise<void> => {
+router.get("/admin/analytics/top-products", requireAdmin, async (req, res): Promise<void> => {
   const params = GetTopProductsQueryParams.safeParse(req.query);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -90,7 +91,7 @@ router.get("/admin/analytics/top-products", async (req, res): Promise<void> => {
   res.json(rows);
 });
 
-router.get("/admin/inventory/low-stock", async (req, res): Promise<void> => {
+router.get("/admin/inventory/low-stock", requireAdmin, async (req, res): Promise<void> => {
   const params = GetLowStockVariantsQueryParams.safeParse(req.query);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -117,7 +118,7 @@ router.get("/admin/inventory/low-stock", async (req, res): Promise<void> => {
   res.json(rows.map((r) => ({ ...r, price: parseFloat(r.price) })));
 });
 
-router.get("/admin/orders/recent", async (req, res): Promise<void> => {
+router.get("/admin/orders/recent", requireAdmin, async (req, res): Promise<void> => {
   const params = GetRecentOrdersQueryParams.safeParse(req.query);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
