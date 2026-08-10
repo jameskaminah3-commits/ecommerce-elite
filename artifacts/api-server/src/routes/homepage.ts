@@ -17,6 +17,7 @@ function toPublic(b: Block) {
     backgroundColor: b.backgroundColor,
     overlayOpacity: b.overlayOpacity,
     columnSpan: b.columnSpan,
+    rowSpan: b.rowSpan,
     hideOnMobile: b.hideOnMobile,
     aspectRatio: b.aspectRatio,
     heading: b.heading,
@@ -42,6 +43,8 @@ function sanitize(body: any): Record<string, unknown> {
   if ("backgroundColor" in body) out.backgroundColor = body.backgroundColor || null;
   if (body?.overlayOpacity !== undefined) out.overlayOpacity = Math.min(Math.max(parseInt(body.overlayOpacity, 10) || 0, 0), 100);
   if (body?.columnSpan !== undefined) out.columnSpan = Math.min(Math.max(parseInt(body.columnSpan, 10) || 12, 1), 12);
+  // 0 = auto (derive height from aspect); otherwise an explicit desktop row span.
+  if (body?.rowSpan !== undefined) out.rowSpan = Math.min(Math.max(parseInt(body.rowSpan, 10) || 0, 0), 12);
   if (typeof body?.hideOnMobile === "boolean") out.hideOnMobile = body.hideOnMobile;
   if (typeof body?.aspectRatio === "string" && body.aspectRatio.trim()) out.aspectRatio = body.aspectRatio.trim();
   if ("heading" in body) out.heading = body.heading || null;

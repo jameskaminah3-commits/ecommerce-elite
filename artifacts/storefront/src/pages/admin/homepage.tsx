@@ -39,6 +39,8 @@ const H = ['left', 'center', 'right'];
 const ALIGNMENTS = V.flatMap((v) => H.map((h) => `${v}-${h}`));
 const ASPECTS = ['16/9', '21/9', '4/3', '3/2', '1/1', '4/5', '3/4'];
 const SPANS = [12, 8, 6, 4, 3];
+// 0 = auto (height from aspect ratio); 1–8 = explicit bento row span.
+const ROW_SPANS = [0, 2, 3, 4, 5, 6, 8];
 
 type BlockForm = {
   placement: 'hero' | 'grid';
@@ -48,6 +50,7 @@ type BlockForm = {
   backgroundColor: string;
   overlayOpacity: number;
   columnSpan: number;
+  rowSpan: number;
   hideOnMobile: boolean;
   aspectRatio: string;
   heading: string;
@@ -69,6 +72,7 @@ function toForm(b: HomepageBlock | null): BlockForm {
     backgroundColor: b?.backgroundColor ?? '#111827',
     overlayOpacity: b?.overlayOpacity ?? 30,
     columnSpan: b?.columnSpan ?? 12,
+    rowSpan: b?.rowSpan ?? 0,
     hideOnMobile: b?.hideOnMobile ?? false,
     aspectRatio: b?.aspectRatio ?? '16/9',
     heading: b?.heading ?? '',
@@ -229,6 +233,15 @@ function BlockDialog({ block, open, onOpenChange, onSaved }: { block: HomepageBl
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {SPANS.map((s) => <SelectItem key={s} value={String(s)}>{s} — {s === 12 ? 'full' : s === 6 ? 'half' : s === 4 ? 'third' : s === 3 ? 'quarter' : ''}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Row span (bento){form.placement === 'hero' ? ' — n/a for hero' : ''}</Label>
+            <Select value={String(form.rowSpan)} onValueChange={(v) => set('rowSpan', Number(v))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {ROW_SPANS.map((s) => <SelectItem key={s} value={String(s)}>{s === 0 ? 'Auto (from aspect)' : `${s} rows tall`}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>

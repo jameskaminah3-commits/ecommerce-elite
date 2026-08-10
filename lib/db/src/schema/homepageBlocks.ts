@@ -19,6 +19,10 @@ export const homepageBlocksTable = pgTable("homepage_blocks", {
   overlayOpacity: integer("overlay_opacity").notNull().default(30),
   // Desktop 12-column span (1-12). On mobile every block is full width.
   columnSpan: integer("column_span").notNull().default(12),
+  // Desktop row span for bento layouts (a tall tile spanning several rows next
+  // to stacked shorter blocks). 0 = auto-derive the height from aspectRatio and
+  // columnSpan so existing blocks keep their proportions.
+  rowSpan: integer("row_span").notNull().default(0),
   // Drop heavy blocks on small viewports.
   hideOnMobile: boolean("hide_on_mobile").notNull().default(false),
   // CSS aspect-ratio for the media box, e.g. "16/9", "1/1", "4/5", "21/9".

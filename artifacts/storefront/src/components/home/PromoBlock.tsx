@@ -12,6 +12,7 @@ export interface HomepageBlock {
   backgroundColor: string | null;
   overlayOpacity: number;
   columnSpan: number;
+  rowSpan?: number;
   hideOnMobile: boolean;
   aspectRatio: string;
   heading: string | null;
@@ -45,6 +46,23 @@ function aspect(value: string): string {
   const cleaned = (value || '16/9').replace(/\s+/g, '');
   const [w, h] = cleaned.split('/');
   return w && h ? `${w} / ${h}` : '16 / 9';
+}
+
+// Numeric aspect (width / height) for deriving a row span.
+function aspectValue(value: string): number {
+  const cleaned = (value || '16/9').replace(/\s+/g, '');
+  const [w, h] = cleaned.split('/').map(Number);
+  return w && h ? w / h : 16 / 9;
+}
+
+// How many grid rows a block occupies on desktop. An explicit rowSpan (> 0)
+// enables bento layouts (a tall tile beside stacked ones); otherwise the span
+// is derived from the column span and aspect ratio so the block keeps roughly
+// its intended proportions. Row unit ≈ one column width, so rows ≈ cols / aspect.
+function rowSpanFor(block: HomepageBlock): number {
+  if (block.rowSpan && block.rowSpan > 0) return Math.min(block.rowSpan, 12);
+  const derived = Math.round(block.columnSpan / aspectValue(block.aspectRatio));
+  return Math.min(Math.max(derived, 1), 12);
 }
 
 // Reveal on first scroll into view (once).
@@ -84,6 +102,7 @@ export function PromoBlock({ block, index = 0, animate = true, fill = false }: {
 
   const style = {
     ['--col-span' as any]: String(Math.min(Math.max(block.columnSpan, 1), 12)),
+    ['--row-span' as any]: String(rowSpanFor(block)),
     ['--aspect' as any]: aspect(block.aspectRatio),
     ['--overlay' as any]: String(Math.min(Math.max(block.overlayOpacity, 0), 100) / 100),
     ['--text-color' as any]: block.textColor || '#ffffff',
@@ -142,9 +161,29 @@ export function PromoBlock({ block, index = 0, animate = true, fill = false }: {
 }
 
 export function PromoGrid({ blocks }: { blocks: HomepageBlock[] }) {
+  const gridRef = useRef<HTMLDivElement | null>(null);
+
+  // Keep the grid's row unit equal to one column's width so bento tiles (blocks
+  // that span multiple rows) align exactly with the column rhythm and with each
+  // other, gaps included. Recomputed on every resize.
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const apply = () => {
+      const cs = getComputedStyle(el);
+      const gap = parseFloat(cs.columnGap) || 0;
+      const unit = (el.clientWidth - gap * 11) / 12;
+      if (unit > 0) el.style.setProperty('--row-unit', `${unit}px`);
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [blocks]);
+
   if (!blocks || blocks.length === 0) return null;
   return (
-    <div className={styles.grid}>
+    <div ref={gridRef} className={styles.grid}>
       {blocks.map((b, i) => (
         <PromoBlock key={b.id} block={b} index={i} />
       ))}
