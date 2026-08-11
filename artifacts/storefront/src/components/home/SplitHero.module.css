@@ -1,0 +1,147 @@
+/* Two-column split hero. On mobile it stacks: panel on top, image below. */
+.hero {
+  position: relative;
+  border-radius: 1.25rem;
+  overflow: hidden;
+  isolation: isolate;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), inset 0 0 0 1px rgba(0, 0, 0, 0.04);
+  /* Height driven by the media column's aspect on desktop; min on mobile. */
+  min-height: 26rem;
+}
+
+.slide {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto 1fr;
+  min-height: inherit;
+  animation: heroFade 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes heroFade {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (min-width: 768px) {
+  .hero {
+    min-height: 32rem;
+  }
+  .slide {
+    grid-template-columns: 1.05fr 1.35fr;
+    grid-template-rows: 1fr;
+    min-height: 32rem;
+  }
+}
+
+/* ── Copy panel ─────────────────────────────────────────────────────────── */
+.panel {
+  display: flex;
+  align-items: center;
+  padding: clamp(1.75rem, 4vw, 4rem);
+}
+.tintBlush { background-color: hsl(var(--panel-blush)); }
+.tintSage { background-color: hsl(var(--panel-sage)); }
+.tintSand { background-color: hsl(var(--panel-sand)); }
+.tintMist { background-color: hsl(var(--panel-mist)); }
+
+.panelInner {
+  max-width: 30rem;
+}
+
+.eyebrow {
+  margin: 0 0 1rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: hsl(var(--secondary));
+  opacity: 0.75;
+}
+
+.heading {
+  margin: 0;
+  color: hsl(var(--foreground));
+  font-weight: 600;
+  line-height: 1.04;
+  letter-spacing: -0.03em;
+  font-size: clamp(2.1rem, 4.6vw, 3.9rem);
+  text-wrap: balance;
+}
+.heading .serif-accent {
+  font-weight: 500;
+}
+
+.cta {
+  margin-top: clamp(1.25rem, 2.5vw, 2rem);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+  font-weight: 600;
+  font-size: 0.92rem;
+  padding: 0.85rem 1.6rem;
+  border-radius: 999px;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), background 0.25s ease;
+}
+.cta:hover {
+  transform: translateY(-2px);
+  background: hsl(var(--primary));
+}
+.cta svg {
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.cta:hover svg {
+  transform: translateX(4px);
+}
+
+/* ── Media side ─────────────────────────────────────────────────────────── */
+.media {
+  position: relative;
+  overflow: hidden;
+  background: hsl(var(--muted));
+  min-height: 14rem;
+}
+.media img,
+.media video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Slow Ken-Burns drift while the slide is shown. */
+  animation: heroZoom 9s ease-out forwards;
+}
+@keyframes heroZoom {
+  from { transform: scale(1.02); }
+  to { transform: scale(1.09); }
+}
+
+/* ── Slide ticks ────────────────────────────────────────────────────────── */
+.ticks {
+  position: absolute;
+  z-index: 3;
+  bottom: 1rem;
+  left: clamp(1.75rem, 4vw, 4rem);
+  display: flex;
+  gap: 0.4rem;
+}
+.tick {
+  width: 1.6rem;
+  height: 3px;
+  border-radius: 999px;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  background: hsl(var(--foreground) / 0.18);
+  transition: background 0.3s ease;
+}
+.tickActive {
+  background: hsl(var(--secondary));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide { animation: none; }
+  .media img,
+  .media video { animation: none; transform: none; }
+}

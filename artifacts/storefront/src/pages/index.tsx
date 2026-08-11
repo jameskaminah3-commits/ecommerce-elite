@@ -2,10 +2,10 @@ import React from 'react';
 import { StorefrontLayout } from '@/components/layout/StorefrontLayout';
 import { useListProducts, useListCategories } from '@workspace/api-client-react';
 import { ProductCard } from '@/components/products/ProductCard';
-import { SkeletonCard, SkeletonCategoryCard } from '@/components/products/SkeletonCard';
+import { SkeletonCard } from '@/components/products/SkeletonCard';
 import { PromoGrid, type HomepageBlock } from '@/components/home/PromoBlock';
 import { PinnedSplit } from '@/components/home/PinnedSplit';
-import { HeroSlideshow } from '@/components/home/HeroSlideshow';
+import { SplitHero } from '@/components/home/SplitHero';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { ArrowRight, ChevronRight, Truck, ShieldCheck, Clock, Headphones, Zap } from 'lucide-react';
@@ -40,11 +40,11 @@ export default function Home() {
   return (
     <StorefrontLayout>
 
-      {/* ── Auto-rotating hero slideshow (admin 'hero' blocks) ─────────── */}
+      {/* ── Split-panel hero (admin 'hero' blocks) ─────────────────────── */}
       {hasHero && (
         <section className="w-full">
-          <div className="container mx-auto px-4 pt-6 md:pt-8">
-            <HeroSlideshow blocks={heroBlocks} />
+          <div className="container mx-auto px-4 pt-6 md:pt-10">
+            <SplitHero blocks={heroBlocks} />
           </div>
         </section>
       )}
@@ -178,107 +178,63 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Category grid — mobile: touch carousel; desktop: 6-col grid ── */}
-      <section className="py-14 md:py-20">
+      {/* ── Shop by Category — airy circular medallions (Expanse-style) ── */}
+      <section className="py-16 md:py-24">
         <div className="container mx-auto px-4">
-          <div className="flex justify-between items-end mb-8">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-primary mb-2">Browse</p>
-              <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">Shop by Category</h2>
-            </div>
-            <Link href="/products" className="hidden md:flex items-center gap-1 text-sm font-bold text-muted-foreground hover:text-primary transition-colors">
-              View all <ChevronRight className="w-4 h-4" />
-            </Link>
+          <div className="text-center mb-12 md:mb-16">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary mb-3">Browse</p>
+            <h2 className="text-3xl md:text-4xl font-semibold tracking-tight">
+              Shop by <span className="serif-accent">category</span>
+            </h2>
           </div>
 
           {isCategoriesLoading ? (
-            /* Skeleton — same grid & aspect ratio as real cards (CLS = 0) */
-            <div className="hidden md:grid grid-cols-6 gap-3">
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-x-4 gap-y-8">
               {Array.from({ length: 6 }).map((_, i) => (
-                <SkeletonCategoryCard key={i} />
+                <div key={i} className="flex flex-col items-center gap-3">
+                  <div className="w-full aspect-square rounded-full bg-muted animate-pulse" />
+                  <div className="h-3 w-16 bg-muted rounded animate-pulse" />
+                </div>
               ))}
             </div>
           ) : (
-            <>
-              {/* Desktop grid */}
-              <div className="hidden md:grid grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
-                {categories?.map((cat, i) => (
-                  <Link
-                    key={cat.id}
-                    href={`/products?category=${cat.slug}`}
-                    className="group relative overflow-hidden rounded-xl aspect-[3/4] bg-muted block"
-                    style={{ willChange: 'transform' }}
-                  >
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-x-4 gap-y-9 md:gap-y-12">
+              {categories?.map((cat) => (
+                <Link
+                  key={cat.id}
+                  href={`/products?category=${cat.slug}`}
+                  className="group flex flex-col items-center gap-3.5 text-center"
+                >
+                  <div className="relative w-full aspect-square rounded-full bg-muted/60 overflow-hidden ring-1 ring-border/60 transition-all duration-500 group-hover:ring-primary/40 group-hover:shadow-lg group-hover:-translate-y-1">
                     {cat.imageUrl ? (
                       <img
                         src={cat.imageUrl}
                         alt={cat.name}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                        style={{ willChange: 'transform' }}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                       />
                     ) : (
-                      <div className="w-full h-full bg-secondary/10 flex items-center justify-center">
-                        <span className="font-black text-secondary/20 text-xl uppercase">{cat.name[0]}</span>
+                      <div className="w-full h-full flex items-center justify-center">
+                        <span className="font-serif italic text-3xl text-secondary/30">{cat.name[0]}</span>
                       </div>
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-                    <div className="absolute inset-x-0 bottom-0 p-4">
-                      <h3 className="text-white font-bold text-sm leading-tight">{cat.name}</h3>
-                      <span className="text-white/60 text-[10px] font-medium flex items-center gap-0.5 mt-1 group-hover:text-primary transition-colors">
-                        Shop <ChevronRight className="w-3 h-3" />
-                      </span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-
-              {/* Mobile: touch-swipeable carousel with snap + inertia */}
-              <div
-                className="md:hidden flex gap-3 overflow-x-auto pb-3 -mx-4 px-4"
-                style={{
-                  scrollSnapType: 'x mandatory',
-                  WebkitOverflowScrolling: 'touch',
-                  scrollbarWidth: 'none',
-                }}
-              >
-                {categories?.map((cat) => (
-                  <Link
-                    key={cat.id}
-                    href={`/products?category=${cat.slug}`}
-                    className="group relative overflow-hidden rounded-xl bg-muted shrink-0"
-                    style={{
-                      width: '45vw',
-                      aspectRatio: '3/4',
-                      scrollSnapAlign: 'start',
-                      willChange: 'transform',
-                    }}
-                  >
-                    {cat.imageUrl && (
-                      <img
-                        src={cat.imageUrl}
-                        alt={cat.name}
-                        className="w-full h-full object-cover"
-                      />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-                    <div className="absolute inset-x-0 bottom-0 p-4">
-                      <h3 className="text-white font-bold text-sm">{cat.name}</h3>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </>
+                  </div>
+                  <span className="text-sm md:text-base font-medium text-foreground/90 group-hover:text-primary transition-colors">
+                    {cat.name}
+                  </span>
+                </Link>
+              ))}
+            </div>
           )}
         </div>
       </section>
 
       {/* ── Featured products ──────────────────────────────────────────── */}
-      <section className="py-14 md:py-20 bg-muted/20 border-y">
+      <section className="py-16 md:py-24 bg-muted/25 border-y border-border/60">
         <div className="container mx-auto px-4">
-          <div className="flex justify-between items-end mb-8">
+          <div className="flex justify-between items-end mb-10 md:mb-14">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-primary mb-2">Handpicked</p>
-              <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">Featured Offers</h2>
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary mb-2.5">Handpicked</p>
+              <h2 className="text-3xl md:text-4xl font-semibold tracking-tight">Featured <span className="serif-accent">offers</span></h2>
             </div>
             <Button asChild variant="ghost" className="hidden md:flex text-sm text-primary hover:text-primary/80">
               <Link href="/products">View All <ArrowRight className="w-4 h-4 ml-1.5" /></Link>
@@ -314,12 +270,12 @@ export default function Home() {
       </section>
 
       {/* ── New Arrivals ───────────────────────────────────────────────── */}
-      <section className="py-14 md:py-20">
+      <section className="py-16 md:py-24">
         <div className="container mx-auto px-4">
-          <div className="flex justify-between items-end mb-8">
+          <div className="flex justify-between items-end mb-10 md:mb-14">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-primary mb-2">Fresh Stock</p>
-              <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">New Arrivals</h2>
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary mb-2.5">Fresh Stock</p>
+              <h2 className="text-3xl md:text-4xl font-semibold tracking-tight">New <span className="serif-accent">arrivals</span></h2>
             </div>
             <Link href="/products" className="hidden md:flex items-center gap-1 text-sm font-bold text-muted-foreground hover:text-primary transition-colors">
               View all <ChevronRight className="w-4 h-4" />
