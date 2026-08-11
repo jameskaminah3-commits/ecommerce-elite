@@ -14,6 +14,8 @@ import ProductDetail from '@/pages/product-detail';
 import CheckoutPage from '@/pages/checkout';
 import OrderPage from '@/pages/order-detail';
 import AccountPage from '@/pages/account';
+import BlogPage from '@/pages/blog';
+import BlogDetailPage from '@/pages/blog-detail';
 
 import AdminDashboard from '@/pages/admin/dashboard';
 import AdminProducts from '@/pages/admin/products';
@@ -24,6 +26,7 @@ import AdminInventory from '@/pages/admin/inventory';
 import AdminOffers from '@/pages/admin/offers';
 import AdminDelivery from '@/pages/admin/delivery';
 import AdminHomepage from '@/pages/admin/homepage';
+import AdminBlog from '@/pages/admin/blog';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,6 +43,8 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/products/:id" component={ProductDetail} />
       <Route path="/products" component={ProductsPage} />
+      <Route path="/blog/:slug" component={BlogDetailPage} />
+      <Route path="/blog" component={BlogPage} />
       <Route path="/checkout" component={CheckoutPage} />
       <Route path="/orders/:id" component={OrderPage} />
       <Route path="/account" component={AccountPage} />
@@ -52,6 +57,7 @@ function Router() {
       <Route path="/admin/offers" component={AdminOffers} />
       <Route path="/admin/delivery" component={AdminDelivery} />
       <Route path="/admin/homepage" component={AdminHomepage} />
+      <Route path="/admin/blog" component={AdminBlog} />
       <Route path="/admin/inventory" component={AdminInventory} />
       
       <Route component={NotFound} />

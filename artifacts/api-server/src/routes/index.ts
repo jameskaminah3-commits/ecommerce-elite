@@ -12,6 +12,7 @@ import reviewsRouter from "./reviews";
 import deliveryRouter from "./delivery";
 import homepageRouter from "./homepage";
 import newsletterRouter from "./newsletter";
+import blogRouter from "./blog";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(reviewsRouter);
 router.use(deliveryRouter);
 router.use(homepageRouter);
 router.use(newsletterRouter);
+router.use(blogRouter);
 
 export default router;

@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
 import {
+  blogPostsTable,
   categoriesTable,
   db,
   deliveryLocationsTable,
@@ -25,6 +26,48 @@ const seedUsers = [
 
 // Expanse-style top-of-homepage: a rotating hero (image + video slides) over a
 // grid of tiles (6+6) and a three-across category row (4+4+4).
+const sampleBlogPosts = [
+  {
+    title: "How to stock your shop for less: a wholesale buying guide",
+    slug: "wholesale-buying-guide",
+    excerpt: "Five practical ways Kenyan retailers cut costs buying in bulk — from bundle pricing to delivery classes.",
+    coverImageUrl: "https://images.unsplash.com/photo-1553413077-190dd305871c?w=1400&auto=format&fit=crop&q=80",
+    author: "Happyfine",
+    tags: "Guides,Wholesale",
+    status: "published" as const,
+    metaTitle: "Wholesale Buying Guide for Kenyan Retailers | Happyfine",
+    metaDescription: "Practical tips to buy stock in bulk and save — bundle pricing, delivery planning and choosing the right suppliers in Kenya.",
+    publishedAt: new Date("2026-07-02T09:00:00Z"),
+    content: `Buying wholesale is the fastest way to grow margins — if you do it well.\n\n## 1. Buy in the right quantities\nBulk pricing rewards volume, but overbuying ties up cash. Track your best sellers and reorder those first.\n\n## 2. Bundle complementary products\nPair a cookware set with utensils, or a TV with a wall mount. Bundles lift your average order value.\n\n## 3. Plan delivery by town\nDelivery cost varies by destination. Group orders to the same town to spread the cost.\n\n> Tip: our checkout shows the exact delivery fee per town before you pay.\n\n## 4. Watch for automatic discounts\nMany lines drop in price at 10+ units — no code needed.\n\n## 5. Build a relationship with your supplier\nConsistent orders unlock better terms over time.`,
+  },
+  {
+    title: "Product spotlight: building a home coffee corner",
+    slug: "home-coffee-corner",
+    excerpt: "The essentials that turn a countertop into a café — and why they sell so well.",
+    coverImageUrl: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=1400&auto=format&fit=crop&q=80",
+    author: "Happyfine",
+    tags: "Spotlight,Kitchen",
+    status: "published" as const,
+    metaTitle: "Build a Home Coffee Corner — Product Spotlight | Happyfine",
+    metaDescription: "The best-selling essentials for a home coffee setup, and tips for retailers stocking them.",
+    publishedAt: new Date("2026-07-20T09:00:00Z"),
+    content: `A great cup starts with a few well-chosen tools.\n\n## The essentials\n- A reliable **kettle** with temperature control\n- A **grinder** for fresh beans\n- A **brewer** — pour-over, moka pot or press\n- Good **mugs** that keep heat\n\n## Why it sells\nCoffee gear is an easy add-on and repeats well as customers upgrade. Display pieces together so shoppers picture the whole set.`,
+  },
+  {
+    title: "New stock every week: what just landed",
+    slug: "new-stock-this-week",
+    excerpt: "A quick look at fresh arrivals across electronics, home and fitness.",
+    coverImageUrl: "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=1400&auto=format&fit=crop&q=80",
+    author: "Happyfine",
+    tags: "News",
+    status: "published" as const,
+    metaTitle: "New Stock This Week | Happyfine Wholesalers",
+    metaDescription: "See the latest wholesale arrivals across electronics, home & living, beauty and fitness.",
+    publishedAt: new Date("2026-08-01T09:00:00Z"),
+    content: `Fresh stock lands at our Nairobi warehouse every week.\n\nThis week we added new **audio**, **kitchen** and **fitness** lines. Browse the [full catalogue](/products) to see what's in.`,
+  },
+];
+
 const sampleHomepageBlocks = [
   // ── HERO slideshow (auto-rotates) ──
   {
@@ -333,6 +376,11 @@ async function main(): Promise<void> {
   const existingBlocks = await db.select().from(homepageBlocksTable);
   if (existingBlocks.length === 0) {
     await db.insert(homepageBlocksTable).values(sampleHomepageBlocks);
+  }
+
+  const existingPosts = await db.select().from(blogPostsTable);
+  if (existingPosts.length === 0) {
+    await db.insert(blogPostsTable).values(sampleBlogPosts);
   }
 
   const categoryBySlug = new Map<string, number>();

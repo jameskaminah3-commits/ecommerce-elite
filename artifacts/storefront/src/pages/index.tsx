@@ -8,6 +8,7 @@ import { PinnedSplit } from '@/components/home/PinnedSplit';
 import { SplitHero } from '@/components/home/SplitHero';
 import { Newsletter } from '@/components/home/Newsletter';
 import { CountdownSale } from '@/components/home/CountdownSale';
+import { FromTheJournal } from '@/components/home/FromTheJournal';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { ArrowRight, ChevronRight, Truck, ShieldCheck, Clock, Headphones, Zap } from 'lucide-react';
@@ -304,6 +305,9 @@ export default function Home() {
           )}
         </div>
       </section>
+
+      {/* ── From the journal (latest blog posts) ───────────────────────── */}
+      <FromTheJournal />
 
       {/* ── Newsletter signup (captures emails to the DB) ──────────────── */}
       <Newsletter />

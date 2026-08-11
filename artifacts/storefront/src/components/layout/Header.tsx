@@ -218,6 +218,14 @@ export function Header() {
               >
                 All Products
               </Link>
+              <Link
+                href="/blog"
+                className={`px-3 py-1.5 rounded-md transition-colors text-sm font-medium ${
+                  location.startsWith('/blog') ? 'text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                }`}
+              >
+                Journal
+              </Link>
             </nav>
           </div>
 

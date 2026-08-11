@@ -1,2 +1,5 @@
 User-agent: *
 Allow: /
+
+# Update the host to your production domain when deploying.
+Sitemap: https://happyfine.co.ke/sitemap.xml
