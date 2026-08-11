@@ -81,6 +81,23 @@ const sampleHomepageBlocks = [
     heading: "Gym & Fitness", ctaLabel: "Shop", ctaHref: "/products",
     textAlign: "bottom-center", textColor: "#ffffff", sortOrder: 5,
   },
+  // Pastel discount tiles — soft background, dark copy, a product image floats.
+  {
+    placement: "grid" as const, kind: "color" as const, columnSpan: 6, rowSpan: 4, aspectRatio: "3/2", overlayOpacity: 0,
+    backgroundColor: "#e2ece3",
+    imageUrl: "https://images.unsplash.com/photo-1608354580875-30bd4168b351?w=700&auto=format&fit=crop&q=80",
+    heading: "Up to –20%", subheading: "Small kitchen appliances.",
+    ctaLabel: "Shop the sale", ctaHref: "/products",
+    textAlign: "center-left", textColor: "#14281f", sortOrder: 6,
+  },
+  {
+    placement: "grid" as const, kind: "color" as const, columnSpan: 6, rowSpan: 4, aspectRatio: "3/2", overlayOpacity: 0,
+    backgroundColor: "#f3e7e6",
+    imageUrl: "https://images.unsplash.com/photo-1602874801006-e26c4c5b5f6a?w=700&auto=format&fit=crop&q=80",
+    heading: "Up to –15%", subheading: "Selected home & décor.",
+    ctaLabel: "Explore deals", ctaHref: "/products",
+    textAlign: "center-left", textColor: "#3a2222", sortOrder: 7,
+  },
   // ── PINNED split — the first block pins while the rest scroll past it ──
   {
     placement: "pinned" as const, kind: "image" as const, columnSpan: 6, aspectRatio: "4/5", overlayOpacity: 50,

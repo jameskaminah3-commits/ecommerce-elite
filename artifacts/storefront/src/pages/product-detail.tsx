@@ -170,11 +170,11 @@ export default function ProductDetail() {
       <div className="container mx-auto px-4 py-8 md:py-12">
         <div className="flex flex-col md:flex-row gap-10 lg:gap-16">
 
-          {/* ── Images ────────────────────────────────────────────────── */}
-          <div className="w-full md:w-1/2 flex flex-col gap-4">
+          {/* ── Images (sticky gallery on desktop) ────────────────────── */}
+          <div className="w-full md:w-1/2 flex flex-col gap-4 md:sticky md:top-24 md:self-start">
             {/* Main image */}
             <div
-              className="aspect-square bg-muted rounded-2xl overflow-hidden border relative"
+              className="aspect-square bg-muted/40 rounded-3xl overflow-hidden ring-1 ring-border/50 relative"
               style={{ willChange: 'transform' }}
             >
               <img
@@ -187,8 +187,8 @@ export default function ProductDetail() {
                 style={{ willChange: 'opacity' }}
               />
               {priceInfo.onSale && (
-                <div className="absolute top-4 left-4 bg-destructive text-destructive-foreground text-xs font-black px-2.5 py-1 rounded">
-                  -{priceInfo.discountPct}% OFF
+                <div className="absolute top-4 left-4 bg-secondary text-secondary-foreground text-[11px] font-semibold px-3 py-1 rounded-full tracking-wide">
+                  –{priceInfo.discountPct}%
                 </div>
               )}
             </div>
@@ -201,10 +201,10 @@ export default function ProductDetail() {
                     key={i}
                     onClick={() => switchImage(img)}
                     className={cn(
-                      'w-20 h-20 shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-150',
+                      'w-20 h-20 shrink-0 rounded-xl overflow-hidden ring-1 transition-all duration-200',
                       activeImage === img
-                        ? 'border-primary ring-2 ring-primary/20 ring-offset-1'
-                        : 'border-border/40 hover:border-primary/50 opacity-70 hover:opacity-100',
+                        ? 'ring-2 ring-primary ring-offset-1'
+                        : 'ring-border/50 hover:ring-primary/50 opacity-70 hover:opacity-100',
                     )}
                     style={{ willChange: 'transform' }}
                   >
@@ -218,12 +218,12 @@ export default function ProductDetail() {
           {/* ── Details ───────────────────────────────────────────────── */}
           <div className="w-full md:w-1/2 flex flex-col">
             {product.categoryName && (
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-primary mb-2">
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary mb-2.5">
                 {product.categoryName}
               </p>
             )}
 
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground mb-4 leading-tight">
+            <h1 className="text-3xl md:text-[2.5rem] font-semibold tracking-tight text-foreground mb-4 leading-[1.1]">
               {product.name}
             </h1>
 
@@ -264,13 +264,13 @@ export default function ProductDetail() {
             {/* Price — updates instantly on variant change */}
             <div className="flex items-baseline gap-3 mb-7">
               <span
-                className="text-4xl font-extrabold tracking-tight text-foreground transition-all duration-150"
+                className="text-[2rem] md:text-4xl font-semibold tracking-tight text-foreground transition-all duration-150"
                 style={{ willChange: 'contents' }}
               >
                 {formatCurrency(displayPrice)}
               </span>
               {priceInfo.onSale && priceInfo.original != null && (
-                <span className="text-lg text-muted-foreground line-through">
+                <span className="text-lg text-muted-foreground/70 line-through">
                   {formatCurrency(priceInfo.original)}
                 </span>
               )}

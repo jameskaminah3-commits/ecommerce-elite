@@ -263,12 +263,15 @@ function BlockDialog({ block, open, onOpenChange, onSaved }: { block: HomepageBl
           </div>
         )}
         {form.kind === 'color' && (
-          <div className="space-y-2">
-            <Label>Background colour</Label>
-            <div className="flex items-center gap-2">
-              <input type="color" value={form.backgroundColor} onChange={(e) => set('backgroundColor', e.target.value)} className="h-9 w-12 rounded border" />
-              <Input value={form.backgroundColor} onChange={(e) => set('backgroundColor', e.target.value)} className="w-32" />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Background colour</Label>
+              <div className="flex items-center gap-2">
+                <input type="color" value={form.backgroundColor} onChange={(e) => set('backgroundColor', e.target.value)} className="h-9 w-12 rounded border" />
+                <Input value={form.backgroundColor} onChange={(e) => set('backgroundColor', e.target.value)} className="w-32" />
+              </div>
             </div>
+            <MediaPicker value={form.imageUrl} onChange={(url) => set('imageUrl', url)} label="Foreground product image (optional)" />
           </div>
         )}
 

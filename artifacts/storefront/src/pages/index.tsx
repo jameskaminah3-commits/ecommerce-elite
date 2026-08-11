@@ -6,6 +6,7 @@ import { SkeletonCard } from '@/components/products/SkeletonCard';
 import { PromoGrid, type HomepageBlock } from '@/components/home/PromoBlock';
 import { PinnedSplit } from '@/components/home/PinnedSplit';
 import { SplitHero } from '@/components/home/SplitHero';
+import { ShopTheLook, type LookHotspot } from '@/components/home/ShopTheLook';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { ArrowRight, ChevronRight, Truck, ShieldCheck, Clock, Headphones, Zap } from 'lucide-react';
@@ -36,6 +37,19 @@ export default function Home() {
   const allProducts = productsData?.items || [];
   const featuredProducts = allProducts.slice(0, 8);
   const newArrivals = allProducts.slice(4, 12);
+
+  // "Shop the look" hotspots — a curated lifestyle image with a few real
+  // products pinned to positions on it.
+  const lookImage =
+    'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=1600&auto=format&fit=crop&q=80';
+  const lookPositions = [
+    { xPct: 28, yPct: 62 },
+    { xPct: 55, yPct: 40 },
+    { xPct: 74, yPct: 68 },
+  ];
+  const lookHotspots: LookHotspot[] = allProducts
+    .slice(0, lookPositions.length)
+    .map((product, i) => ({ ...lookPositions[i], product }));
 
   return (
     <StorefrontLayout>
@@ -301,6 +315,9 @@ export default function Home() {
           )}
         </div>
       </section>
+
+      {/* ── Shop the look — editorial lifestyle image with product hotspots ── */}
+      {lookHotspots.length > 0 && <ShopTheLook image={lookImage} hotspots={lookHotspots} />}
 
     </StorefrontLayout>
   );

@@ -196,6 +196,12 @@ export function PromoBlock({ block, index = 0, animate = true, fill = false }: {
         <img className={mediaClass} data-parallax-media src={block.imageUrl} alt={block.heading ?? ''} loading="lazy" />
       ) : null}
 
+      {/* Solid-colour "discount tile": a product image floats on the pastel
+          background while the copy sits alongside it (Expanse-style promo). */}
+      {block.kind === 'color' && block.imageUrl && (
+        <img className={styles.foreground} src={block.imageUrl} alt="" loading="lazy" />
+      )}
+
       {isMedia && block.overlayOpacity > 0 && <div className={styles.overlay} />}
       {/* Universal legibility gradient over every media asset (stronger when the
           block carries text, subtle otherwise) so overlaid copy stays readable
