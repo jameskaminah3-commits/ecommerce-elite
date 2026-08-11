@@ -10,3 +10,4 @@ export * from "./deliveryLocations";
 export * from "./deliveryClasses";
 export * from "./deliveryRates";
 export * from "./homepageBlocks";
+export * from "./newsletterSignups";

@@ -11,6 +11,7 @@ import mediaRouter from "./media";
 import reviewsRouter from "./reviews";
 import deliveryRouter from "./delivery";
 import homepageRouter from "./homepage";
+import newsletterRouter from "./newsletter";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(mediaRouter);
 router.use(reviewsRouter);
 router.use(deliveryRouter);
 router.use(homepageRouter);
+router.use(newsletterRouter);
 
 export default router;

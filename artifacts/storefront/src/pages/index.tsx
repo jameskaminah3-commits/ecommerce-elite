@@ -6,7 +6,8 @@ import { SkeletonCard } from '@/components/products/SkeletonCard';
 import { PromoGrid, type HomepageBlock } from '@/components/home/PromoBlock';
 import { PinnedSplit } from '@/components/home/PinnedSplit';
 import { SplitHero } from '@/components/home/SplitHero';
-import { ShopTheLook, type LookHotspot } from '@/components/home/ShopTheLook';
+import { Newsletter } from '@/components/home/Newsletter';
+import { CountdownSale } from '@/components/home/CountdownSale';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { ArrowRight, ChevronRight, Truck, ShieldCheck, Clock, Headphones, Zap } from 'lucide-react';
@@ -38,19 +39,6 @@ export default function Home() {
   const featuredProducts = allProducts.slice(0, 8);
   const newArrivals = allProducts.slice(4, 12);
 
-  // "Shop the look" hotspots — a curated lifestyle image with a few real
-  // products pinned to positions on it.
-  const lookImage =
-    'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=1600&auto=format&fit=crop&q=80';
-  const lookPositions = [
-    { xPct: 28, yPct: 62 },
-    { xPct: 55, yPct: 40 },
-    { xPct: 74, yPct: 68 },
-  ];
-  const lookHotspots: LookHotspot[] = allProducts
-    .slice(0, lookPositions.length)
-    .map((product, i) => ({ ...lookPositions[i], product }));
-
   return (
     <StorefrontLayout>
 
@@ -80,6 +68,9 @@ export default function Home() {
           </div>
         </section>
       )}
+
+      {/* ── Live countdown sale banner ─────────────────────────────────── */}
+      <CountdownSale target="2026-11-27T00:00:00Z" title="Black Friday countdown" subtitle="Wholesale prices, slashed further — up to 40% off" />
 
       {/* ── HERO — Asymmetric 2/3 + 1/3 editorial collage (fallback) ───── */}
       {!hasBlocks && (
@@ -168,24 +159,22 @@ export default function Home() {
       </section>
       )}
 
-      {/* ── Value props bar ────────────────────────────────────────────── */}
-      <section className="border-b bg-card">
+      {/* ── Trust / feature row — airy, centered (Expanse-style) ───────── */}
+      <section className="py-14 md:py-20 border-y border-border/50">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-border">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-y-10 gap-x-6">
             {[
-              { icon: Truck, label: 'Nationwide Delivery', sub: 'Free over KES 5,000' },
-              { icon: ShieldCheck, label: 'Quality Guaranteed', sub: '100% authentic products' },
-              { icon: Clock, label: 'Wholesale Pricing', sub: 'Buy more, save more' },
-              { icon: Headphones, label: '24/7 Support', sub: 'Dedicated team in Nairobi' },
+              { icon: Truck, label: 'Nationwide Delivery', sub: 'Free over KES 5,000, countrywide.' },
+              { icon: ShieldCheck, label: 'Quality Guaranteed', sub: '100% authentic, every order.' },
+              { icon: Clock, label: 'Wholesale Pricing', sub: 'Buy more, save more — no code.' },
+              { icon: Headphones, label: 'Dedicated Support', sub: 'A real team in Nairobi, always.' },
             ].map(({ icon: Icon, label, sub }) => (
-              <div key={label} className="flex items-center gap-3 px-5 py-5">
-                <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-                  <Icon className="w-4 h-4 text-primary" />
+              <div key={label} className="flex flex-col items-center text-center px-2">
+                <div className="w-12 h-12 rounded-full bg-primary/8 flex items-center justify-center mb-4">
+                  <Icon className="w-5 h-5 text-primary" strokeWidth={1.5} />
                 </div>
-                <div>
-                  <p className="font-bold text-xs">{label}</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">{sub}</p>
-                </div>
+                <p className="font-medium text-sm md:text-base">{label}</p>
+                <p className="text-xs md:text-[13px] text-muted-foreground mt-1.5 max-w-[15rem] leading-relaxed">{sub}</p>
               </div>
             ))}
           </div>
@@ -316,8 +305,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Shop the look — editorial lifestyle image with product hotspots ── */}
-      {lookHotspots.length > 0 && <ShopTheLook image={lookImage} hotspots={lookHotspots} />}
+      {/* ── Newsletter signup (captures emails to the DB) ──────────────── */}
+      <Newsletter />
 
     </StorefrontLayout>
   );
