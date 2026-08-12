@@ -52,6 +52,58 @@ export default function Home() {
         </section>
       )}
 
+      {/* ── Shop by Category — directly under the hero, airy medallions ── */}
+      <section className="pt-14 md:pt-20 pb-4 md:pb-8">
+        <div className="container mx-auto px-4">
+          <div className="flex items-end justify-between mb-10 md:mb-14">
+            <h2 className="text-3xl md:text-4xl font-semibold tracking-tight">
+              Shop by <span className="serif-accent">category</span>
+            </h2>
+            <Link href="/products" className="hidden sm:inline-flex items-center gap-1 text-sm font-semibold text-muted-foreground hover:text-primary transition-colors">
+              View all <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          {isCategoriesLoading ? (
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-x-5 gap-y-10">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex flex-col items-center gap-4">
+                  <div className="w-full aspect-square rounded-full bg-muted animate-pulse" />
+                  <div className="h-3 w-16 bg-muted rounded animate-pulse" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-x-5 gap-y-10 md:gap-y-12">
+              {categories?.map((cat) => (
+                <Link
+                  key={cat.id}
+                  href={`/products?category=${cat.slug}`}
+                  className="group flex flex-col items-center gap-4 text-center"
+                >
+                  <div className="relative w-full aspect-square rounded-full bg-muted/40 overflow-hidden ring-1 ring-border/40 transition-all duration-500 group-hover:ring-primary/40 group-hover:shadow-xl group-hover:shadow-black/5 group-hover:-translate-y-1.5">
+                    {cat.imageUrl ? (
+                      <img
+                        src={cat.imageUrl}
+                        alt={cat.name}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <span className="font-serif italic text-3xl text-secondary/25">{cat.name[0]}</span>
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-sm md:text-[15px] font-medium text-foreground/90 group-hover:text-primary transition-colors">
+                    {cat.name}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* ── Dynamic homepage blocks (admin-managed 12-col grid) ────────── */}
       {hasGrid && (
         <section className="w-full">
@@ -182,55 +234,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Shop by Category — airy circular medallions (Expanse-style) ── */}
-      <section className="py-16 md:py-24">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12 md:mb-16">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary mb-3">Browse</p>
-            <h2 className="text-3xl md:text-4xl font-semibold tracking-tight">
-              Shop by <span className="serif-accent">category</span>
-            </h2>
-          </div>
-
-          {isCategoriesLoading ? (
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-x-4 gap-y-8">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="flex flex-col items-center gap-3">
-                  <div className="w-full aspect-square rounded-full bg-muted animate-pulse" />
-                  <div className="h-3 w-16 bg-muted rounded animate-pulse" />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-x-4 gap-y-9 md:gap-y-12">
-              {categories?.map((cat) => (
-                <Link
-                  key={cat.id}
-                  href={`/products?category=${cat.slug}`}
-                  className="group flex flex-col items-center gap-3.5 text-center"
-                >
-                  <div className="relative w-full aspect-square rounded-full bg-muted/60 overflow-hidden ring-1 ring-border/60 transition-all duration-500 group-hover:ring-primary/40 group-hover:shadow-lg group-hover:-translate-y-1">
-                    {cat.imageUrl ? (
-                      <img
-                        src={cat.imageUrl}
-                        alt={cat.name}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <span className="font-serif italic text-3xl text-secondary/30">{cat.name[0]}</span>
-                      </div>
-                    )}
-                  </div>
-                  <span className="text-sm md:text-base font-medium text-foreground/90 group-hover:text-primary transition-colors">
-                    {cat.name}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
 
       {/* ── Featured products ──────────────────────────────────────────── */}
       <section className="py-16 md:py-24 bg-muted/25 border-y border-border/60">
