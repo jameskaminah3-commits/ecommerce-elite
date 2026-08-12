@@ -53,7 +53,7 @@ export default function Home() {
       )}
 
       {/* ── Shop by Category — directly under the hero, airy medallions ── */}
-      <section className="pt-14 md:pt-20 pb-4 md:pb-8">
+      <section className="pt-16 md:pt-24 pb-14 md:pb-20 border-b border-border/50">
         <div className="container mx-auto px-4">
           <div className="flex items-end justify-between mb-10 md:mb-14">
             <h2 className="text-3xl md:text-4xl font-semibold tracking-tight">
@@ -86,7 +86,7 @@ export default function Home() {
                       <img
                         src={cat.imageUrl}
                         alt={cat.name}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        className="w-full h-full object-contain p-6 md:p-8 transition-transform duration-700 group-hover:scale-[1.06]"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
