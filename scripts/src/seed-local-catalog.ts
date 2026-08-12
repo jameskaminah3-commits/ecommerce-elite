@@ -87,16 +87,17 @@ const sampleHomepageBlocks = [
     ctaLabel: "See what's new", ctaHref: "/products",
     textAlign: "bottom-left", textColor: "#ffffff", sortOrder: 1,
   },
-  // ── GRID blocks — a bento arrangement ──
-  // A tall 8-col × 8-row feature tile sits beside two stacked 4-col × 4-row
-  // tiles (rowSpan is explicit here), then a 6+6 row flows underneath. Because
-  // the grid's row unit equals one column width, every tile aligns exactly.
+  // ── GRID blocks — an EDITORIAL bento (campaigns & offers, NOT a repeat of
+  // the category circles above). A tall feature sits beside two stacked promos,
+  // then a 6+6 row of offers flows underneath. Because the grid's row unit
+  // equals one column width, every tile aligns exactly. Swap the imagery/copy
+  // in Admin → Homepage — these are starting-point campaigns.
   {
-    placement: "grid" as const, kind: "image" as const, columnSpan: 8, rowSpan: 8, aspectRatio: "1/1", overlayOpacity: 38,
+    placement: "grid" as const, kind: "image" as const, columnSpan: 8, rowSpan: 8, aspectRatio: "1/1", overlayOpacity: 44,
     parallax: true,
-    imageUrl: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=1200&auto=format&fit=crop&q=80",
-    heading: "Electronics", subheading: "Audio, smart devices & accessories.",
-    ctaLabel: "Browse", ctaHref: "/products",
+    imageUrl: "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=1200&auto=format&fit=crop&q=80",
+    heading: "The wholesale edit", subheading: "New stock, handpicked and priced for resale — refreshed every week.",
+    ctaLabel: "Explore the edit", ctaHref: "/products",
     textAlign: "bottom-left", textColor: "#ffffff", sortOrder: 1,
   },
   {
@@ -107,39 +108,27 @@ const sampleHomepageBlocks = [
     textAlign: "center-left", textColor: "#ffffff", sortOrder: 2,
   },
   {
-    placement: "grid" as const, kind: "image" as const, columnSpan: 4, rowSpan: 4, aspectRatio: "1/1", overlayOpacity: 30,
-    imageUrl: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&auto=format&fit=crop&q=80",
-    heading: "Home & Living", ctaLabel: "Shop", ctaHref: "/products",
-    textAlign: "bottom-center", textColor: "#ffffff", sortOrder: 3,
-  },
-  {
-    placement: "grid" as const, kind: "image" as const, columnSpan: 6, rowSpan: 4, aspectRatio: "3/2", overlayOpacity: 30,
-    imageUrl: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=800&auto=format&fit=crop&q=80",
-    heading: "Beauty", ctaLabel: "Shop", ctaHref: "/products",
-    textAlign: "bottom-center", textColor: "#ffffff", sortOrder: 4,
-  },
-  {
-    placement: "grid" as const, kind: "image" as const, columnSpan: 6, rowSpan: 4, aspectRatio: "3/2", overlayOpacity: 30,
-    imageUrl: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&auto=format&fit=crop&q=80",
-    heading: "Gym & Fitness", ctaLabel: "Shop", ctaHref: "/products",
-    textAlign: "bottom-center", textColor: "#ffffff", sortOrder: 5,
-  },
-  // Pastel discount tiles — soft background, dark copy, a product image floats.
-  {
-    placement: "grid" as const, kind: "color" as const, columnSpan: 6, rowSpan: 4, aspectRatio: "3/2", overlayOpacity: 0,
+    placement: "grid" as const, kind: "color" as const, columnSpan: 4, rowSpan: 4, aspectRatio: "1/1", overlayOpacity: 0,
     backgroundColor: "#e2ece3",
     imageUrl: "https://images.unsplash.com/photo-1608354580875-30bd4168b351?w=700&auto=format&fit=crop&q=80",
-    heading: "Up to –20%", subheading: "Small kitchen appliances.",
+    heading: "Up to –20%", subheading: "This week's clearance.",
     ctaLabel: "Shop the sale", ctaHref: "/products",
-    textAlign: "center-left", textColor: "#14281f", sortOrder: 6,
+    textAlign: "center-left", textColor: "#14281f", sortOrder: 3,
   },
   {
     placement: "grid" as const, kind: "color" as const, columnSpan: 6, rowSpan: 4, aspectRatio: "3/2", overlayOpacity: 0,
     backgroundColor: "#f3e7e6",
-    imageUrl: "https://images.unsplash.com/photo-1602874801006-e26c4c5b5f6a?w=700&auto=format&fit=crop&q=80",
-    heading: "Up to –15%", subheading: "Selected home & décor.",
-    ctaLabel: "Explore deals", ctaHref: "/products",
-    textAlign: "center-left", textColor: "#3a2222", sortOrder: 7,
+    imageUrl: "https://images.unsplash.com/photo-1607082349566-187342175e2f?w=700&auto=format&fit=crop&q=80",
+    heading: "Free delivery over KES 5,000", subheading: "On bulk orders, delivered countrywide.",
+    ctaLabel: "See how", ctaHref: "/products",
+    textAlign: "center-left", textColor: "#3a2222", sortOrder: 4,
+  },
+  {
+    placement: "grid" as const, kind: "image" as const, columnSpan: 6, rowSpan: 4, aspectRatio: "3/2", overlayOpacity: 48,
+    imageUrl: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=900&auto=format&fit=crop&q=80",
+    heading: "Trusted by shops across Kenya", subheading: "Fair wholesale prices. No middlemen.",
+    ctaLabel: "Why Happyfine", ctaHref: "/products",
+    textAlign: "bottom-left", textColor: "#ffffff", sortOrder: 5,
   },
   // ── PINNED split — the first block pins while the rest scroll past it ──
   {
