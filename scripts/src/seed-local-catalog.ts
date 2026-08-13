@@ -115,53 +115,6 @@ const sampleHomepageBlocks = [
     ctaLabel: "Shop the sale", ctaHref: "/products",
     textAlign: "center-left", textColor: "#14281f", sortOrder: 3,
   },
-  {
-    placement: "grid" as const, kind: "color" as const, columnSpan: 6, rowSpan: 4, aspectRatio: "3/2", overlayOpacity: 0,
-    backgroundColor: "#f3e7e6",
-    imageUrl: "https://images.unsplash.com/photo-1607082349566-187342175e2f?w=700&auto=format&fit=crop&q=80",
-    heading: "Free delivery over KES 5,000", subheading: "On bulk orders, delivered countrywide.",
-    ctaLabel: "See how", ctaHref: "/products",
-    textAlign: "center-left", textColor: "#3a2222", sortOrder: 4,
-  },
-  {
-    placement: "grid" as const, kind: "image" as const, columnSpan: 6, rowSpan: 4, aspectRatio: "3/2", overlayOpacity: 48,
-    imageUrl: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=900&auto=format&fit=crop&q=80",
-    heading: "Trusted by shops across Kenya", subheading: "Fair wholesale prices. No middlemen.",
-    ctaLabel: "Why Happyfine", ctaHref: "/products",
-    textAlign: "bottom-left", textColor: "#ffffff", sortOrder: 5,
-  },
-  // ── PINNED split — the first block pins while the rest scroll past it ──
-  {
-    placement: "pinned" as const, kind: "image" as const, columnSpan: 6, aspectRatio: "4/5", overlayOpacity: 50,
-    imageUrl: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=1000&auto=format&fit=crop&q=80",
-    heading: "Built for Kenyan business", subheading: "Wholesale stock, fair prices, delivered nationwide — no middlemen.",
-    ctaLabel: "Our story", ctaHref: "/products",
-    textAlign: "bottom-left", textColor: "#ffffff", sortOrder: 10,
-  },
-  {
-    placement: "pinned" as const, kind: "image" as const, columnSpan: 6, aspectRatio: "4/3", overlayOpacity: 35,
-    parallax: true,
-    imageUrl: "https://images.unsplash.com/photo-1553413077-190dd305871c?w=1000&auto=format&fit=crop&q=80",
-    heading: "Fast nationwide delivery", subheading: "From our Nairobi warehouse to your shelves.",
-    ctaLabel: "See delivery", ctaHref: "/products",
-    textAlign: "bottom-left", textColor: "#ffffff", sortOrder: 11,
-  },
-  {
-    placement: "pinned" as const, kind: "image" as const, columnSpan: 6, aspectRatio: "4/3", overlayOpacity: 35,
-    parallax: true,
-    imageUrl: "https://images.unsplash.com/photo-1556909212-d5b604d0c90d?w=1000&auto=format&fit=crop&q=80",
-    heading: "Quality you can trust", subheading: "Authentic products, guaranteed.",
-    ctaLabel: "Browse catalogue", ctaHref: "/products",
-    textAlign: "bottom-left", textColor: "#ffffff", sortOrder: 12,
-  },
-  {
-    placement: "pinned" as const, kind: "image" as const, columnSpan: 6, aspectRatio: "4/3", overlayOpacity: 35,
-    parallax: true,
-    imageUrl: "https://images.unsplash.com/photo-1607082349566-187342175e2f?w=1000&auto=format&fit=crop&q=80",
-    heading: "Buy more, save more", subheading: "Automatic bulk pricing on every order.",
-    ctaLabel: "Shop in bulk", ctaHref: "/products",
-    textAlign: "bottom-left", textColor: "#ffffff", sortOrder: 13,
-  },
 ];
 
 const seedDeliveryLocations = [
