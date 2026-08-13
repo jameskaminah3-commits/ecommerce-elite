@@ -320,6 +320,7 @@ export type OrderInputPaymentMethod = typeof OrderInputPaymentMethod[keyof typeo
 
 export const OrderInputPaymentMethod = {
   mpesa: 'mpesa',
+  paystack: 'paystack',
   pesapal: 'pesapal',
   cash_on_delivery: 'cash_on_delivery',
 } as const;

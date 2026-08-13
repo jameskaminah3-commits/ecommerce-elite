@@ -45,7 +45,7 @@ async function main() {
   console.log(`\nExisting users (${users.length}):`);
   for (const u of users) {
     console.log(
-      `  #${u.id}  ${u.email}  role=${u.role}  hash=${u.hash.slice(0, 16)}…`,
+      `  #${u.id}  ${u.email}  role=${u.role}  hash=${u.hash ? `${u.hash.slice(0, 16)}…` : "(none — Google/OTP)"}`,
     );
   }
 

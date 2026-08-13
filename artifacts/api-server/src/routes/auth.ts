@@ -95,7 +95,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     return;
   }
   // Transparently upgrade legacy SHA-256 hashes to scrypt on successful login.
-  if (isLegacyHash(user.passwordHash)) {
+  if (user.passwordHash && isLegacyHash(user.passwordHash)) {
     await db
       .update(usersTable)
       .set({ passwordHash: hashPassword(parsed.data.password) })
