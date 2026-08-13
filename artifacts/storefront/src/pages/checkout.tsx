@@ -46,7 +46,7 @@ export default function CheckoutPage() {
     customerPhone: user?.phone || '',
     shippingAddress: '',
   });
-  const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'pesapal' | 'cash_on_delivery'>('mpesa');
+  const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'paystack' | 'cash_on_delivery'>('mpesa');
   const [deliveryLocationId, setDeliveryLocationId] = useState<string>('');
 
   const { data: deliveryLocations } = useQuery({
@@ -96,6 +96,10 @@ export default function CheckoutPage() {
       toast({ title: "Select a delivery town", description: "Please choose where your order should be delivered.", variant: "destructive" });
       return;
     }
+    if (paymentMethod === 'paystack' && !formData.customerEmail.trim()) {
+      toast({ title: "Email required", description: "Enter your email address to pay by card.", variant: "destructive" });
+      return;
+    }
 
     try {
       const order = await createOrder.mutateAsync({
@@ -123,12 +127,33 @@ export default function CheckoutPage() {
         } catch (err) {
           toast({
             title: "M-Pesa Initiation Failed",
-            description: "Could not send STK push to your phone.",
+            description: "Could not send STK push to your phone. Please try again.",
+            variant: "destructive"
+          });
+        }
+      } else if (paymentMethod === 'paystack') {
+        // Create the transaction, then hand off to Paystack's hosted checkout.
+        try {
+          const res = await fetch(`${API_BASE}/api/payments/paystack/initialize`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ orderId: order.id, email: formData.customerEmail }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data.authorizationUrl) {
+            throw new Error(data.error || 'Could not start card payment.');
+          }
+          window.location.href = data.authorizationUrl;
+        } catch (err: any) {
+          toast({
+            title: "Card Payment Failed",
+            description: err?.message || "Could not start the card payment. Please try again.",
             variant: "destructive"
           });
         }
       } else {
-        // Other methods (COD, pesapal redirect)
+        // Cash on delivery — nothing to charge now.
         clear();
         setLocation(`/orders/${order.id}`);
       }
@@ -245,14 +270,14 @@ export default function CheckoutPage() {
                     <p className="text-sm text-muted-foreground">Pay instantly via your mobile phone. A prompt will be sent to {formData.customerPhone || 'your number'}.</p>
                   </div>
                 </div>
-                <div className={classNames("flex items-start space-x-3 p-4 border rounded-lg transition-colors cursor-pointer", paymentMethod === 'pesapal' ? "border-primary bg-primary/5" : "hover:bg-muted/50")}>
-                  <RadioGroupItem value="pesapal" id="pesapal" className="mt-1 text-primary" />
-                  <div className="grid gap-1.5 flex-1 cursor-pointer" onClick={() => setPaymentMethod('pesapal')}>
-                    <Label htmlFor="pesapal" className="font-bold flex items-center gap-2 text-base cursor-pointer">
+                <div className={classNames("flex items-start space-x-3 p-4 border rounded-lg transition-colors cursor-pointer", paymentMethod === 'paystack' ? "border-primary bg-primary/5" : "hover:bg-muted/50")}>
+                  <RadioGroupItem value="paystack" id="paystack" className="mt-1 text-primary" />
+                  <div className="grid gap-1.5 flex-1 cursor-pointer" onClick={() => setPaymentMethod('paystack')}>
+                    <Label htmlFor="paystack" className="font-bold flex items-center gap-2 text-base cursor-pointer">
                       <CreditCard className="w-5 h-5 text-blue-600" />
-                      Card Payment (Pesapal)
+                      Card / Bank (Paystack)
                     </Label>
-                    <p className="text-sm text-muted-foreground">Pay securely with Visa, Mastercard or other cards.</p>
+                    <p className="text-sm text-muted-foreground">Pay securely with Visa, Mastercard, or bank transfer via Paystack.</p>
                   </div>
                 </div>
                 <div className={classNames("flex items-start space-x-3 p-4 border rounded-lg transition-colors cursor-pointer", paymentMethod === 'cash_on_delivery' ? "border-primary bg-primary/5" : "hover:bg-muted/50")}>

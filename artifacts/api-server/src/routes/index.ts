@@ -6,6 +6,8 @@ import cartRouter from "./cart";
 import ordersRouter from "./orders";
 import paymentsRouter from "./payments";
 import authRouter from "./auth";
+import authGoogleRouter from "./auth-google";
+import authOtpRouter from "./auth-otp";
 import adminRouter from "./admin";
 import mediaRouter from "./media";
 import reviewsRouter from "./reviews";
@@ -18,6 +20,8 @@ const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
+router.use(authGoogleRouter);
+router.use(authOtpRouter);
 router.use(categoriesRouter);
 router.use(productsRouter);
 router.use(cartRouter);

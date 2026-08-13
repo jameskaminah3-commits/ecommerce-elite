@@ -41,7 +41,15 @@ if (!cookieSecret && process.env["NODE_ENV"] === "production") {
   throw new Error("SESSION_SECRET must be set in production to sign session cookies.");
 }
 app.use(cookieParser(cookieSecret || "happyfine-dev-secret-do-not-use-in-production"));
-app.use(express.json());
+// Keep the raw body around so webhook handlers (e.g. Paystack) can verify the
+// HMAC signature over the exact bytes we received.
+app.use(
+  express.json({
+    verify: (req, _res, buf) => {
+      (req as unknown as { rawBody?: Buffer }).rawBody = buf;
+    },
+  }),
+);
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);

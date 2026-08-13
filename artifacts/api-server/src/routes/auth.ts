@@ -4,6 +4,7 @@ import { db, usersTable } from "@workspace/db";
 import { RegisterUserBody, LoginUserBody } from "@workspace/api-zod";
 import crypto from "crypto";
 import { getUserId } from "../middlewares/requireAdmin";
+import { sessionCookieOptions } from "../lib/session";
 
 const router: IRouter = Router();
 
@@ -29,8 +30,10 @@ function isLegacyHash(stored: string): boolean {
 }
 
 // Constant-time comparison of a candidate password against a stored hash of
-// either format.
-function verifyPassword(pwd: string, stored: string): boolean {
+// either format. Accounts with no password (Google / OTP-only) can't log in
+// this way.
+function verifyPassword(pwd: string, stored: string | null): boolean {
+  if (!stored) return false;
   if (isLegacyHash(stored)) {
     const a = Buffer.from(legacyHash(pwd));
     const b = Buffer.from(stored);
@@ -41,23 +44,6 @@ function verifyPassword(pwd: string, stored: string): boolean {
   const derived = crypto.scryptSync(pwd, Buffer.from(saltHex, "hex"), SCRYPT_KEYLEN);
   const expected = Buffer.from(hashHex, "hex");
   return derived.length === expected.length && crypto.timingSafeEqual(derived, expected);
-}
-
-const SESSION_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
-
-// In production the storefront and API are typically served from different
-// origins, which requires SameSite=None + Secure for the cookie to be sent on
-// cross-site requests. In development we keep Lax so it works over plain HTTP.
-function sessionCookieOptions() {
-  const isProd = process.env["NODE_ENV"] === "production";
-  return {
-    httpOnly: true,
-    sameSite: isProd ? ("none" as const) : ("lax" as const),
-    secure: isProd,
-    maxAge: SESSION_MAX_AGE,
-    path: "/",
-    signed: true,
-  };
 }
 
 function userToPublic(u: typeof usersTable.$inferSelect) {

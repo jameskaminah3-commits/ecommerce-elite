@@ -9,7 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { ShoppingBag, Package, UserCircle, LogOut } from 'lucide-react';
+import { ShoppingBag, Package, UserCircle, LogOut, Mail } from 'lucide-react';
+
+const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
 
 export default function AccountPage() {
   const { user, logout, setUser } = useAuth();
@@ -104,6 +106,75 @@ function AuthView({ setUser }: { setUser: any }) {
   const loginMutation = useLoginUser();
   const registerMutation = useRegisterUser();
   const { toast } = useToast();
+
+  // Surface any error handed back by the Google OAuth redirect.
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get('error');
+    if (err) {
+      toast({
+        title: "Google sign-in failed",
+        description: "We couldn't sign you in with Google. Please try again or use email.",
+        variant: "destructive",
+      });
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  // ── Passwordless email OTP ────────────────────────────────────────────
+  const [otpEmail, setOtpEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpBusy, setOtpBusy] = useState(false);
+
+  const requestOtp = async () => {
+    if (!otpEmail.trim()) {
+      toast({ title: "Enter your email", description: "We'll send a one-time code to it.", variant: "destructive" });
+      return;
+    }
+    setOtpBusy(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/otp/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: otpEmail.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not send code.');
+      setOtpSent(true);
+      toast({
+        title: "Check your email",
+        description: data.devCode
+          ? `Dev mode: your code is ${data.devCode}`
+          : "We sent a 6-digit sign-in code to your email.",
+      });
+    } catch (err: any) {
+      toast({ title: "Couldn't send code", description: err?.message || 'Please try again.', variant: "destructive" });
+    } finally {
+      setOtpBusy(false);
+    }
+  };
+
+  const verifyOtp = async () => {
+    setOtpBusy(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/otp/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: otpEmail.trim(), code: otpCode.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Invalid code.');
+      setUser(data.user);
+    } catch (err: any) {
+      toast({ title: "Verification failed", description: err?.message || 'Please try again.', variant: "destructive" });
+    } finally {
+      setOtpBusy(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -201,6 +272,75 @@ function AuthView({ setUser }: { setUser: any }) {
               </div>
             </TabsContent>
           </Tabs>
+
+          {/* Alternative sign-in methods */}
+          <div className="mt-6">
+            <div className="relative flex items-center my-6">
+              <div className="flex-grow border-t border-border" />
+              <span className="mx-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Or continue with</span>
+              <div className="flex-grow border-t border-border" />
+            </div>
+
+            {/* Google */}
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-12 font-semibold"
+              onClick={() => { window.location.href = `${API_BASE}/api/auth/google`; }}
+            >
+              <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.66-2.26 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/>
+              </svg>
+              Continue with Google
+            </Button>
+
+            {/* Email OTP */}
+            <div className="mt-4 bg-card border rounded-2xl p-6 shadow-sm">
+              <div className="flex items-center gap-2 mb-4">
+                <Mail className="w-4 h-4 text-primary" />
+                <h3 className="font-bold text-sm">Sign in with an email code</h3>
+              </div>
+              {!otpSent ? (
+                <div className="space-y-3">
+                  <Input
+                    type="email"
+                    placeholder="you@example.com"
+                    value={otpEmail}
+                    onChange={(e) => setOtpEmail(e.target.value)}
+                    className="h-11"
+                  />
+                  <Button type="button" variant="secondary" className="w-full h-11 font-semibold" disabled={otpBusy} onClick={requestOtp}>
+                    {otpBusy ? "Sending..." : "Email me a code"}
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs text-muted-foreground">Enter the 6-digit code sent to <span className="font-semibold">{otpEmail}</span>.</p>
+                  <Input
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="123456"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                    className="h-11 tracking-[0.5em] text-center font-bold text-lg"
+                  />
+                  <Button type="button" className="w-full h-11 font-semibold" disabled={otpBusy || otpCode.length !== 6} onClick={verifyOtp}>
+                    {otpBusy ? "Verifying..." : "Verify & sign in"}
+                  </Button>
+                  <button
+                    type="button"
+                    className="w-full text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() => { setOtpSent(false); setOtpCode(''); }}
+                  >
+                    Use a different email
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </StorefrontLayout>

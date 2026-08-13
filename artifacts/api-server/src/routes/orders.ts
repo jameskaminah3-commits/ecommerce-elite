@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { db, ordersTable, orderItemsTable, cartItemsTable, productVariantsTable, productsTable, deliveryLocationsTable, deliveryRatesTable } from "@workspace/db";
 import { syncProductToSearchInBackground } from "../lib/meilisearch";
+import { sendOrderReceivedEmail } from "../lib/email";
 import {
   CreateOrderBody,
   ListOrdersQueryParams,
@@ -226,6 +227,23 @@ router.post("/orders", async (req, res): Promise<void> => {
 
   // Clear cart
   await db.delete(cartItemsTable).where(eq(cartItemsTable.sessionId, sessionId));
+
+  // Email the customer an order-received confirmation (fire-and-forget so a
+  // slow/absent email provider never blocks checkout).
+  if (order.customerEmail) {
+    void sendOrderReceivedEmail(order.customerEmail, {
+      orderId: order.id,
+      customerName: order.customerName,
+      total: parseFloat(order.total),
+      deliveryFee: parseFloat(order.deliveryFee ?? "0"),
+      deliveryLocation: order.deliveryLocation,
+      items: items.map((i) => ({
+        productName: i.productName,
+        quantity: i.quantity,
+        subtotal: parseFloat(i.subtotal),
+      })),
+    }).catch(() => {});
+  }
 
   res.status(201).json(formatOrder(order, items));
 });

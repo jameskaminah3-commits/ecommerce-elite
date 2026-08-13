@@ -2,17 +2,43 @@ import React from 'react';
 import { StorefrontLayout } from '@/components/layout/StorefrontLayout';
 import { useGetOrder } from '@workspace/api-client-react';
 import { useParams, Link } from 'wouter';
+import { useQueryClient } from '@tanstack/react-query';
 import { formatCurrency, classNames } from '@/lib/utils';
 import { CheckCircle2, Clock, Truck, PackageCheck, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
+
 export default function OrderPage() {
   const { id } = useParams();
   const orderId = parseInt(id || '0', 10);
-  
+  const queryClient = useQueryClient();
+
   const { data: order, isLoading } = useGetOrder(orderId, {
     query: { queryKey: ['/api/orders', orderId], enabled: !!orderId } as any,
   });
+
+  // When Paystack redirects back here it appends ?reference=…&trxref=…. Confirm
+  // the payment server-side, then refresh the order so the status reflects it.
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const reference = params.get('reference') || params.get('trxref');
+    if (!reference) return;
+    (async () => {
+      try {
+        await fetch(`${API_BASE}/api/payments/paystack/verify?reference=${encodeURIComponent(reference)}`, {
+          credentials: 'include',
+        });
+      } catch {
+        /* webhook remains the source of truth */
+      } finally {
+        queryClient.invalidateQueries({ queryKey: ['/api/orders', orderId] });
+        // Clean the query string so a refresh doesn't re-verify.
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    })();
+  }, [orderId, queryClient]);
 
   if (isLoading) {
     return (
