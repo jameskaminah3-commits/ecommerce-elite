@@ -169,7 +169,7 @@ export function Header() {
       <div className="w-full bg-secondary text-secondary-foreground/80 text-[11px] font-medium text-center py-2 tracking-wide border-b border-white/5 hidden sm:block">
         Free delivery across Kenya on orders over{' '}
         <span className="text-primary font-bold">KES 5,000</span>
-        &nbsp;·&nbsp; Fast, reliable delivery &nbsp;·&nbsp; Pay on delivery available
+        &nbsp;·&nbsp; Wholesale prices, no middlemen &nbsp;·&nbsp; Fast, reliable delivery
       </div>
 
       <header

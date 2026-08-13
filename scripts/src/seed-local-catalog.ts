@@ -73,7 +73,7 @@ const sampleHomepageBlocks = [
   {
     placement: "hero" as const, kind: "image" as const, columnSpan: 12, aspectRatio: "21/9", overlayOpacity: 45,
     imageUrl: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&auto=format&fit=crop&q=80",
-    heading: "Great prices. Delivered across Kenya.",
+    heading: "Wholesale prices. Delivered across Kenya.",
     subheading: "Home, electronics, beauty and fitness — quality you'll love.",
     ctaLabel: "Shop all products", ctaHref: "/products",
     textAlign: "center-center", textColor: "#ffffff", sortOrder: 0,

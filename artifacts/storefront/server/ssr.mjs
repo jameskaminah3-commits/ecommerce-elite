@@ -111,8 +111,8 @@ async function apiJson(pathname) {
   }
 }
 
-const DEFAULT_TITLE = 'Happyfine — Great prices, delivered across Kenya';
-const DEFAULT_DESC = 'Shop thousands of products at great prices — home, electronics, beauty and fitness — with fast delivery across Kenya.';
+const DEFAULT_TITLE = 'Happyfine Wholesalers — Wholesale prices, delivered across Kenya';
+const DEFAULT_DESC = 'Shop thousands of products at wholesale prices — home, electronics, beauty and fitness — with fast delivery across Kenya.';
 
 async function seoFor(url) {
   const canonical = SITE + url;

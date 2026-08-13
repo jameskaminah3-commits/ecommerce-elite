@@ -148,7 +148,7 @@ export default function Home() {
                 <span className="text-primary">You</span> &amp; Home.
               </h1>
               <p className="text-secondary-foreground/75 text-base md:text-lg leading-relaxed mb-8 max-w-md">
-                Thousands of products at great prices, delivered right to your door.
+                Thousands of products at wholesale prices, delivered right to your door.
               </p>
               <div className="flex flex-wrap gap-3">
                 <Button asChild size="lg" className="h-12 px-7 font-bold shadow-lg shadow-primary/25" style={{ willChange: 'transform' }}>
@@ -219,7 +219,7 @@ export default function Home() {
             {[
               { icon: Truck, label: 'Delivery Across Kenya', sub: 'Free over KES 5,000 — right to your door.' },
               { icon: ShieldCheck, label: 'Quality Guaranteed', sub: '100% authentic, every order.' },
-              { icon: Clock, label: 'Everyday Low Prices', sub: 'Fair prices on everything, always.' },
+              { icon: Clock, label: 'Wholesale Prices', sub: 'Wholesale prices — for everyone, every day.' },
               { icon: Headphones, label: 'Here to Help', sub: 'A real team in Nairobi, always.' },
             ].map(({ icon: Icon, label, sub }) => (
               <div key={label} className="flex flex-col items-center text-center px-2">
