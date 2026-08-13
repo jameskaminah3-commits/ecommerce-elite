@@ -123,7 +123,7 @@ export default function Home() {
       )}
 
       {/* ── Live countdown sale banner ─────────────────────────────────── */}
-      <CountdownSale target="2026-11-27T00:00:00Z" title="Black Friday countdown" subtitle="Wholesale prices, slashed further — up to 40% off" />
+      <CountdownSale target="2026-11-27T00:00:00Z" title="Black Friday countdown" subtitle="Up to 40% off across the store — for a limited time." />
 
       {/* ── HERO — Asymmetric 2/3 + 1/3 editorial collage (fallback) ───── */}
       {!hasBlocks && (
@@ -141,14 +141,14 @@ export default function Home() {
             <div className="absolute inset-0 bg-gradient-to-t from-secondary/50 via-transparent to-transparent" />
             <div className="relative z-10 h-full flex flex-col justify-end p-8 md:p-12 max-w-xl">
               <span className="inline-block py-1 px-3 rounded-full bg-primary/20 text-primary font-bold text-[10px] tracking-[0.14em] mb-5 border border-primary/30 self-start uppercase">
-                Kenya's Premier Wholesaler
+                Shop smarter across Kenya
               </span>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-5 leading-[1.08] text-secondary-foreground">
-                Equip Your<br />
-                <span className="text-primary">Business</span> &amp; Home.
+                Everything for<br />
+                <span className="text-primary">You</span> &amp; Home.
               </h1>
               <p className="text-secondary-foreground/75 text-base md:text-lg leading-relaxed mb-8 max-w-md">
-                Thousands of products at wholesale prices, direct from our Nairobi warehouse.
+                Thousands of products at great prices, delivered right to your door.
               </p>
               <div className="flex flex-wrap gap-3">
                 <Button asChild size="lg" className="h-12 px-7 font-bold shadow-lg shadow-primary/25" style={{ willChange: 'transform' }}>
@@ -177,7 +177,7 @@ export default function Home() {
                   Wireless Headphones<br />from KES 6,500
                 </h3>
                 <p className="text-primary-foreground/70 text-xs leading-relaxed">
-                  Premium audio. Wholesale pricing. Limited stock.
+                  Premium audio. Great price. Limited stock.
                 </p>
               </div>
               <Link
@@ -217,10 +217,10 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-y-10 gap-x-6">
             {[
-              { icon: Truck, label: 'Nationwide Delivery', sub: 'Free over KES 5,000, countrywide.' },
+              { icon: Truck, label: 'Delivery Across Kenya', sub: 'Free over KES 5,000 — right to your door.' },
               { icon: ShieldCheck, label: 'Quality Guaranteed', sub: '100% authentic, every order.' },
-              { icon: Clock, label: 'Wholesale Pricing', sub: 'Buy more, save more — no code.' },
-              { icon: Headphones, label: 'Dedicated Support', sub: 'A real team in Nairobi, always.' },
+              { icon: Clock, label: 'Everyday Low Prices', sub: 'Fair prices on everything, always.' },
+              { icon: Headphones, label: 'Here to Help', sub: 'A real team in Nairobi, always.' },
             ].map(({ icon: Icon, label, sub }) => (
               <div key={label} className="flex flex-col items-center text-center px-2">
                 <div className="w-12 h-12 rounded-full bg-primary/8 flex items-center justify-center mb-4">

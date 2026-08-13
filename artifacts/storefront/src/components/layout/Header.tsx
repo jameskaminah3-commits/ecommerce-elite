@@ -32,7 +32,7 @@ interface MegaFacet {
 const MEGA_FACETS: Record<string, MegaFacet> = {
   electronics: {
     featuredLabel: 'Smart TVs & Audio',
-    featuredSub: 'Big-screen entertainment, wholesale',
+    featuredSub: 'Big-screen entertainment for less',
     columns: [
       {
         heading: 'Screens & Devices',
@@ -110,7 +110,7 @@ function facetHref(slug: string, search: string): string {
 }
 
 const TRENDING_SEARCHES = ['Office chairs', 'Vitamin C serum', '4K Smart TV', 'Yoga mats', 'Cookware sets'];
-const SUGGESTED_COLLECTIONS = ['New Arrivals', 'Best Sellers', 'Wholesale Deals', 'Home Essentials'];
+const SUGGESTED_COLLECTIONS = ['New Arrivals', 'Best Sellers', 'Weekly Deals', 'Home Essentials'];
 
 export function Header() {
   const { user, logout } = useAuth();
@@ -169,10 +169,7 @@ export function Header() {
       <div className="w-full bg-secondary text-secondary-foreground/80 text-[11px] font-medium text-center py-2 tracking-wide border-b border-white/5 hidden sm:block">
         Free delivery across Kenya on orders over{' '}
         <span className="text-primary font-bold">KES 5,000</span>
-        &nbsp;·&nbsp; Wholesale pricing. No middlemen. &nbsp;·&nbsp;
-        <Link href="/account" className="underline underline-offset-2 hover:text-secondary-foreground transition-colors">
-          Open a Business Account
-        </Link>
+        &nbsp;·&nbsp; Fast, reliable delivery &nbsp;·&nbsp; Pay on delivery available
       </div>
 
       <header

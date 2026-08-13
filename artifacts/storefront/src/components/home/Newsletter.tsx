@@ -42,7 +42,7 @@ export function Newsletter() {
             Save 10% on your <span className="serif-accent">first order</span>
           </h2>
           <p className="text-muted-foreground max-w-xl mx-auto mb-8 text-sm md:text-base">
-            Sign up for wholesale deals and new-stock alerts — we'll send a 10% code for your first purchase.
+            Sign up for deals and new arrivals — we'll send a 10% code for your first order.
           </p>
 
           {state === 'done' ? (

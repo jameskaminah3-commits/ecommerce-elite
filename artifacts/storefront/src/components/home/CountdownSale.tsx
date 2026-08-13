@@ -18,7 +18,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
 // itself once the sale has passed.
 export function CountdownSale({
   target,
-  title = 'Wholesale Season Sale',
+  title = 'Seasonal Sale',
   subtitle = 'Save up to 40% across the catalogue',
   ctaLabel = 'Shop the sale',
   ctaHref = '/products',
