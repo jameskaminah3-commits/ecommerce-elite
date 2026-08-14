@@ -16,7 +16,7 @@ import {
   verifyWebhookSignature,
 } from "../lib/paystack";
 import { sendOrderPaidEmail, type OrderEmailData } from "../lib/email";
-import { deductInventoryForOrder } from "../lib/inventory";
+import { deductInventoryForOrder, releaseReservationsForOrder } from "../lib/inventory";
 
 const router: IRouter = Router();
 
@@ -156,6 +156,7 @@ router.post("/payments/mpesa/callback", async (req, res): Promise<void> => {
         await markOrderPaid(order);
       } else {
         await db.update(ordersTable).set({ paymentStatus: "failed" }).where(eq(ordersTable.id, order.id));
+        await releaseReservationsForOrder(order.id);
         logger.warn({ orderId: order.id, resultCode }, "M-Pesa payment failed");
       }
     }
@@ -249,6 +250,7 @@ router.get("/payments/paystack/verify", async (req, res): Promise<void> => {
       await markOrderPaid(order);
     } else if (result.status === "failed") {
       await db.update(ordersTable).set({ paymentStatus: "failed" }).where(eq(ordersTable.id, order.id));
+      await releaseReservationsForOrder(order.id);
     }
     const paid = (result.status === "success" && covers) || order.paymentStatus === "paid";
     res.json({ orderId: order.id, status: result.status, paymentStatus: paid ? "paid" : "pending" });

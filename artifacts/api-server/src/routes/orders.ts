@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { db, ordersTable, orderItemsTable, cartItemsTable, productVariantsTable, productsTable, deliveryLocationsTable, deliveryRatesTable } from "@workspace/db";
 import { sendOrderReceivedEmail } from "../lib/email";
-import { deductInventoryForOrder } from "../lib/inventory";
+import { deductInventoryForOrder, reserveStockForOrder, InsufficientStockError } from "../lib/inventory";
 import {
   CreateOrderBody,
   ListOrdersQueryParams,
@@ -183,38 +183,66 @@ router.post("/orders", async (req, res): Promise<void> => {
 
   const total = itemsTotal + deliveryFee;
 
-  // Create order + items atomically
-  const [order] = await db
-    .insert(ordersTable)
-    .values({
-      customerName: parsed.data.customerName,
-      customerEmail: parsed.data.customerEmail,
-      customerPhone: parsed.data.customerPhone,
-      shippingAddress: parsed.data.shippingAddress,
-      paymentMethod: parsed.data.paymentMethod as any,
-      total: String(total),
-      status: "pending",
-      paymentStatus: "pending",
-      deliveryLocation: deliveryLocationName,
-      deliveryFee: String(deliveryFee),
-      userId,
-    })
-    .returning();
+  // Create the order, its line items, and stock holds atomically. Reserving
+  // inside the same transaction means a concurrent checkout for the last unit
+  // fails cleanly rather than overselling; the hold auto-expires if payment
+  // never completes (see reservationTtlMs).
+  let order: typeof ordersTable.$inferSelect;
+  let items: (typeof orderItemsTable.$inferSelect)[];
+  try {
+    const created = await db.transaction(async (tx) => {
+      const [ord] = await tx
+        .insert(ordersTable)
+        .values({
+          customerName: parsed.data.customerName,
+          customerEmail: parsed.data.customerEmail,
+          customerPhone: parsed.data.customerPhone,
+          shippingAddress: parsed.data.shippingAddress,
+          paymentMethod: parsed.data.paymentMethod as any,
+          total: String(total),
+          status: "pending",
+          paymentStatus: "pending",
+          deliveryLocation: deliveryLocationName,
+          deliveryFee: String(deliveryFee),
+          userId,
+        })
+        .returning();
 
-  const itemsToInsert = cartRows.map((r) => ({
-    orderId: order.id,
-    variantId: r.variantId,
-    productName: r.productName,
-    productImageUrl: r.productImageUrl,
-    variantSku: r.variantSku,
-    variantSize: r.variantSize,
-    variantColor: r.variantColor,
-    price: String(unitPrice(r)),
-    quantity: r.quantity,
-    subtotal: String(unitPrice(r) * r.quantity),
-  }));
+      const its = await tx
+        .insert(orderItemsTable)
+        .values(
+          cartRows.map((r) => ({
+            orderId: ord.id,
+            variantId: r.variantId,
+            productName: r.productName,
+            productImageUrl: r.productImageUrl,
+            variantSku: r.variantSku,
+            variantSize: r.variantSize,
+            variantColor: r.variantColor,
+            price: String(unitPrice(r)),
+            quantity: r.quantity,
+            subtotal: String(unitPrice(r) * r.quantity),
+          })),
+        )
+        .returning();
 
-  const items = await db.insert(orderItemsTable).values(itemsToInsert).returning();
+      await reserveStockForOrder(
+        tx,
+        ord.id,
+        cartRows.map((r) => ({ variantId: r.variantId, quantity: r.quantity, productName: r.productName })),
+      );
+
+      return { ord, its };
+    });
+    order = created.ord;
+    items = created.its;
+  } catch (err) {
+    if (err instanceof InsufficientStockError) {
+      res.status(409).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
 
   // Reserve stock now only for cash-on-delivery, which has no online payment
   // step to gate on. M-Pesa/Paystack orders deduct stock on payment
