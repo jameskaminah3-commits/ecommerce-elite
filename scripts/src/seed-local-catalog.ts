@@ -126,7 +126,15 @@ const seedDeliveryLocations = [
   { name: "Thika", cost: "350.00" },
 ];
 
-const categories = [
+// Top-level categories first, then their subcategories (parentSlug). Parents
+// must precede their children so the seed can resolve parentSlug → id in order.
+const categories: {
+  name: string;
+  slug: string;
+  description: string;
+  imageUrl: string;
+  parentSlug?: string;
+}[] = [
   {
     name: "Electronics",
     slug: "electronics",
@@ -151,11 +159,55 @@ const categories = [
     description: "Workout gear and home fitness equipment.",
     imageUrl: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&auto=format&fit=crop&q=80",
   },
+  // ── Subcategories ──────────────────────────────────────────────────────
+  {
+    name: "Audio",
+    slug: "audio",
+    parentSlug: "electronics",
+    description: "Headphones, speakers, and wireless sound.",
+    imageUrl: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80",
+  },
+  {
+    name: "TVs & Screens",
+    slug: "tvs-screens",
+    parentSlug: "electronics",
+    description: "Smart TVs and big-screen entertainment.",
+    imageUrl: "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=800&auto=format&fit=crop&q=80",
+  },
+  {
+    name: "Kitchen",
+    slug: "kitchen",
+    parentSlug: "home-living",
+    description: "Cookware and kitchen essentials.",
+    imageUrl: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&auto=format&fit=crop&q=80",
+  },
+  {
+    name: "Furniture",
+    slug: "furniture",
+    parentSlug: "home-living",
+    description: "Seating, desks, and home furniture.",
+    imageUrl: "https://images.unsplash.com/photo-1580480055273-228ff5388ef8?w=800&auto=format&fit=crop&q=80",
+  },
+  {
+    name: "Skincare",
+    slug: "skincare",
+    parentSlug: "beauty",
+    description: "Serums, moisturisers, and daily skincare.",
+    imageUrl: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=800&auto=format&fit=crop&q=80",
+  },
+  {
+    name: "Yoga & Mats",
+    slug: "yoga-mats",
+    parentSlug: "gym-fitness",
+    description: "Mats and gear for yoga and stretching.",
+    imageUrl: "https://images.unsplash.com/photo-1601925228008-22d2a5090f0c?w=800&auto=format&fit=crop&q=80",
+  },
 ];
 
 const products = [
   {
-    categorySlug: "electronics",
+    categorySlug: "audio",
+    tags: ["wireless", "over-ear", "bass"],
     name: "NovaBass Wireless Headphones",
     slug: "novabass-wireless-headphones",
     description: "Comfortable over-ear headphones with deep bass and long battery life.",
@@ -175,7 +227,8 @@ const products = [
     ],
   },
   {
-    categorySlug: "electronics",
+    categorySlug: "tvs-screens",
+    tags: ["4k", "smart-tv", "43-inch"],
     name: "Amani 4K Smart TV 43 Inch",
     slug: "amani-4k-smart-tv-43",
     description: "Crisp 4K display with streaming apps and slim bezels.",
@@ -191,7 +244,8 @@ const products = [
     ],
   },
   {
-    categorySlug: "home-living",
+    categorySlug: "kitchen",
+    tags: ["non-stick", "cookware", "5-piece"],
     name: "ChefPro Non-Stick Cookware Set",
     slug: "chefpro-non-stick-cookware-set",
     description: "Durable non-stick pots and pans for daily home or restaurant use.",
@@ -210,7 +264,8 @@ const products = [
     ],
   },
   {
-    categorySlug: "home-living",
+    categorySlug: "furniture",
+    tags: ["ergonomic", "office", "adjustable"],
     name: "ErgoFlex Office Chair",
     slug: "ergoflex-office-chair",
     description: "Breathable ergonomic office chair with adjustable height and tilt.",
@@ -227,7 +282,8 @@ const products = [
     ],
   },
   {
-    categorySlug: "beauty",
+    categorySlug: "skincare",
+    tags: ["vitamin-c", "serum", "brightening"],
     name: "GlowCare Vitamin C Serum",
     slug: "glowcare-vitamin-c-serum",
     description: "Brightening face serum with vitamin C for daily skincare routines.",
@@ -244,7 +300,8 @@ const products = [
     ],
   },
   {
-    categorySlug: "gym-fitness",
+    categorySlug: "yoga-mats",
+    tags: ["non-slip", "yoga", "eco"],
     name: "PowerGrip Yoga Mat",
     slug: "powergrip-yoga-mat",
     description: "Non-slip mat for yoga, stretching, pilates, and home workouts.",
@@ -262,16 +319,24 @@ const products = [
   },
 ];
 
-async function upsertCategory(category: (typeof categories)[number]) {
+async function upsertCategory(category: (typeof categories)[number], parentId: number | null) {
+  const values = {
+    name: category.name,
+    slug: category.slug,
+    description: category.description,
+    imageUrl: category.imageUrl,
+    parentId,
+  };
   const [row] = await db
     .insert(categoriesTable)
-    .values(category)
+    .values(values)
     .onConflictDoUpdate({
       target: categoriesTable.slug,
       set: {
         name: category.name,
         description: category.description,
         imageUrl: category.imageUrl,
+        parentId,
       },
     })
     .returning();
@@ -328,7 +393,9 @@ async function main(): Promise<void> {
   const categoryBySlug = new Map<string, number>();
 
   for (const category of categories) {
-    const row = await upsertCategory(category);
+    // Parents are listed before children, so their id is already resolved.
+    const parentId = category.parentSlug ? categoryBySlug.get(category.parentSlug) ?? null : null;
+    const row = await upsertCategory(category, parentId);
     categoryBySlug.set(category.slug, row.id);
   }
 
@@ -350,6 +417,7 @@ async function main(): Promise<void> {
         categoryId,
         imageUrl: product.imageUrl,
         images: product.images,
+        tags: product.tags ?? [],
         status: "active",
         featured: product.featured,
         rating: product.rating,
@@ -365,6 +433,7 @@ async function main(): Promise<void> {
           categoryId,
           imageUrl: product.imageUrl,
           images: product.images,
+          tags: product.tags ?? [],
           status: "active",
           featured: product.featured,
           rating: product.rating,
