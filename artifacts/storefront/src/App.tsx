@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Switch, Route, Router as WouterRouter } from 'wouter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
@@ -8,25 +8,38 @@ import NotFound from '@/pages/not-found';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { CartProvider } from '@/contexts/CartContext';
 
+// Core shopping hot path — eagerly imported so the landing, catalogue and
+// product pages paint without an extra chunk round-trip.
 import Home from '@/pages/index';
 import ProductsPage from '@/pages/products';
 import ProductDetail from '@/pages/product-detail';
-import CheckoutPage from '@/pages/checkout';
-import OrderPage from '@/pages/order-detail';
-import AccountPage from '@/pages/account';
-import BlogPage from '@/pages/blog';
-import BlogDetailPage from '@/pages/blog-detail';
 
-import AdminDashboard from '@/pages/admin/dashboard';
-import AdminProducts from '@/pages/admin/products';
-import AdminOrders from '@/pages/admin/orders';
+// Secondary + admin pages are code-split: shoppers rarely hit these, and the
+// admin bundle (charts, media picker, variant dialogs) shouldn't weigh down the
+// storefront's first paint on a slow connection.
+const CheckoutPage = lazy(() => import('@/pages/checkout'));
+const OrderPage = lazy(() => import('@/pages/order-detail'));
+const AccountPage = lazy(() => import('@/pages/account'));
+const BlogPage = lazy(() => import('@/pages/blog'));
+const BlogDetailPage = lazy(() => import('@/pages/blog-detail'));
 
-import AdminCategories from '@/pages/admin/categories';
-import AdminInventory from '@/pages/admin/inventory';
-import AdminOffers from '@/pages/admin/offers';
-import AdminDelivery from '@/pages/admin/delivery';
-import AdminHomepage from '@/pages/admin/homepage';
-import AdminBlog from '@/pages/admin/blog';
+const AdminDashboard = lazy(() => import('@/pages/admin/dashboard'));
+const AdminProducts = lazy(() => import('@/pages/admin/products'));
+const AdminOrders = lazy(() => import('@/pages/admin/orders'));
+const AdminCategories = lazy(() => import('@/pages/admin/categories'));
+const AdminInventory = lazy(() => import('@/pages/admin/inventory'));
+const AdminOffers = lazy(() => import('@/pages/admin/offers'));
+const AdminDelivery = lazy(() => import('@/pages/admin/delivery'));
+const AdminHomepage = lazy(() => import('@/pages/admin/homepage'));
+const AdminBlog = lazy(() => import('@/pages/admin/blog'));
+
+function RouteFallback() {
+  return (
+    <div className="min-h-[60vh] flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,6 +52,7 @@ const queryClient = new QueryClient({
 
 function Router() {
   return (
+    <Suspense fallback={<RouteFallback />}>
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/products/:id" component={ProductDetail} />
@@ -62,6 +76,7 @@ function Router() {
       
       <Route component={NotFound} />
     </Switch>
+    </Suspense>
   );
 }
 

@@ -9,6 +9,7 @@ import { Search, Filter, SlidersHorizontal, X, ChevronRight, Tag } from 'lucide-
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn, formatCurrency } from '@/lib/utils';
 
 const PAGE_SIZE = 12;
@@ -245,6 +246,162 @@ export default function ProductsPage() {
 
   const heading = currentCategory?.name ?? 'All Products';
 
+  // Filter controls, rendered once but placed in two spots: an inline sidebar on
+  // desktop, and a bottom sheet on mobile.
+  const filterControls = (
+    <>
+      {/* Search */}
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground mb-3">
+          Search
+        </p>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <Input
+            value={searchInput}
+            onChange={(e) => handleSearchInput(e.target.value)}
+            placeholder="Search products..."
+            className="pl-9 h-9 text-sm"
+          />
+          {searchInput && (
+            <button
+              className="absolute right-3 top-1/2 -translate-y-1/2"
+              onClick={() => { setSearchInput(''); applyFilters('', category, sort); }}
+            >
+              <X className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Categories */}
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground mb-3 flex items-center gap-1.5">
+          <Filter className="w-3 h-3" /> Category
+        </p>
+        <ul className="space-y-0.5">
+          {[{ id: 0, name: 'All Categories', slug: 'all', parentId: null }, ...(categories || [])]
+            // Show only top-level categories + the active branch to keep the
+            // list tidy; subcategories are reachable via the pills / mega-menu.
+            .filter((c) => c.slug === 'all' || c.parentId == null || c.slug === category || c.id === currentCategory?.parentId)
+            .map((cat) => (
+              <li key={cat.slug}>
+                <button
+                  onClick={() => handleCategory(cat.slug)}
+                  className={cn(
+                    'w-full text-left px-3 py-2 rounded-lg text-sm transition-colors',
+                    category === cat.slug
+                      ? 'bg-primary/10 text-primary font-bold'
+                      : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                    cat.parentId != null && 'pl-6 text-[13px]',
+                  )}
+                >
+                  {cat.name}
+                </button>
+              </li>
+            ))}
+        </ul>
+      </div>
+
+      {/* Price range */}
+      {facets && facets.priceRange.max > 0 && (
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground mb-3">
+            Price (KES)
+          </p>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              inputMode="numeric"
+              placeholder={String(facets.priceRange.min)}
+              value={minPrice}
+              onChange={(e) => setMinPrice(e.target.value)}
+              className="h-9 text-sm"
+            />
+            <span className="text-muted-foreground text-xs">—</span>
+            <Input
+              type="number"
+              inputMode="numeric"
+              placeholder={String(facets.priceRange.max)}
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(e.target.value)}
+              className="h-9 text-sm"
+            />
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="w-full mt-2 h-8 text-xs font-semibold"
+            onClick={() => applyPriceRange(minPrice, maxPrice)}
+          >
+            Apply price
+          </Button>
+        </div>
+      )}
+
+      {/* Tag facets */}
+      {facets && facets.tags.length > 0 && (
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground mb-3 flex items-center gap-1.5">
+            <Tag className="w-3 h-3" /> Refine
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {facets.tags.map((t) => {
+              const active = selectedTags.includes(t.value);
+              return (
+                <button
+                  key={t.value}
+                  onClick={() => toggleTag(t.value)}
+                  className={cn(
+                    'inline-flex items-center gap-1 text-xs rounded-full px-3 py-1.5 border transition-colors capitalize',
+                    active
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background border-border text-muted-foreground hover:border-primary/50 hover:text-foreground',
+                  )}
+                >
+                  {t.value.replace(/-/g, ' ')}
+                  <span className={cn('text-[10px]', active ? 'text-primary-foreground/70' : 'text-muted-foreground/50')}>
+                    {t.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Sort (mobile only — desktop uses the top controls bar) */}
+      <div className="md:hidden">
+        <p className="text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground mb-3 flex items-center gap-1.5">
+          <SlidersHorizontal className="w-3 h-3" /> Sort by
+        </p>
+        <Select value={sort} onValueChange={(v) => handleSort(v as ListProductsSort)}>
+          <SelectTrigger className="h-9 text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="newest">Newest Arrivals</SelectItem>
+            <SelectItem value="price_asc">Price: Low to High</SelectItem>
+            <SelectItem value="price_desc">Price: High to Low</SelectItem>
+            <SelectItem value="popular">Most Popular</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Clear filters */}
+      {activeFiltersCount > 0 && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full text-destructive hover:text-destructive hover:bg-destructive/8 text-xs"
+          onClick={clearAll}
+        >
+          <X className="w-3.5 h-3.5 mr-1.5" /> Clear all filters
+        </Button>
+      )}
+    </>
+  );
+
   return (
     <StorefrontLayout>
       {/* Page header */}
@@ -279,7 +436,7 @@ export default function ProductsPage() {
             <Button
               variant="outline"
               size="sm"
-              className="sm:hidden flex items-center gap-2 self-start"
+              className="md:hidden flex items-center gap-2 self-start"
               onClick={() => setFiltersOpen((o) => !o)}
             >
               <Filter className="w-4 h-4" />
@@ -312,163 +469,29 @@ export default function ProductsPage() {
 
       <div className="container mx-auto px-4 py-8 flex flex-col md:flex-row gap-8">
 
-        {/* ── Sidebar filters ───────────────────────────────────────────── */}
-        <aside
-          className={cn(
-            'w-full md:w-60 shrink-0 md:block space-y-8',
-            filtersOpen ? 'block' : 'hidden',
-          )}
-        >
-          {/* Search */}
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground mb-3">
-              Search
-            </p>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <Input
-                value={searchInput}
-                onChange={(e) => handleSearchInput(e.target.value)}
-                placeholder="Search products..."
-                className="pl-9 h-9 text-sm"
-              />
-              {searchInput && (
-                <button
-                  className="absolute right-3 top-1/2 -translate-y-1/2"
-                  onClick={() => { setSearchInput(''); applyFilters('', category, sort); }}
-                >
-                  <X className="w-3.5 h-3.5 text-muted-foreground" />
-                </button>
-              )}
+        {/* ── Filters: inline sidebar on desktop ────────────────────────── */}
+        <aside className="hidden md:block w-60 shrink-0 space-y-8">
+          {filterControls}
+        </aside>
+
+        {/* ── Filters: bottom sheet on mobile ───────────────────────────── */}
+        <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+          <SheetContent side="bottom" className="md:hidden max-h-[85vh] rounded-t-2xl p-0 flex flex-col gap-0">
+            <SheetHeader className="px-5 pt-5 pb-3 border-b text-left shrink-0">
+              <SheetTitle className="flex items-center gap-2 text-base font-bold">
+                <SlidersHorizontal className="w-4 h-4" /> Filters
+              </SheetTitle>
+            </SheetHeader>
+            <div className="overflow-y-auto px-5 py-5 space-y-8">
+              {filterControls}
             </div>
-          </div>
-
-          {/* Categories */}
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground mb-3 flex items-center gap-1.5">
-              <Filter className="w-3 h-3" /> Category
-            </p>
-            <ul className="space-y-0.5">
-              {[{ id: 0, name: 'All Categories', slug: 'all', parentId: null }, ...(categories || [])]
-                // Show only top-level categories + the active branch to keep the
-                // list tidy; subcategories are reachable via the pills / mega-menu.
-                .filter((c) => c.slug === 'all' || c.parentId == null || c.slug === category || c.id === currentCategory?.parentId)
-                .map((cat) => (
-                  <li key={cat.slug}>
-                    <button
-                      onClick={() => handleCategory(cat.slug)}
-                      className={cn(
-                        'w-full text-left px-3 py-2 rounded-lg text-sm transition-colors',
-                        category === cat.slug
-                          ? 'bg-primary/10 text-primary font-bold'
-                          : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
-                        cat.parentId != null && 'pl-6 text-[13px]',
-                      )}
-                    >
-                      {cat.name}
-                    </button>
-                  </li>
-                ))}
-            </ul>
-          </div>
-
-          {/* Price range */}
-          {facets && facets.priceRange.max > 0 && (
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground mb-3">
-                Price (KES)
-              </p>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  placeholder={String(facets.priceRange.min)}
-                  value={minPrice}
-                  onChange={(e) => setMinPrice(e.target.value)}
-                  className="h-9 text-sm"
-                />
-                <span className="text-muted-foreground text-xs">—</span>
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  placeholder={String(facets.priceRange.max)}
-                  value={maxPrice}
-                  onChange={(e) => setMaxPrice(e.target.value)}
-                  className="h-9 text-sm"
-                />
-              </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="w-full mt-2 h-8 text-xs font-semibold"
-                onClick={() => applyPriceRange(minPrice, maxPrice)}
-              >
-                Apply price
+            <div className="border-t p-4 shrink-0" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+              <Button className="w-full h-12 font-bold" onClick={() => setFiltersOpen(false)}>
+                Show {total} results
               </Button>
             </div>
-          )}
-
-          {/* Tag facets */}
-          {facets && facets.tags.length > 0 && (
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground mb-3 flex items-center gap-1.5">
-                <Tag className="w-3 h-3" /> Refine
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {facets.tags.map((t) => {
-                  const active = selectedTags.includes(t.value);
-                  return (
-                    <button
-                      key={t.value}
-                      onClick={() => toggleTag(t.value)}
-                      className={cn(
-                        'inline-flex items-center gap-1 text-xs rounded-full px-3 py-1.5 border transition-colors capitalize',
-                        active
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-background border-border text-muted-foreground hover:border-primary/50 hover:text-foreground',
-                      )}
-                    >
-                      {t.value.replace(/-/g, ' ')}
-                      <span className={cn('text-[10px]', active ? 'text-primary-foreground/70' : 'text-muted-foreground/50')}>
-                        {t.count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Sort (mobile) */}
-          <div className="md:hidden">
-            <p className="text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground mb-3 flex items-center gap-1.5">
-              <SlidersHorizontal className="w-3 h-3" /> Sort by
-            </p>
-            <Select value={sort} onValueChange={(v) => handleSort(v as ListProductsSort)}>
-              <SelectTrigger className="h-9 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="newest">Newest Arrivals</SelectItem>
-                <SelectItem value="price_asc">Price: Low to High</SelectItem>
-                <SelectItem value="price_desc">Price: High to Low</SelectItem>
-                <SelectItem value="popular">Most Popular</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Clear filters */}
-          {activeFiltersCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full text-destructive hover:text-destructive hover:bg-destructive/8 text-xs"
-              onClick={clearAll}
-            >
-              <X className="w-3.5 h-3.5 mr-1.5" /> Clear all filters
-            </Button>
-          )}
-        </aside>
+          </SheetContent>
+        </Sheet>
 
         {/* ── Main content ──────────────────────────────────────────────── */}
         <div className="flex-1 min-w-0">

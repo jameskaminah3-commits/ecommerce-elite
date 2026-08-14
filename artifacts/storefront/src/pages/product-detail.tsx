@@ -317,7 +317,7 @@ export default function ProductDetail() {
                               // Circle swatch
                               <span
                                 className={cn(
-                                  'block w-8 h-8 rounded-full border-2 transition-all duration-150',
+                                  'block w-11 h-11 rounded-full border-2 transition-all duration-150',
                                   isSelected
                                     ? 'border-primary ring-2 ring-primary ring-offset-2 scale-110'
                                     : 'border-border hover:border-primary/60 hover:scale-105',
@@ -339,7 +339,7 @@ export default function ProductDetail() {
                             )}
                             {!isAvailable && (
                               <span className="absolute inset-0 flex items-center justify-center">
-                                <span className="w-[1px] h-9 bg-destructive/60 rotate-45 block" />
+                                <span className="w-[1px] h-12 bg-destructive/60 rotate-45 block" />
                               </span>
                             )}
                           </button>
@@ -372,7 +372,7 @@ export default function ProductDetail() {
                               if (v) selectVariant(v);
                             }}
                             className={cn(
-                              'min-w-[2.75rem] h-10 px-3 border rounded-md text-xs font-bold transition-all duration-150',
+                              'min-w-[2.75rem] h-11 px-3.5 border rounded-md text-xs font-bold transition-all duration-150',
                               isSelected
                                 ? 'border-primary bg-primary text-primary-foreground shadow-sm'
                                 : 'border-border bg-card hover:border-primary/60',
