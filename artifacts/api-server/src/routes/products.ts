@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, ilike, gte, lte, and, desc, asc, sql, inArray } from "drizzle-orm";
+import { eq, ilike, gte, lte, and, desc, asc, sql, inArray, arrayOverlaps } from "drizzle-orm";
 import { db, productsTable, productVariantsTable, categoriesTable } from "@workspace/db";
 import {
   deleteProductFromSearchInBackground,
@@ -36,6 +36,7 @@ function productRow(p: any, categoryName: string | null, totalStock: number) {
     categoryName,
     imageUrl: p.imageUrl,
     images: p.images ?? [],
+    tags: p.tags ?? [],
     status: p.status,
     featured: p.featured,
     discountPercent: p.discountPercent ?? 0,
@@ -45,6 +46,31 @@ function productRow(p: any, categoryName: string | null, totalStock: number) {
     reviewCount: p.reviewCount,
     createdAt: p.createdAt instanceof Date ? p.createdAt.toISOString() : p.createdAt,
   };
+}
+
+// Resolve a category id to itself plus all descendant category ids, so a
+// parent-category page shows everything filed under its subcategories too.
+async function categorySubtreeIds(rootId: number): Promise<number[]> {
+  const all = await db
+    .select({ id: categoriesTable.id, parentId: categoriesTable.parentId })
+    .from(categoriesTable);
+  const childrenByParent = new Map<number, number[]>();
+  for (const c of all) {
+    if (c.parentId != null) {
+      const arr = childrenByParent.get(c.parentId) ?? [];
+      arr.push(c.id);
+      childrenByParent.set(c.parentId, arr);
+    }
+  }
+  const result: number[] = [];
+  const stack = [rootId];
+  while (stack.length) {
+    const id = stack.pop() as number;
+    result.push(id);
+    const kids = childrenByParent.get(id);
+    if (kids) stack.push(...kids);
+  }
+  return result;
 }
 
 // Keep the product's displayed "from" price in sync with its cheapest variant,
@@ -67,7 +93,7 @@ router.get("/products", async (req, res): Promise<void> => {
     return;
   }
 
-  const { category, minPrice, maxPrice, search, sort, page = 1, limit = 24, featured } = params.data;
+  const { category, minPrice, maxPrice, search, sort, page = 1, limit = 24, featured, tags } = params.data;
 
   const searchResult = search
     ? await searchProductIds({ query: search, page, limit, category, minPrice, maxPrice, featured, sort })
@@ -79,7 +105,14 @@ router.get("/products", async (req, res): Promise<void> => {
   }
 
   const conditions = [];
-  if (category) conditions.push(eq(productsTable.categoryId, category));
+  // Filtering by a category includes its whole subtree (parent → children).
+  if (category) {
+    const subtree = await categorySubtreeIds(category);
+    conditions.push(inArray(productsTable.categoryId, subtree));
+  }
+  // Faceted tag filter: OR within the facet — a product matches any selected tag.
+  const tagList = String(tags ?? "").split(",").map((t) => t.trim()).filter(Boolean);
+  if (tagList.length > 0) conditions.push(arrayOverlaps(productsTable.tags, tagList));
   if (minPrice != null) conditions.push(gte(productsTable.basePrice, String(minPrice)));
   if (maxPrice != null) conditions.push(lte(productsTable.basePrice, String(maxPrice)));
   if (searchResult) conditions.push(inArray(productsTable.id, searchResult.ids));
@@ -147,6 +180,45 @@ router.post("/products", requireAdmin, async (req, res): Promise<void> => {
   const [cat] = await db.select({ name: categoriesTable.name }).from(categoriesTable).where(eq(categoriesTable.id, prod.categoryId));
   syncProductToSearchInBackground(prod.id);
   res.status(201).json(productRow(prod, cat?.name ?? null, 0));
+});
+
+// Available filters for a collection: the distinct tags (with counts) and the
+// price range across active products in the (optional) category subtree. Powers
+// the storefront's Expanse-style facet sidebar. Registered before /products/:id
+// so "facets" isn't parsed as an id.
+router.get("/products/facets", async (req, res): Promise<void> => {
+  const categoryRaw = req.query["category"];
+  const category = categoryRaw != null ? Number(categoryRaw) : undefined;
+  let catFilter = sql``;
+  if (category != null && Number.isInteger(category)) {
+    const subtree = await categorySubtreeIds(category);
+    catFilter = sql` and category_id = any(${subtree})`;
+  }
+
+  const tagResult: any = await db.execute(sql`
+    select unnest(tags) as tag, cast(count(*) as int) as count
+    from products
+    where status = 'active'${catFilter}
+    group by tag
+    order by count desc, tag asc
+  `);
+  const priceResult: any = await db.execute(sql`
+    select cast(coalesce(min(base_price), 0) as float8) as min,
+           cast(coalesce(max(base_price), 0) as float8) as max
+    from products
+    where status = 'active'${catFilter}
+  `);
+
+  const tagRows = (tagResult.rows ?? tagResult) as { tag: string; count: number }[];
+  const priceRows = (priceResult.rows ?? priceResult) as { min: number; max: number }[];
+
+  res.json({
+    tags: tagRows.map((r) => ({ value: r.tag, count: Number(r.count) })),
+    priceRange: {
+      min: Math.floor(Number(priceRows[0]?.min ?? 0)),
+      max: Math.ceil(Number(priceRows[0]?.max ?? 0)),
+    },
+  });
 });
 
 router.get("/products/:id", async (req, res): Promise<void> => {

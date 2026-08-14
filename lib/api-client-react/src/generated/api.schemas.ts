@@ -17,6 +17,8 @@ export interface Category {
   description?: string | null;
   /** @nullable */
   imageUrl?: string | null;
+  /** @nullable */
+  parentId?: number | null;
   productCount?: number;
   createdAt?: string;
 }
@@ -28,6 +30,8 @@ export interface CategoryInput {
   slug: string;
   description?: string;
   imageUrl?: string;
+  /** @nullable */
+  parentId?: number | null;
 }
 
 export interface CategoryPatch {
@@ -35,6 +39,8 @@ export interface CategoryPatch {
   slug?: string;
   description?: string;
   imageUrl?: string;
+  /** @nullable */
+  parentId?: number | null;
 }
 
 export type ProductStatus = typeof ProductStatus[keyof typeof ProductStatus];
@@ -61,6 +67,7 @@ export interface Product {
   /** @nullable */
   imageUrl?: string | null;
   images?: string[];
+  tags?: string[];
   status: ProductStatus;
   featured?: boolean;
   totalStock?: number;
@@ -154,6 +161,7 @@ export interface ProductInput {
   categoryId: number;
   imageUrl?: string;
   images?: string[];
+  tags?: string[];
   status?: ProductInputStatus;
   featured?: boolean;
   /**
@@ -183,6 +191,7 @@ export interface ProductPatch {
   categoryId?: number;
   imageUrl?: string;
   images?: string[];
+  tags?: string[];
   status?: ProductPatchStatus;
   featured?: boolean;
   /**
@@ -487,6 +496,8 @@ sort?: ListProductsSort;
 page?: number;
 limit?: number;
 featured?: boolean;
+/** Comma-separated tag slugs; OR semantics within the facet. */
+tags?: string;
 };
 
 export type ListProductsSort = typeof ListProductsSort[keyof typeof ListProductsSort];

@@ -20,6 +20,7 @@ router.get("/categories", async (req, res): Promise<void> => {
       slug: categoriesTable.slug,
       description: categoriesTable.description,
       imageUrl: categoriesTable.imageUrl,
+      parentId: categoriesTable.parentId,
       createdAt: categoriesTable.createdAt,
       productCount: sql<number>`cast(count(${productsTable.id}) as int)`,
     })
@@ -28,6 +29,47 @@ router.get("/categories", async (req, res): Promise<void> => {
     .groupBy(categoriesTable.id)
     .orderBy(categoriesTable.name);
   res.json(rows);
+});
+
+interface CategoryNode {
+  id: number;
+  name: string;
+  slug: string;
+  description: string | null;
+  imageUrl: string | null;
+  parentId: number | null;
+  productCount: number;
+  children: CategoryNode[];
+}
+
+// Nested category tree for the storefront mega-menu / subcategory browsing.
+// productCount is the category's own direct products; the tree is built from the
+// flat list so it supports arbitrary depth (the menu renders the top two levels).
+router.get("/categories/tree", async (_req, res): Promise<void> => {
+  const rows = await db
+    .select({
+      id: categoriesTable.id,
+      name: categoriesTable.name,
+      slug: categoriesTable.slug,
+      description: categoriesTable.description,
+      imageUrl: categoriesTable.imageUrl,
+      parentId: categoriesTable.parentId,
+      productCount: sql<number>`cast(count(${productsTable.id}) as int)`,
+    })
+    .from(categoriesTable)
+    .leftJoin(productsTable, eq(productsTable.categoryId, categoriesTable.id))
+    .groupBy(categoriesTable.id)
+    .orderBy(categoriesTable.name);
+
+  const byId = new Map<number, CategoryNode>();
+  for (const r of rows) byId.set(r.id, { ...r, children: [] });
+  const roots: CategoryNode[] = [];
+  for (const node of byId.values()) {
+    const parent = node.parentId != null ? byId.get(node.parentId) : undefined;
+    if (parent) parent.children.push(node);
+    else roots.push(node);
+  }
+  res.json(roots);
 });
 
 router.post("/categories", requireAdmin, async (req, res): Promise<void> => {
@@ -53,6 +95,7 @@ router.get("/categories/:id", async (req, res): Promise<void> => {
       slug: categoriesTable.slug,
       description: categoriesTable.description,
       imageUrl: categoriesTable.imageUrl,
+      parentId: categoriesTable.parentId,
       createdAt: categoriesTable.createdAt,
       productCount: sql<number>`cast(count(${productsTable.id}) as int)`,
     })

@@ -13,6 +13,10 @@ export const productsTable = pgTable("products", {
   categoryId: integer("category_id").notNull().references(() => categoriesTable.id),
   imageUrl: text("image_url"),
   images: text("images").array().notNull().default([]),
+  // Free-form tags used for in-collection faceted filtering (e.g. "organic",
+  // "leather", "size-l"). One facet, OR semantics — a product matches if it has
+  // any of the selected tags.
+  tags: text("tags").array().notNull().default([]),
   status: text("status", { enum: ["active", "inactive", "draft"] }).notNull().default("active"),
   featured: boolean("featured").notNull().default(false),
   // Active promotional discount (0-90). Applied to the charged price at checkout.

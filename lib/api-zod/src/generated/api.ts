@@ -42,7 +42,8 @@ export const CreateCategoryBody = zod.object({
   "name": zod.string().min(1),
   "slug": zod.string().min(1),
   "description": zod.string().optional(),
-  "imageUrl": zod.string().optional()
+  "imageUrl": zod.string().optional(),
+  "parentId": zod.number().int().nullish()
 })
 
 export const CreateCategoryResponse = zod.object({
@@ -85,7 +86,8 @@ export const UpdateCategoryBody = zod.object({
   "name": zod.string().optional(),
   "slug": zod.string().optional(),
   "description": zod.string().optional(),
-  "imageUrl": zod.string().optional()
+  "imageUrl": zod.string().optional(),
+  "parentId": zod.number().int().nullish()
 })
 
 export const UpdateCategoryResponse = zod.object({
@@ -120,7 +122,8 @@ export const ListProductsQueryParams = zod.object({
   "sort": zod.enum(['newest', 'price_asc', 'price_desc', 'popular']).optional(),
   "page": zod.coerce.number().int().optional(),
   "limit": zod.coerce.number().int().optional(),
-  "featured": zod.coerce.boolean().optional()
+  "featured": zod.coerce.boolean().optional(),
+  "tags": zod.coerce.string().optional()
 })
 
 export const ListProductsResponse = zod.object({
@@ -172,7 +175,8 @@ export const CreateProductBody = zod.object({
   "status": zod.enum(['active', 'inactive', 'draft']).optional(),
   "featured": zod.boolean().optional(),
   "discountPercent": zod.int().min(createProductBodyDiscountPercentMin).max(createProductBodyDiscountPercentMax).optional(),
-  "deliveryClassId": zod.int().nullish()
+  "deliveryClassId": zod.int().nullish(),
+  "tags": zod.array(zod.string()).optional()
 })
 
 export const CreateProductResponse = zod.object({
@@ -262,7 +266,8 @@ export const UpdateProductBody = zod.object({
   "status": zod.enum(['active', 'inactive', 'draft']).optional(),
   "featured": zod.boolean().optional(),
   "discountPercent": zod.int().min(updateProductBodyDiscountPercentMin).max(updateProductBodyDiscountPercentMax).optional(),
-  "deliveryClassId": zod.int().nullish()
+  "deliveryClassId": zod.int().nullish(),
+  "tags": zod.array(zod.string()).optional()
 })
 
 export const UpdateProductResponse = zod.object({
