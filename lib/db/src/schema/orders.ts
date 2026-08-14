@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, numeric, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { productVariantsTable } from "./productVariants";
@@ -17,6 +17,9 @@ export const ordersTable = pgTable("orders", {
   deliveryFee: numeric("delivery_fee", { precision: 12, scale: 2 }).notNull().default("0"),
   mpesaCheckoutRequestId: text("mpesa_checkout_request_id"),
   paystackReference: text("paystack_reference"),
+  // Guards against deducting stock twice for one order (e.g. a webhook that
+  // fires more than once). Flipped inside the same transaction as the deduction.
+  inventoryDeducted: boolean("inventory_deducted").notNull().default(false),
   paidAt: timestamp("paid_at", { withTimezone: true }),
   userId: integer("user_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

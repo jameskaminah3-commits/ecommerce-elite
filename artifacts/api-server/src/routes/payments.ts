@@ -16,6 +16,7 @@ import {
   verifyWebhookSignature,
 } from "../lib/paystack";
 import { sendOrderPaidEmail, type OrderEmailData } from "../lib/email";
+import { deductInventoryForOrder } from "../lib/inventory";
 
 const router: IRouter = Router();
 
@@ -54,6 +55,13 @@ async function markOrderPaid(order: OrderRow): Promise<void> {
     .where(eq(ordersTable.id, order.id))
     .returning();
   logger.info({ orderId: order.id }, "Order marked paid");
+  // Deduct stock only now that payment is confirmed. Idempotent, so a duplicate
+  // webhook/verify for the same order won't double-deduct.
+  try {
+    await deductInventoryForOrder(order.id);
+  } catch (err) {
+    logger.error({ err, orderId: order.id }, "Inventory deduction after payment failed");
+  }
   if (updated) void emailOrderPaid(updated);
 }
 

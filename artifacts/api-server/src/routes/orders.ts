@@ -1,8 +1,8 @@
 import { Router, type IRouter } from "express";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { db, ordersTable, orderItemsTable, cartItemsTable, productVariantsTable, productsTable, deliveryLocationsTable, deliveryRatesTable } from "@workspace/db";
-import { syncProductToSearchInBackground } from "../lib/meilisearch";
 import { sendOrderReceivedEmail } from "../lib/email";
+import { deductInventoryForOrder } from "../lib/inventory";
 import {
   CreateOrderBody,
   ListOrdersQueryParams,
@@ -216,13 +216,12 @@ router.post("/orders", async (req, res): Promise<void> => {
 
   const items = await db.insert(orderItemsTable).values(itemsToInsert).returning();
 
-  // Decrement inventory
-  for (const row of cartRows) {
-    await db
-      .update(productVariantsTable)
-      .set({ stock: row.stock - row.quantity })
-      .where(eq(productVariantsTable.id, row.variantId));
-    syncProductToSearchInBackground(row.productId);
+  // Reserve stock now only for cash-on-delivery, which has no online payment
+  // step to gate on. M-Pesa/Paystack orders deduct stock on payment
+  // confirmation instead (see markOrderPaid), so an abandoned payment doesn't
+  // hold inventory. The early stock check above still gives immediate feedback.
+  if (order.paymentMethod === "cash_on_delivery") {
+    await deductInventoryForOrder(order.id);
   }
 
   // Clear cart
