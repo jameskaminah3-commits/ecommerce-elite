@@ -52,6 +52,7 @@ export function Header() {
   const [searchFocused, setSearchFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState<string | null>(null);
   const megaTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -279,7 +280,7 @@ export function Header() {
             </div>
 
             {/* Mobile search */}
-            <Button variant="ghost" size="icon" className="sm:hidden">
+            <Button variant="ghost" size="icon" className="sm:hidden" onClick={() => setMobileSearchOpen(true)} aria-label="Search">
               <Search className="h-5 w-5" />
             </Button>
 
@@ -425,6 +426,94 @@ export function Header() {
           </div>
         )}
       </header>
+
+      {/* Mobile search overlay */}
+      {mobileSearchOpen && (
+        <div className="fixed inset-0 z-50 bg-background sm:hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center gap-2 px-4 h-14 border-b shrink-0">
+            <div className="flex items-center flex-1 border border-primary/40 rounded-lg bg-muted/40 h-10">
+              <Search className="w-4 h-4 ml-3 shrink-0 text-muted-foreground" />
+              <input
+                autoFocus
+                type="search"
+                placeholder="Search products..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-full flex-1 bg-transparent pl-2.5 pr-3 text-sm focus-visible:outline-none placeholder:text-muted-foreground/60"
+              />
+              {searchQuery && (
+                <button className="mr-2" onClick={() => setSearchQuery('')} aria-label="Clear search">
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </button>
+              )}
+            </div>
+            <button
+              className="text-sm font-semibold text-muted-foreground px-1"
+              onClick={() => { setMobileSearchOpen(false); setSearchQuery(''); }}
+            >
+              Cancel
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            {searchQuery.length < 2 ? (
+              <>
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-3 flex items-center gap-1.5">
+                  <TrendingUp className="w-3 h-3" /> Trending
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {TRENDING_SEARCHES.map((s) => (
+                    <button
+                      key={s}
+                      className="text-sm rounded-full border border-border px-3.5 py-2 text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                      onClick={() => setSearchQuery(s)}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : !searchResults?.items?.length ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <p className="text-sm">No results for "{searchQuery}"</p>
+              </div>
+            ) : (
+              <ul className="space-y-1">
+                {searchResults.items.map((product) => (
+                  <li key={product.id}>
+                    <Link
+                      href={`/products/${product.id}`}
+                      onClick={() => { setMobileSearchOpen(false); setSearchQuery(''); }}
+                      className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="w-14 h-14 rounded-md bg-muted overflow-hidden shrink-0">
+                        {product.imageUrl && (
+                          <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold line-clamp-1">{product.name}</p>
+                        <p className="text-xs text-muted-foreground">{product.categoryName}</p>
+                      </div>
+                      <span className="text-sm font-bold text-primary shrink-0">
+                        {formatCurrency(product.basePrice)}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+                {(searchResults.total ?? 0) > searchResults.items.length && (
+                  <Link
+                    href={`/products?search=${encodeURIComponent(searchQuery)}`}
+                    onClick={() => { setMobileSearchOpen(false); setSearchQuery(''); }}
+                    className="flex items-center justify-center gap-1 text-sm text-primary font-semibold mt-3 py-2"
+                  >
+                    See all {searchResults.total} results <ArrowRight className="w-4 h-4" />
+                  </Link>
+                )}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Mobile nav overlay */}
       {mobileOpen && (

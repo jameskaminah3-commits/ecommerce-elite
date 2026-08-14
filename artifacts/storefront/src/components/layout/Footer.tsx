@@ -21,9 +21,9 @@ export function Footer() {
           <div>
             <h4 className="font-bold mb-4 uppercase tracking-wider text-sm text-primary">Shop</h4>
             <ul className="space-y-2 text-sm text-secondary-foreground/80">
-              <li><Link href="/products?category=home" className="hover:text-white transition-colors">Home & Living</Link></li>
+              <li><Link href="/products?category=home-living" className="hover:text-white transition-colors">Home & Living</Link></li>
               <li><Link href="/products?category=electronics" className="hover:text-white transition-colors">Electronics</Link></li>
-              <li><Link href="/products?category=fashion" className="hover:text-white transition-colors">Fashion</Link></li>
+              <li><Link href="/products?category=gym-fitness" className="hover:text-white transition-colors">Gym & Fitness</Link></li>
               <li><Link href="/products?category=beauty" className="hover:text-white transition-colors">Beauty</Link></li>
             </ul>
           </div>

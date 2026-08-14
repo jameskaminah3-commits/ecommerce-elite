@@ -167,7 +167,7 @@ export default function ProductDetail() {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8 md:py-12">
+      <div className="container mx-auto px-4 pt-8 pb-28 md:py-12">
         <div className="flex flex-col md:flex-row gap-10 lg:gap-16">
 
           {/* ── Images (sticky gallery on desktop) ────────────────────── */}
@@ -472,6 +472,28 @@ export default function ProductDetail() {
             <ReviewsSection productId={product.id} />
           </div>
         </div>
+      </div>
+
+      {/* Sticky mobile add-to-cart bar — the CTA stays reachable on a long
+          phone scroll (hidden on desktop, where the buy box is sticky). */}
+      <div
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-background/95 backdrop-blur border-t border-border px-4 py-3 flex items-center gap-4"
+        style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+      >
+        <div className="shrink-0">
+          <p className="text-[11px] text-muted-foreground leading-none mb-1">
+            {[selectedVariant?.color, selectedVariant?.size].filter(Boolean).join(' · ') || 'Price'}
+          </p>
+          <p className="text-lg font-bold text-foreground leading-none">{formatCurrency(displayPrice)}</p>
+        </div>
+        <Button
+          className="flex-1 h-12 font-bold"
+          onClick={handleAddToCart}
+          disabled={!selectedVariant || !inStock || isAdding}
+        >
+          <ShoppingBag className="w-4 h-4 mr-2" />
+          {isAdding ? 'Adding...' : !selectedVariant ? 'Select Options' : !inStock ? 'Out of Stock' : 'Add to Cart'}
+        </Button>
       </div>
     </StorefrontLayout>
   );
