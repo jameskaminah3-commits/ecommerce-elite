@@ -58,6 +58,7 @@ type ProductRow = {
   featured?: boolean;
   deliveryClassId?: number | null;
   totalStock?: number;
+  tags?: string[];
 };
 
 function slugify(value: string): string {
@@ -261,6 +262,7 @@ function ProductFormDialog({
       status: product?.status ?? 'active',
       featured: product?.featured ?? false,
       deliveryClassId: product?.deliveryClassId != null ? String(product.deliveryClassId) : 'none',
+      tags: (product?.tags ?? []).join(', '),
     }),
     [product],
   );
@@ -292,6 +294,10 @@ function ProductFormDialog({
       status: form.status as ProductInput['status'],
       featured: form.featured,
       deliveryClassId: form.deliveryClassId && form.deliveryClassId !== 'none' ? Number(form.deliveryClassId) : null,
+      tags: form.tags
+        .split(',')
+        .map((t) => t.trim().toLowerCase())
+        .filter(Boolean),
     };
 
     try {
@@ -391,6 +397,17 @@ function ProductFormDialog({
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">Controls this product's delivery cost per town.</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="prod-tags">Tags</Label>
+            <Input
+              id="prod-tags"
+              value={form.tags}
+              onChange={(e) => set('tags', e.target.value)}
+              placeholder="e.g. organic, leather, size-l"
+            />
+            <p className="text-xs text-muted-foreground">Comma-separated. Shoppers filter a collection by these (the "Refine" facet).</p>
           </div>
 
           <MediaPicker value={form.imageUrl} onChange={(url) => set('imageUrl', url)} label="Image" />

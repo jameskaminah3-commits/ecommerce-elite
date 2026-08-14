@@ -167,7 +167,12 @@ function CategoryFormDialog({
   const { toast } = useToast();
   const createMutation = useCreateCategory();
   const updateMutation = useUpdateCategory();
+  const { data: allCategories } = useListCategories();
   const isEdit = Boolean(category);
+
+  // Candidate parents: any category except this one (a category can't be its
+  // own parent). One level of nesting is what the mega-menu renders.
+  const parentOptions = (allCategories ?? []).filter((c) => c.id !== category?.id);
 
   const initial = useMemo(
     () => ({
@@ -175,6 +180,7 @@ function CategoryFormDialog({
       slug: category?.slug ?? '',
       description: category?.description ?? '',
       imageUrl: category?.imageUrl ?? '',
+      parentId: category?.parentId != null ? String(category.parentId) : '',
     }),
     [category],
   );
@@ -197,6 +203,7 @@ function CategoryFormDialog({
       slug: form.slug.trim(),
       description: form.description.trim() || undefined,
       imageUrl: form.imageUrl.trim() || undefined,
+      parentId: form.parentId ? Number(form.parentId) : null,
     };
     try {
       if (isEdit && category) {
@@ -244,6 +251,21 @@ function CategoryFormDialog({
               }}
               required
             />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="cat-parent">Parent category</Label>
+            <select
+              id="cat-parent"
+              value={form.parentId}
+              onChange={(e) => set('parentId', e.target.value)}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value="">None (top-level category)</option>
+              {parentOptions.map((c) => (
+                <option key={c.id} value={String(c.id)}>{c.name}</option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground">Set a parent to make this a subcategory (shown under the parent in the menu).</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="cat-description">Description</Label>

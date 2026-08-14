@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
-import { useListProducts, useListCategories } from '@workspace/api-client-react';
+import { useListProducts } from '@workspace/api-client-react';
+import { useQuery } from '@tanstack/react-query';
 import { ShoppingBag, Search, Menu, User, LogOut, ChevronDown, X, TrendingUp, Tag, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,100 +15,30 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { formatCurrency } from '@/lib/utils';
 
-// ── Mega-menu facets ─────────────────────────────────────────────────────────
-// The categories themselves are loaded live from the API, so the menu always
-// mirrors what actually exists in the catalogue. This map only supplies the
-// *presentation* for each category (keyed by its real slug): a featured overlay
-// label and curated sub-category "facets". Every facet link is a REAL query —
-// it filters the catalogue by category AND a search term, so clicking e.g.
-// "Office Chairs" lands on the actual matching products, not a dead link.
-// Categories without an entry here still get a working menu (featured tile +
-// "Shop all"); the panel simply omits the curated columns.
-interface MegaFacet {
-  featuredLabel: string;
-  featuredSub: string;
-  columns: { heading: string; links: { name: string; search: string; image: string }[] }[];
+const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
+
+// A node of the real category tree (categories.parentId). Top-level categories
+// drive the nav bar; their children fill the mega-menu columns — so what a
+// shopper sees is exactly the hierarchy configured in admin, no hardcoding.
+interface CategoryNode {
+  id: number;
+  name: string;
+  slug: string;
+  imageUrl: string | null;
+  parentId: number | null;
+  productCount: number;
+  children: CategoryNode[];
 }
 
-const MEGA_FACETS: Record<string, MegaFacet> = {
-  electronics: {
-    featuredLabel: 'Smart TVs & Audio',
-    featuredSub: 'Big-screen entertainment for less',
-    columns: [
-      {
-        heading: 'Screens & Devices',
-        links: [
-          { name: 'Smart TVs', search: 'Smart TV', image: 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=56&auto=format&fit=crop' },
-          { name: 'Laptops & Tablets', search: 'Laptop', image: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=56&auto=format&fit=crop' },
-          { name: 'Smartphones', search: 'Phone', image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=56&auto=format&fit=crop' },
-        ],
-      },
-      {
-        heading: 'Audio & Wearables',
-        links: [
-          { name: 'Headphones', search: 'Headphones', image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=56&auto=format&fit=crop' },
-          { name: 'Wireless Audio', search: 'Wireless', image: 'https://images.unsplash.com/photo-1583394838336-acd977736f90?w=56&auto=format&fit=crop' },
-          { name: 'Smart Watches', search: 'Watch', image: 'https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?w=56&auto=format&fit=crop' },
-        ],
-      },
-    ],
-  },
-  'home-living': {
-    featuredLabel: 'Kitchen Essentials',
-    featuredSub: 'Professional-grade cookware',
-    columns: [
-      {
-        heading: 'Cookware',
-        links: [
-          { name: 'Cookware Sets', search: 'Cookware', image: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=56&auto=format&fit=crop' },
-          { name: 'Non-Stick Pans', search: 'Non-Stick', image: 'https://images.unsplash.com/photo-1585515320310-259814833e62?w=56&auto=format&fit=crop' },
-        ],
-      },
-      {
-        heading: 'Furniture & Comfort',
-        links: [
-          { name: 'Office Chairs', search: 'Office Chair', image: 'https://images.unsplash.com/photo-1580480055273-228ff5388ef8?w=56&auto=format&fit=crop' },
-          { name: 'Ergonomic Seating', search: 'Ergo', image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=56&auto=format&fit=crop' },
-        ],
-      },
-    ],
-  },
-  beauty: {
-    featuredLabel: 'Bestselling Serums',
-    featuredSub: 'Vitamin C, Retinol & more',
-    columns: [
-      {
-        heading: 'Skincare',
-        links: [
-          { name: 'Face Serums', search: 'Serum', image: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=56&auto=format&fit=crop' },
-          { name: 'Vitamin C', search: 'Vitamin C', image: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=56&auto=format&fit=crop' },
-        ],
-      },
-    ],
-  },
-  'gym-fitness': {
-    featuredLabel: 'Home Gym Setup',
-    featuredSub: 'Everything you need, delivered',
-    columns: [
-      {
-        heading: 'Equipment',
-        links: [
-          { name: 'Yoga Mats', search: 'Yoga', image: 'https://images.unsplash.com/photo-1601925228008-22d2a5090f0c?w=56&auto=format&fit=crop' },
-          { name: 'Weights & Grips', search: 'Grip', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=56&auto=format&fit=crop' },
-        ],
-      },
-    ],
-  },
-};
+async function fetchCategoryTree(): Promise<CategoryNode[]> {
+  const res = await fetch(`${API_BASE}/api/categories/tree`, { credentials: 'include' });
+  if (!res.ok) return [];
+  return res.json();
+}
 
 // Fallback featured image for a category that has no imageUrl set in admin.
 const CATEGORY_FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&auto=format&fit=crop';
-
-// Build a real, category-scoped search link for a sub-category facet.
-function facetHref(slug: string, search: string): string {
-  return `/products?category=${encodeURIComponent(slug)}&search=${encodeURIComponent(search)}`;
-}
 
 const TRENDING_SEARCHES = ['Office chairs', 'Vitamin C serum', '4K Smart TV', 'Yoga mats', 'Cookware sets'];
 const SUGGESTED_COLLECTIONS = ['New Arrivals', 'Best Sellers', 'Weekly Deals', 'Home Essentials'];
@@ -121,6 +52,7 @@ export function Header() {
   const [searchFocused, setSearchFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileExpanded, setMobileExpanded] = useState<string | null>(null);
   const megaTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
 
@@ -134,14 +66,11 @@ export function Header() {
     },
   );
 
-  // Real categories power the nav and mega-menu, so it always mirrors the
-  // catalogue. Sorted by how many products they contain (most stocked first).
-  const { data: categories } = useListCategories();
-  const megaCategories = (categories ?? [])
-    .slice()
-    .sort((a, b) => (b.productCount ?? 0) - (a.productCount ?? 0));
-  const activeCat = megaCategories.find((c) => c.slug === activeMega) ?? null;
-  const activeFacet = activeCat ? MEGA_FACETS[activeCat.slug] : undefined;
+  // Real category tree powers the nav + mega-menu. Top-level items are sorted by
+  // how many products sit under them (most stocked first).
+  const { data: tree } = useQuery({ queryKey: ['category-tree'], queryFn: fetchCategoryTree });
+  const roots = (tree ?? []).slice().sort((a, b) => (b.productCount ?? 0) - (a.productCount ?? 0));
+  const activeCat = roots.find((c) => c.slug === activeMega) ?? null;
 
   // Close search on outside click
   useEffect(() => {
@@ -191,7 +120,7 @@ export function Header() {
 
             {/* Desktop nav */}
             <nav className="hidden md:flex items-center gap-1 ml-4 text-sm font-medium">
-              {megaCategories.map((cat) => (
+              {roots.map((cat) => (
                 <button
                   key={cat.slug}
                   className={`flex items-center gap-1 px-3 py-1.5 rounded-md transition-colors whitespace-nowrap ${
@@ -202,9 +131,11 @@ export function Header() {
                   onMouseEnter={() => handleMegaEnter(cat.slug)}
                 >
                   {cat.name}
-                  <ChevronDown
-                    className={`w-3.5 h-3.5 transition-transform duration-200 ${activeMega === cat.slug ? 'rotate-180' : ''}`}
-                  />
+                  {cat.children.length > 0 && (
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 transition-transform duration-200 ${activeMega === cat.slug ? 'rotate-180' : ''}`}
+                    />
+                  )}
                 </button>
               ))}
               <Link
@@ -413,7 +344,7 @@ export function Header() {
           </div>
         </div>
 
-        {/* Mega-menu panel */}
+        {/* Mega-menu panel — real subcategories from the tree */}
         {activeCat && (
           <div
             className="absolute left-0 right-0 top-full bg-background border-b border-border shadow-2xl z-50"
@@ -433,11 +364,9 @@ export function Header() {
                   className="w-full h-44 object-cover transition-transform duration-500 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex flex-col justify-end p-4">
-                  <p className="text-white font-bold text-sm leading-tight">
-                    {activeFacet?.featuredLabel ?? activeCat.name}
-                  </p>
+                  <p className="text-white font-bold text-sm leading-tight">{activeCat.name}</p>
                   <p className="text-white/70 text-xs mt-0.5">
-                    {activeFacet?.featuredSub ?? `${activeCat.productCount ?? 0} products in stock`}
+                    {activeCat.productCount ?? 0} products in stock
                   </p>
                   <span className="text-primary text-xs font-bold flex items-center gap-1 mt-2 group-hover:gap-2 transition-all">
                     Shop Now <ArrowRight className="w-3 h-3" />
@@ -445,37 +374,32 @@ export function Header() {
                 </div>
               </Link>
 
-              {/* Sub-category columns — each link is a real category-scoped search */}
-              {activeFacet ? (
-                <div className="flex gap-12 flex-1">
-                  {activeFacet.columns.map((col) => (
-                    <div key={col.heading}>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-4">
-                        {col.heading}
-                      </p>
-                      <ul className="space-y-3">
-                        {col.links.map((link) => (
-                          <li key={link.name}>
-                            <Link
-                              href={facetHref(activeCat.slug, link.search)}
-                              onClick={() => setActiveMega(null)}
-                              className="flex items-center gap-3 group/link"
-                            >
-                              <div className="w-9 h-9 rounded-md bg-muted overflow-hidden shrink-0 border border-border/50">
-                                <img
-                                  src={link.image}
-                                  alt={link.name}
-                                  className="w-full h-full object-cover transition-transform duration-300 group-hover/link:scale-110"
-                                />
-                              </div>
-                              <span className="text-sm font-medium text-muted-foreground group-hover/link:text-foreground group-hover/link:text-primary transition-colors">
-                                {link.name}
-                              </span>
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+              {/* Subcategory columns — each is a real child category */}
+              {activeCat.children.length > 0 ? (
+                <div className="flex-1 grid grid-cols-3 gap-x-10 gap-y-3 content-start">
+                  {activeCat.children.map((sub) => (
+                    <Link
+                      key={sub.slug}
+                      href={`/products?category=${sub.slug}`}
+                      onClick={() => setActiveMega(null)}
+                      className="flex items-center gap-3 group/link"
+                    >
+                      <div className="w-9 h-9 rounded-md bg-muted overflow-hidden shrink-0 border border-border/50 flex items-center justify-center">
+                        {sub.imageUrl ? (
+                          <img
+                            src={sub.imageUrl}
+                            alt={sub.name}
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover/link:scale-110"
+                          />
+                        ) : (
+                          <Tag className="w-4 h-4 text-muted-foreground/50" />
+                        )}
+                      </div>
+                      <span className="text-sm font-medium text-muted-foreground group-hover/link:text-primary transition-colors">
+                        {sub.name}
+                        <span className="text-muted-foreground/50 ml-1.5 text-xs">({sub.productCount ?? 0})</span>
+                      </span>
+                    </Link>
                   ))}
                 </div>
               ) : (
@@ -514,16 +438,41 @@ export function Header() {
               </Button>
             </div>
             <nav className="flex-1 overflow-y-auto py-4">
-              {megaCategories.map((cat) => (
-                <Link
-                  key={cat.slug}
-                  href={`/products?category=${cat.slug}`}
-                  onClick={() => setMobileOpen(false)}
-                  className="flex items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/50 hover:text-primary transition-colors"
-                >
-                  {cat.name}
-                  <ArrowRight className="w-4 h-4 opacity-40" />
-                </Link>
+              {roots.map((cat) => (
+                <div key={cat.slug}>
+                  <div className="flex items-center">
+                    <Link
+                      href={`/products?category=${cat.slug}`}
+                      onClick={() => setMobileOpen(false)}
+                      className="flex-1 px-4 py-3 text-sm font-medium hover:bg-muted/50 hover:text-primary transition-colors"
+                    >
+                      {cat.name}
+                    </Link>
+                    {cat.children.length > 0 && (
+                      <button
+                        className="px-4 py-3 text-muted-foreground"
+                        onClick={() => setMobileExpanded(mobileExpanded === cat.slug ? null : cat.slug)}
+                        aria-label={`Toggle ${cat.name} subcategories`}
+                      >
+                        <ChevronDown className={`w-4 h-4 transition-transform ${mobileExpanded === cat.slug ? 'rotate-180' : ''}`} />
+                      </button>
+                    )}
+                  </div>
+                  {mobileExpanded === cat.slug && (
+                    <div className="bg-muted/30">
+                      {cat.children.map((sub) => (
+                        <Link
+                          key={sub.slug}
+                          href={`/products?category=${sub.slug}`}
+                          onClick={() => setMobileOpen(false)}
+                          className="block pl-8 pr-4 py-2.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+                        >
+                          {sub.name}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
               ))}
               <div className="border-t mt-4 pt-4">
                 <Link href="/products" onClick={() => setMobileOpen(false)} className="block px-4 py-3 text-sm font-medium hover:bg-muted/50 transition-colors">
