@@ -15,6 +15,7 @@ import deliveryRouter from "./delivery";
 import homepageRouter from "./homepage";
 import newsletterRouter from "./newsletter";
 import blogRouter from "./blog";
+import siteSettingsRouter from "./site-settings";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(deliveryRouter);
 router.use(homepageRouter);
 router.use(newsletterRouter);
 router.use(blogRouter);
+router.use(siteSettingsRouter);
 
 export default router;
