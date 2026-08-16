@@ -23,6 +23,15 @@ const AccountPage = lazy(() => import('@/pages/account'));
 const BlogPage = lazy(() => import('@/pages/blog'));
 const BlogDetailPage = lazy(() => import('@/pages/blog-detail'));
 
+// Footer / info pages
+const AboutPage = lazy(() => import('@/pages/static').then((m) => ({ default: m.AboutPage })));
+const FaqPage = lazy(() => import('@/pages/static').then((m) => ({ default: m.FaqPage })));
+const ContactPage = lazy(() => import('@/pages/static').then((m) => ({ default: m.ContactPage })));
+const ShippingPage = lazy(() => import('@/pages/static').then((m) => ({ default: m.ShippingPage })));
+const ReturnsPage = lazy(() => import('@/pages/static').then((m) => ({ default: m.ReturnsPage })));
+const TermsPage = lazy(() => import('@/pages/static').then((m) => ({ default: m.TermsPage })));
+const PrivacyPage = lazy(() => import('@/pages/static').then((m) => ({ default: m.PrivacyPage })));
+
 const AdminDashboard = lazy(() => import('@/pages/admin/dashboard'));
 const AdminProducts = lazy(() => import('@/pages/admin/products'));
 const AdminOrders = lazy(() => import('@/pages/admin/orders'));
@@ -63,7 +72,16 @@ function Router() {
       <Route path="/checkout" component={CheckoutPage} />
       <Route path="/orders/:id" component={OrderPage} />
       <Route path="/account" component={AccountPage} />
-      
+
+      {/* Footer / info pages */}
+      <Route path="/about" component={AboutPage} />
+      <Route path="/faq" component={FaqPage} />
+      <Route path="/contact" component={ContactPage} />
+      <Route path="/shipping" component={ShippingPage} />
+      <Route path="/returns" component={ReturnsPage} />
+      <Route path="/terms" component={TermsPage} />
+      <Route path="/privacy" component={PrivacyPage} />
+
       {/* Admin routes */}
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/products" component={AdminProducts} />

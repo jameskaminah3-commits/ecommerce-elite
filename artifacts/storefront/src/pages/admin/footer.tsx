@@ -30,7 +30,7 @@ interface SiteSettings {
   copyrightText: string;
 }
 
-const PAYMENT_OPTIONS = ['mpesa', 'visa', 'mastercard', 'amex', 'paypal', 'paystack', 'airtel', 'diners', 'discover'];
+const PAYMENT_OPTIONS = ['mpesa', 'visa', 'mastercard', 'amex', 'paypal', 'airtel', 'diners', 'discover'];
 
 async function fetchSettings(): Promise<SiteSettings> {
   const res = await fetch(`${API_BASE}/api/site-settings`, { credentials: 'include' });

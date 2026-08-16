@@ -10,7 +10,7 @@ const DEFAULTS = {
   brandBlurb: "Wholesale prices, delivered across Kenya. Quality you'll love, at prices that make sense.",
   aboutHeading: "About us",
   aboutLinks: [
-    { label: "Our story", href: "/" },
+    { label: "Our story", href: "/about" },
     { label: "FAQ", href: "/faq" },
     { label: "Blog", href: "/blog" },
     { label: "Contact", href: "/contact" },
@@ -28,7 +28,7 @@ const DEFAULTS = {
   instagramUrl: "",
   pinterestUrl: "",
   tiktokUrl: "",
-  acceptedPayments: ["mpesa", "visa", "mastercard", "paystack"],
+  acceptedPayments: ["mpesa", "visa", "mastercard", "amex", "paypal"],
   currencyLabel: "Kenya (KES)",
   copyrightText: "Happyfine Wholesalers",
 };

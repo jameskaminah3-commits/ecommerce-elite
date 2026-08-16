@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { Phone, Mail, MessageCircle, ChevronDown } from 'lucide-react';
+import { PaymentLogo, isPaymentKind } from './PaymentLogos';
 
 const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
 
@@ -29,7 +30,7 @@ const FALLBACK: SiteSettings = {
   brandBlurb: "Wholesale prices, delivered across Kenya.",
   aboutHeading: 'About us',
   aboutLinks: [
-    { label: 'Our story', href: '/' },
+    { label: 'Our story', href: '/about' },
     { label: 'FAQ', href: '/faq' },
     { label: 'Blog', href: '/blog' },
     { label: 'Contact', href: '/contact' },
@@ -44,7 +45,7 @@ const FALLBACK: SiteSettings = {
   contactEmail: 'support@happyfine.co.ke',
   liveChatUrl: '',
   facebookUrl: '', instagramUrl: '', pinterestUrl: '', tiktokUrl: '',
-  acceptedPayments: ['mpesa', 'visa', 'mastercard', 'paystack'],
+  acceptedPayments: ['mpesa', 'visa', 'mastercard', 'amex', 'paypal'],
   currencyLabel: 'Kenya (KES)',
   copyrightText: 'Happyfine Wholesalers',
 };
@@ -54,19 +55,6 @@ async function fetchSettings(): Promise<SiteSettings> {
   if (!res.ok) return FALLBACK;
   return res.json();
 }
-
-// Payment badge presentation, keyed by the stored slug.
-const PAYMENT_BADGES: Record<string, { label: string; color: string }> = {
-  mpesa: { label: 'M-PESA', color: '#37A000' },
-  visa: { label: 'VISA', color: '#1A1F71' },
-  mastercard: { label: 'Mastercard', color: '#EB001B' },
-  amex: { label: 'AMEX', color: '#2E77BC' },
-  paypal: { label: 'PayPal', color: '#003087' },
-  paystack: { label: 'Paystack', color: '#011B33' },
-  airtel: { label: 'Airtel Money', color: '#E40000' },
-  diners: { label: 'Diners', color: '#0079BE' },
-  discover: { label: 'Discover', color: '#FF6000' },
-};
 
 // Compact brand glyphs (lucide dropped brand icons), rendered as dark solid.
 const SOCIAL_PATHS: Record<string, string> = {
@@ -103,7 +91,7 @@ export function Footer() {
     { kind: 'tiktok', url: s.tiktokUrl },
   ].filter((x) => x.url);
 
-  const badges = (s.acceptedPayments ?? []).filter((k) => PAYMENT_BADGES[k]);
+  const badges = (s.acceptedPayments ?? []).filter(isPaymentKind);
 
   return (
     <footer className="bg-muted/20 border-t border-border/60 mt-auto">
@@ -175,12 +163,8 @@ export function Footer() {
             <h4 className="font-bold text-sm mb-4">We accept</h4>
             <div className="flex flex-wrap gap-2">
               {badges.map((k) => (
-                <span
-                  key={k}
-                  className="inline-flex items-center h-7 px-2.5 rounded-md bg-background border border-border text-[11px] font-bold tracking-tight"
-                  style={{ color: PAYMENT_BADGES[k].color }}
-                >
-                  {PAYMENT_BADGES[k].label}
+                <span key={k} className="inline-flex rounded-md shadow-sm">
+                  <PaymentLogo kind={k} />
                 </span>
               ))}
             </div>
