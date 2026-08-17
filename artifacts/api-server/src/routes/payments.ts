@@ -1,17 +1,13 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, ordersTable, orderItemsTable } from "@workspace/db";
-import {
-  InitiateMpesaPaymentBody,
-  GetPaymentStatusParams,
-  MpesaCallbackBody,
-} from "@workspace/api-zod";
+import { GetPaymentStatusParams } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
 import { normalizeKenyanMsisdn } from "../lib/phone";
-import { isMpesaConfigured, initiateStkPush } from "../lib/mpesa";
 import {
   isPaystackConfigured,
   initializeTransaction,
+  chargeMobileMoney,
   verifyTransaction,
   verifyWebhookSignature,
 } from "../lib/paystack";
@@ -65,21 +61,25 @@ async function markOrderPaid(order: OrderRow): Promise<void> {
   if (updated) void emailOrderPaid(updated);
 }
 
-// ── M-PESA STK Push (Safaricom Daraja) ────────────────────────────────────
-router.post("/payments/mpesa/initiate", async (req, res): Promise<void> => {
-  const parsed = InitiateMpesaPaymentBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+// ── Mobile money via Paystack Charge API (M-Pesa / Airtel Money) ───────────
+// The customer picks "M-Pesa" or "Airtel Money" on our UI; both route through
+// Paystack. We send a direct STK-style prompt to their phone. The result is
+// confirmed asynchronously by the charge.success webhook (never by the browser).
+router.post("/payments/paystack/charge", async (req, res): Promise<void> => {
+  const orderId = Number(req.body?.orderId);
+  const channel = String(req.body?.channel ?? ""); // "mpesa" | "airtel"
+  if (!Number.isInteger(orderId) || (channel !== "mpesa" && channel !== "airtel")) {
+    res.status(400).json({ error: "orderId and a valid channel (mpesa|airtel) are required." });
     return;
   }
 
-  if (!isMpesaConfigured()) {
-    logger.error("M-Pesa initiate called but Daraja env vars are not configured");
-    res.status(503).json({ error: "M-Pesa payments are not available right now. Please choose another method." });
+  if (!isPaystackConfigured()) {
+    logger.error("Mobile-money charge called but PAYSTACK_SECRET_KEY is not set");
+    res.status(503).json({ error: "Mobile money payments are not available right now. Please choose another method." });
     return;
   }
 
-  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, parsed.data.orderId));
+  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, orderId));
   if (!order) {
     res.status(404).json({ error: "Order not found" });
     return;
@@ -89,81 +89,46 @@ router.post("/payments/mpesa/initiate", async (req, res): Promise<void> => {
     return;
   }
 
-  const msisdn = normalizeKenyanMsisdn(parsed.data.phoneNumber);
+  const msisdn = normalizeKenyanMsisdn(String(req.body?.phone ?? order.customerPhone ?? ""));
   if (!msisdn) {
     res.status(400).json({ error: "Enter a valid Kenyan phone number (e.g. 07XX XXX XXX)." });
     return;
   }
+  const email = order.customerEmail || String(req.body?.email ?? "").trim();
+  if (!email) {
+    res.status(400).json({ error: "An email address is required for mobile money payment." });
+    return;
+  }
+
+  // Paystack mobile-money provider code: Safaricom M-Pesa = "mpesa", Airtel = "atl".
+  const provider = channel === "airtel" ? "atl" : "mpesa";
+  const reference = `HF-${order.id}-${Date.now()}`;
 
   try {
-    const result = await initiateStkPush({
-      msisdn,
+    const result = await chargeMobileMoney({
+      email,
       amount: parseFloat(order.total),
-      accountReference: `HF${order.id}`,
-      description: `Order ${order.id}`,
+      phone: msisdn,
+      provider,
+      reference,
+      metadata: { orderId: order.id, channel },
     });
 
     await db
       .update(ordersTable)
-      .set({ mpesaCheckoutRequestId: result.checkoutRequestId, paymentMethod: "mpesa" })
+      .set({ paystackReference: reference, paymentMethod: channel as "mpesa" | "airtel" })
       .where(eq(ordersTable.id, order.id));
 
     res.json({
       success: true,
-      message: result.customerMessage,
-      checkoutRequestId: result.checkoutRequestId,
-      redirectUrl: null,
+      status: result.status,
+      reference,
+      message: result.displayText ?? "Check your phone for the payment prompt.",
     });
   } catch (err) {
-    logger.error({ err, orderId: order.id }, "M-Pesa STK push failed");
-    res.status(502).json({ error: "Could not reach M-Pesa. Please try again in a moment." });
+    logger.error({ err, orderId: order.id, channel }, "Paystack mobile-money charge failed");
+    res.status(502).json({ error: "Could not start the mobile money prompt. Please try again or pay by card." });
   }
-});
-
-// M-Pesa callback webhook (called by Safaricom). This endpoint marks orders as
-// paid, so it must not be openly callable. We require a shared secret embedded
-// in the callback URL registered with Daraja (…/mpesa/callback?token=<secret>).
-router.post("/payments/mpesa/callback", async (req, res): Promise<void> => {
-  const expectedToken = process.env["MPESA_CALLBACK_TOKEN"];
-  if (expectedToken) {
-    const provided = req.query?.["token"] ?? req.header("x-callback-token");
-    if (provided !== expectedToken) {
-      logger.warn("Rejected M-Pesa callback with missing/invalid token");
-      res.status(401).json({ error: "Unauthorized callback" });
-      return;
-    }
-  } else {
-    logger.warn("MPESA_CALLBACK_TOKEN is not set — M-Pesa callback is unauthenticated");
-  }
-
-  const parsed = MpesaCallbackBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
-
-  const callback = (parsed.data.Body as any)?.stkCallback;
-  const checkoutRequestId = callback?.CheckoutRequestID;
-  const resultCode = callback?.ResultCode;
-
-  if (checkoutRequestId) {
-    const [order] = await db
-      .select()
-      .from(ordersTable)
-      .where(eq(ordersTable.mpesaCheckoutRequestId, checkoutRequestId));
-    if (order) {
-      if (resultCode === 0) {
-        await markOrderPaid(order);
-      } else {
-        await db.update(ordersTable).set({ paymentStatus: "failed" }).where(eq(ordersTable.id, order.id));
-        await releaseReservationsForOrder(order.id);
-        logger.warn({ orderId: order.id, resultCode }, "M-Pesa payment failed");
-      }
-    }
-  }
-
-  // Always ack so Safaricom doesn't retry indefinitely.
-  res.json({ ResultCode: 0, ResultDesc: "Accepted" });
 });
 
 // ── Paystack (card / bank) ────────────────────────────────────────────────

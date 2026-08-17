@@ -10,7 +10,7 @@ export const ordersTable = pgTable("orders", {
   customerPhone: text("customer_phone").notNull(),
   shippingAddress: text("shipping_address"),
   status: text("status", { enum: ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"] }).notNull().default("pending"),
-  paymentMethod: text("payment_method", { enum: ["mpesa", "paystack", "pesapal", "cash_on_delivery"] }),
+  paymentMethod: text("payment_method", { enum: ["mpesa", "airtel", "card", "paystack", "pesapal", "cash_on_delivery"] }),
   paymentStatus: text("payment_status", { enum: ["pending", "paid", "failed", "refunded"] }).notNull().default("pending"),
   total: numeric("total", { precision: 12, scale: 2 }).notNull(),
   deliveryLocation: text("delivery_location"),

@@ -63,6 +63,49 @@ export async function initializeTransaction(opts: {
   };
 }
 
+export interface ChargeResult {
+  status: string; // "pending" | "send_otp" | "pay_offline" | "success" | "failed" …
+  reference: string;
+  displayText?: string;
+}
+
+// Direct mobile-money charge (Charge API). For Kenya this sends an STK-style
+// prompt to the customer's phone. provider is Paystack's mobile-money code —
+// "mpesa" for Safaricom M-Pesa, "atl" for Airtel Money. The prompt result is
+// confirmed asynchronously via the charge.success webhook (or /transaction/verify).
+export async function chargeMobileMoney(opts: {
+  email: string;
+  amount: number; // whole KES
+  phone: string;
+  provider: string;
+  reference: string;
+  metadata?: Record<string, unknown>;
+}): Promise<ChargeResult> {
+  const res = await fetch(`${BASE}/charge`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${secretKey()}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: opts.email,
+      // The Cent Rule: KES value in the smallest unit.
+      amount: Math.round(opts.amount * 100),
+      currency: currency(), // locked to KES
+      reference: opts.reference,
+      mobile_money: { phone: opts.phone, provider: opts.provider },
+      metadata: opts.metadata,
+    }),
+  });
+  const data = (await res.json().catch(() => ({}))) as any;
+  if (!res.ok || !data?.status) {
+    logger.error({ status: res.status, data }, "Paystack mobile-money charge failed");
+    throw new Error(String(data?.message ?? "Paystack charge failed"));
+  }
+  return {
+    status: String(data.data?.status ?? "pending"),
+    reference: String(data.data?.reference ?? opts.reference),
+    displayText: data.data?.display_text ? String(data.data.display_text) : undefined,
+  };
+}
+
 export interface VerifyResult {
   status: string; // "success", "failed", "abandoned", …
   amount: number; // whole KES
