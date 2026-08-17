@@ -72,7 +72,7 @@ router.get("/products/:id/reviews", async (req, res): Promise<void> => {
     .orderBy(desc(reviewsTable.createdAt));
 
   const count = rows.length;
-  const average = count > 0 ? Math.round((rows.reduce((s, r) => s + r.rating, 0) / count) * 100) / 100 : 0;
+  const average = count > 0 ? Math.round((rows.reduce((s, r) => s + Number(r.rating), 0) / count) * 100) / 100 : 0;
 
   const uid = viewerId(req);
   let authenticated = false;
@@ -90,7 +90,7 @@ router.get("/products/:id/reviews", async (req, res): Promise<void> => {
   res.json({
     items: rows.map((r) => ({
       id: r.id,
-      rating: r.rating,
+      rating: Number(r.rating),
       title: r.title,
       body: r.body,
       userName: r.authorName ?? r.userName ?? "Customer",
@@ -142,10 +142,10 @@ router.post("/products/:id/reviews", async (req, res): Promise<void> => {
 
   const [review] = await db
     .insert(reviewsTable)
-    .values({ productId, userId: uid, rating, title, body })
+    .values({ productId, userId: uid, rating: String(rating), title, body })
     .onConflictDoUpdate({
       target: [reviewsTable.productId, reviewsTable.userId],
-      set: { rating, title, body, updatedAt: new Date() },
+      set: { rating: String(rating), title, body, updatedAt: new Date() },
     })
     .returning();
 
@@ -154,7 +154,7 @@ router.post("/products/:id/reviews", async (req, res): Promise<void> => {
   res.status(201).json({
     review: {
       id: review.id,
-      rating: review.rating,
+      rating: Number(review.rating),
       title: review.title,
       body: review.body,
       userName: user.name,
@@ -172,11 +172,12 @@ router.post("/admin/products/:id/reviews", requireAdmin, async (req, res): Promi
     res.status(400).json({ error: "Invalid product id" });
     return;
   }
-  const rating = Number(req.body?.rating);
-  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
-    res.status(400).json({ error: "Rating must be a whole number from 1 to 5." });
+  const raw = Number(req.body?.rating);
+  if (!Number.isFinite(raw) || raw < 1 || raw > 5) {
+    res.status(400).json({ error: "Rating must be between 1 and 5 (decimals like 4.7 are allowed)." });
     return;
   }
+  const rating = Math.round(raw * 10) / 10; // one decimal place, e.g. 4.7
   const authorName = String(req.body?.authorName ?? "").trim().slice(0, 120) || "Verified buyer";
   const title = typeof req.body?.title === "string" ? req.body.title.trim().slice(0, 120) || null : null;
   const body = typeof req.body?.body === "string" ? req.body.body.trim().slice(0, 2000) || null : null;
@@ -191,14 +192,14 @@ router.post("/admin/products/:id/reviews", requireAdmin, async (req, res): Promi
   // can exist per product, with authorName carrying the display name.
   const [review] = await db
     .insert(reviewsTable)
-    .values({ productId, userId: null, authorName, rating, title, body })
+    .values({ productId, userId: null, authorName, rating: String(rating), title, body })
     .returning();
 
   const { average, count } = await recomputeProductRating(productId);
   res.status(201).json({
     review: {
       id: review.id,
-      rating: review.rating,
+      rating: Number(review.rating),
       title: review.title,
       body: review.body,
       userName: authorName,

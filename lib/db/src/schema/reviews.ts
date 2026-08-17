@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, timestamp, unique } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, unique, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { productsTable } from "./products";
@@ -15,7 +15,9 @@ export const reviewsTable = pgTable(
     // Display name for admin-authored reviews. Customer reviews leave this null
     // and fall back to the account name.
     authorName: text("author_name"),
-    rating: integer("rating").notNull(),
+    // Numeric so admin-authored reviews can carry a fractional rating (e.g. 4.7).
+    // Customer reviews are still whole stars from the UI.
+    rating: numeric("rating", { precision: 2, scale: 1 }).notNull(),
     title: text("title"),
     body: text("body"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

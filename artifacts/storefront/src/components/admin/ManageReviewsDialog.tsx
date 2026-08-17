@@ -163,7 +163,20 @@ export function ManageReviewsDialog({
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Rating</Label>
-                <Stars value={rating} onChange={setRating} />
+                <div className="flex items-center gap-3">
+                  <Stars value={Math.round(rating)} onChange={setRating} />
+                  <Input
+                    type="number"
+                    min="1"
+                    max="5"
+                    step="0.1"
+                    value={rating}
+                    onChange={(e) => setRating(Math.min(5, Math.max(1, Number(e.target.value) || 1)))}
+                    className="h-8 w-20"
+                    aria-label="Exact rating"
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground">Click stars for whole numbers, or type an exact value like 4.7.</p>
               </div>
             </div>
             <div className="space-y-1.5">
