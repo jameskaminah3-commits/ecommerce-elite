@@ -89,12 +89,15 @@ export function ManageReviewsDialog({
         credentials: 'include',
         body: JSON.stringify({ authorName: authorName.trim(), rating, title: title.trim(), body: body.trim() }),
       });
-      if (!res.ok) throw new Error('Failed');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Request failed (${res.status})`);
+      }
       toast({ title: 'Review added' });
       setAuthorName(''); setRating(5); setTitle(''); setBody('');
       reload();
-    } catch {
-      toast({ title: 'Failed to add review', variant: 'destructive' });
+    } catch (err: any) {
+      toast({ title: 'Failed to add review', description: err?.message, variant: 'destructive' });
     } finally {
       setBusy(false);
     }
