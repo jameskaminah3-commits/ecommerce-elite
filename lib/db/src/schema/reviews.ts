@@ -9,7 +9,12 @@ export const reviewsTable = pgTable(
   {
     id: serial("id").primaryKey(),
     productId: integer("product_id").notNull().references(() => productsTable.id, { onDelete: "cascade" }),
-    userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    // Nullable so an admin can author a review that isn't tied to a real
+    // customer account (userId stays null; authorName carries the display name).
+    userId: integer("user_id").references(() => usersTable.id, { onDelete: "cascade" }),
+    // Display name for admin-authored reviews. Customer reviews leave this null
+    // and fall back to the account name.
+    authorName: text("author_name"),
     rating: integer("rating").notNull(),
     title: text("title"),
     body: text("body"),

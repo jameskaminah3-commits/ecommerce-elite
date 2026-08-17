@@ -9,7 +9,7 @@ import {
   productVariantsTable,
   productsTable,
 } from "@workspace/db";
-import { getUserId } from "../middlewares/requireAdmin";
+import { getUserId, requireAdmin } from "../middlewares/requireAdmin";
 
 const router: IRouter = Router();
 
@@ -63,10 +63,11 @@ router.get("/products/:id/reviews", async (req, res): Promise<void> => {
       body: reviewsTable.body,
       createdAt: reviewsTable.createdAt,
       userName: usersTable.name,
+      authorName: reviewsTable.authorName,
       userId: reviewsTable.userId,
     })
     .from(reviewsTable)
-    .innerJoin(usersTable, eq(usersTable.id, reviewsTable.userId))
+    .leftJoin(usersTable, eq(usersTable.id, reviewsTable.userId))
     .where(eq(reviewsTable.productId, productId))
     .orderBy(desc(reviewsTable.createdAt));
 
@@ -92,7 +93,7 @@ router.get("/products/:id/reviews", async (req, res): Promise<void> => {
       rating: r.rating,
       title: r.title,
       body: r.body,
-      userName: r.userName,
+      userName: r.authorName ?? r.userName ?? "Customer",
       createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
     })),
     average,
@@ -162,6 +163,67 @@ router.post("/products/:id/reviews", async (req, res): Promise<void> => {
     average,
     count,
   });
+});
+
+// ── Admin: add a review (no purchase required) ────────────────────────────
+router.post("/admin/products/:id/reviews", requireAdmin, async (req, res): Promise<void> => {
+  const productId = parseInt(String(req.params.id), 10);
+  if (Number.isNaN(productId)) {
+    res.status(400).json({ error: "Invalid product id" });
+    return;
+  }
+  const rating = Number(req.body?.rating);
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+    res.status(400).json({ error: "Rating must be a whole number from 1 to 5." });
+    return;
+  }
+  const authorName = String(req.body?.authorName ?? "").trim().slice(0, 120) || "Verified buyer";
+  const title = typeof req.body?.title === "string" ? req.body.title.trim().slice(0, 120) || null : null;
+  const body = typeof req.body?.body === "string" ? req.body.body.trim().slice(0, 2000) || null : null;
+
+  const [product] = await db.select().from(productsTable).where(eq(productsTable.id, productId));
+  if (!product) {
+    res.status(404).json({ error: "Product not found" });
+    return;
+  }
+
+  // Admin reviews are not tied to a customer account: userId stays null so many
+  // can exist per product, with authorName carrying the display name.
+  const [review] = await db
+    .insert(reviewsTable)
+    .values({ productId, userId: null, authorName, rating, title, body })
+    .returning();
+
+  const { average, count } = await recomputeProductRating(productId);
+  res.status(201).json({
+    review: {
+      id: review.id,
+      rating: review.rating,
+      title: review.title,
+      body: review.body,
+      userName: authorName,
+      createdAt: review.createdAt instanceof Date ? review.createdAt.toISOString() : review.createdAt,
+    },
+    average,
+    count,
+  });
+});
+
+// ── Admin: delete a review (moderation) ───────────────────────────────────
+router.delete("/admin/reviews/:reviewId", requireAdmin, async (req, res): Promise<void> => {
+  const reviewId = parseInt(String(req.params.reviewId), 10);
+  if (Number.isNaN(reviewId)) {
+    res.status(400).json({ error: "Invalid review id" });
+    return;
+  }
+  const [review] = await db.select().from(reviewsTable).where(eq(reviewsTable.id, reviewId));
+  if (!review) {
+    res.status(404).json({ error: "Review not found" });
+    return;
+  }
+  await db.delete(reviewsTable).where(eq(reviewsTable.id, reviewId));
+  await recomputeProductRating(review.productId);
+  res.sendStatus(204);
 });
 
 export default router;

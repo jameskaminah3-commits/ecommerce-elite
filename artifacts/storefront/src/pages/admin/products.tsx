@@ -40,7 +40,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { MediaPicker } from '@/components/media/MediaPicker';
 import { ManageVariantsDialog } from '@/components/admin/ManageVariantsDialog';
-import { Boxes } from 'lucide-react';
+import { ManageReviewsDialog } from '@/components/admin/ManageReviewsDialog';
+import { Boxes, Star } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchDeliveryClasses } from '@/lib/deliveryApi';
 
@@ -54,6 +55,7 @@ type ProductRow = {
   categoryId: number;
   categoryName?: string | null;
   imageUrl?: string | null;
+  images?: string[];
   status?: string;
   featured?: boolean;
   deliveryClassId?: number | null;
@@ -76,6 +78,7 @@ export default function AdminProducts() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ProductRow | null>(null);
   const [stockFor, setStockFor] = useState<ProductRow | null>(null);
+  const [reviewsFor, setReviewsFor] = useState<ProductRow | null>(null);
 
   const { data: productsData, isLoading } = useListProducts(
     { search: search || undefined, limit: 100 },
@@ -196,6 +199,9 @@ export default function AdminProducts() {
                             <DropdownMenuItem className="cursor-pointer" onClick={() => setStockFor(product as ProductRow)}>
                               <Boxes className="w-4 h-4 mr-2" /> Manage stock
                             </DropdownMenuItem>
+                            <DropdownMenuItem className="cursor-pointer" onClick={() => setReviewsFor(product as ProductRow)}>
+                              <Star className="w-4 h-4 mr-2" /> Reviews
+                            </DropdownMenuItem>
                             <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={() => handleDelete(product.id)}>
                               <Trash2 className="w-4 h-4 mr-2" /> Delete
                             </DropdownMenuItem>
@@ -220,6 +226,13 @@ export default function AdminProducts() {
             await refetchProducts();
             queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
           }}
+        />
+
+        <ManageReviewsDialog
+          productId={reviewsFor?.id ?? null}
+          productName={reviewsFor?.name ?? ''}
+          open={reviewsFor != null}
+          onOpenChange={(open) => !open && setReviewsFor(null)}
         />
 
         <ManageVariantsDialog
@@ -259,6 +272,7 @@ function ProductFormDialog({
       description: product?.description ?? '',
       categoryId: product?.categoryId != null ? String(product.categoryId) : '',
       imageUrl: product?.imageUrl ?? '',
+      images: (product?.images ?? []) as string[],
       status: product?.status ?? 'active',
       featured: product?.featured ?? false,
       deliveryClassId: product?.deliveryClassId != null ? String(product.deliveryClassId) : 'none',
@@ -291,6 +305,7 @@ function ProductFormDialog({
       description: form.description.trim() || undefined,
       categoryId,
       imageUrl: form.imageUrl.trim() || undefined,
+      images: form.images.map((s) => s.trim()).filter(Boolean),
       status: form.status as ProductInput['status'],
       featured: form.featured,
       deliveryClassId: form.deliveryClassId && form.deliveryClassId !== 'none' ? Number(form.deliveryClassId) : null,
@@ -410,7 +425,53 @@ function ProductFormDialog({
             <p className="text-xs text-muted-foreground">Comma-separated. Shoppers filter a collection by these (the "Refine" facet).</p>
           </div>
 
-          <MediaPicker value={form.imageUrl} onChange={(url) => set('imageUrl', url)} label="Image" />
+          <MediaPicker value={form.imageUrl} onChange={(url) => set('imageUrl', url)} label="Main image" />
+
+          {/* Gallery — additional photos shown as thumbnails on the product page */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Gallery images</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setForm((f) => ({ ...f, images: [...f.images, ''] }))}
+              >
+                <Plus className="w-4 h-4 mr-1.5" /> Add image
+              </Button>
+            </div>
+            {form.images.length === 0 && (
+              <p className="text-xs text-muted-foreground">Add more photos (angles, in use, colour close-ups). They appear as thumbnails alongside the main image.</p>
+            )}
+            <div className="space-y-3">
+              {form.images.map((img, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <div className="flex-1">
+                    <MediaPicker
+                      value={img}
+                      onChange={(url) =>
+                        setForm((f) => {
+                          const next = f.images.slice();
+                          next[i] = url;
+                          return { ...f, images: next };
+                        })
+                      }
+                      label={`Image ${i + 2}`}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="mt-7 text-muted-foreground hover:text-destructive p-2 shrink-0"
+                    onClick={() => setForm((f) => ({ ...f, images: f.images.filter((_, idx) => idx !== i) }))}
+                    aria-label="Remove image"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div>
               <Label htmlFor="featured" className="font-medium">Featured</Label>
