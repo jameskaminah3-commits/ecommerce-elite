@@ -19,6 +19,53 @@ const EXT_BY_TYPE: Record<string, string> = {
   "image/svg+xml": "svg",
 };
 
+const TYPE_BY_EXT: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+  gif: "image/gif",
+  avif: "image/avif",
+  svg: "image/svg+xml",
+};
+
+// Derive an extension from a filename (e.g. "photo.WEBP" → "webp"). Some
+// browsers/OSes report an empty File.type for webp/avif, so the filename is a
+// reliable secondary signal.
+function extFromName(name: string): string | null {
+  const m = name.toLowerCase().match(/\.([a-z0-9]+)$/);
+  if (!m) return null;
+  const ext = m[1] === "jpeg" ? "jpg" : m[1];
+  return TYPE_BY_EXT[ext] ? ext : null;
+}
+
+// Last-resort detection: inspect the file's magic bytes. This makes uploads
+// work even when the Content-Type header and filename are both missing or
+// wrong — the bytes never lie.
+function sniffExt(body: Buffer): string | null {
+  if (body.length < 12) return null;
+  // PNG  \x89 P N G
+  if (body[0] === 0x89 && body[1] === 0x50 && body[2] === 0x4e && body[3] === 0x47) return "png";
+  // JPEG \xFF \xD8 \xFF
+  if (body[0] === 0xff && body[1] === 0xd8 && body[2] === 0xff) return "jpg";
+  // GIF  G I F
+  if (body[0] === 0x47 && body[1] === 0x49 && body[2] === 0x46) return "gif";
+  // WEBP "RIFF" .... "WEBP"
+  if (
+    body[0] === 0x52 && body[1] === 0x49 && body[2] === 0x46 && body[3] === 0x46 &&
+    body[8] === 0x57 && body[9] === 0x45 && body[10] === 0x42 && body[11] === 0x50
+  ) return "webp";
+  // AVIF/HEIC "ftyp" box with an avif/avis/heic brand
+  if (body[4] === 0x66 && body[5] === 0x74 && body[6] === 0x79 && body[7] === 0x70) {
+    const brand = body.subarray(8, 12).toString("ascii").toLowerCase();
+    if (brand.startsWith("avif") || brand.startsWith("avis")) return "avif";
+  }
+  // SVG (text) — starts with "<?xml" or "<svg"
+  const head = body.subarray(0, 256).toString("utf8").trimStart().toLowerCase();
+  if (head.startsWith("<?xml") || head.startsWith("<svg")) return "svg";
+  return null;
+}
+
 interface StorageConfig {
   url: string;
   key: string;
@@ -74,18 +121,24 @@ router.post(
       return;
     }
 
-    const contentType = (req.headers["content-type"] ?? "").toLowerCase();
-    const ext = EXT_BY_TYPE[contentType];
-    if (!ext) {
-      res.status(400).json({ error: "Unsupported image type. Use PNG, JPG, WEBP, GIF, AVIF or SVG." });
-      return;
-    }
-
     const body = req.body;
     if (!Buffer.isBuffer(body) || body.length === 0) {
       res.status(400).json({ error: "Empty upload." });
       return;
     }
+
+    // Resolve the image type from three signals, most trusted first:
+    // 1) the request Content-Type, 2) the original filename, 3) magic bytes.
+    // Any one of them is enough, so a browser that omits the webp/avif MIME
+    // type (a common quirk) still uploads fine.
+    const contentType = (req.headers["content-type"] ?? "").toLowerCase().split(";")[0].trim();
+    const fileNameHeader = String(req.headers["x-file-name"] ?? "");
+    const ext = EXT_BY_TYPE[contentType] ?? extFromName(fileNameHeader) ?? sniffExt(body);
+    if (!ext) {
+      res.status(400).json({ error: "Unsupported image type. Use PNG, JPG, WEBP, GIF, AVIF or SVG." });
+      return;
+    }
+    const storeContentType = TYPE_BY_EXT[ext] ?? "application/octet-stream";
 
     const filename = `${Date.now()}-${crypto.randomBytes(6).toString("hex")}.${ext}`;
     const path = `${UPLOAD_PREFIX}/${filename}`;
@@ -96,7 +149,7 @@ router.post(
         method: "POST",
         headers: {
           Authorization: `Bearer ${cfg.key}`,
-          "Content-Type": contentType,
+          "Content-Type": storeContentType,
           "cache-control": "3600",
           "x-upsert": "true",
         },

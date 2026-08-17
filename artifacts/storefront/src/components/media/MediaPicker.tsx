@@ -18,11 +18,20 @@ interface MediaItem {
   url: string;
 }
 
+// Some browsers report an empty File.type for webp/avif. Fall back to the
+// filename extension so the server always receives a usable content type.
+const TYPE_BY_EXT: Record<string, string> = {
+  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp',
+  gif: 'image/gif', avif: 'image/avif', svg: 'image/svg+xml',
+};
+
 async function uploadImage(file: File): Promise<string> {
+  const ext = file.name.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1] ?? '';
+  const contentType = file.type || TYPE_BY_EXT[ext] || 'application/octet-stream';
   const res = await fetch(`${API_BASE}/api/media/upload`, {
     method: 'POST',
     credentials: 'include',
-    headers: { 'Content-Type': file.type },
+    headers: { 'Content-Type': contentType, 'x-file-name': file.name },
     body: file,
   });
   if (!res.ok) {

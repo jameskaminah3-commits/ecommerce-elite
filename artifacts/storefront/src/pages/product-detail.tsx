@@ -150,7 +150,26 @@ export default function ProductDetail() {
   const inStock = stockCount > 0;
   const lowStock = inStock && stockCount <= 5;
 
-  const allImages = [product.imageUrl, ...(product.images || [])].filter(Boolean) as string[];
+  // Gallery = main image + extra gallery images + every distinct variant photo,
+  // de-duplicated while preserving order. Clicking a thumbnail that belongs to a
+  // variant also selects that variant (so the colour/size chips stay in sync).
+  const variantByImage = new Map<string, ProductVariant>();
+  for (const v of product.variants) {
+    if (v.imageUrl && !variantByImage.has(v.imageUrl)) variantByImage.set(v.imageUrl, v);
+  }
+  const allImages = Array.from(
+    new Set(
+      [product.imageUrl, ...(product.images || []), ...product.variants.map((v) => v.imageUrl)].filter(
+        Boolean,
+      ) as string[],
+    ),
+  );
+
+  const onThumbClick = (img: string) => {
+    const v = variantByImage.get(img);
+    if (v) selectVariant(v);
+    else switchImage(img);
+  };
 
   return (
     <StorefrontLayout>
@@ -199,7 +218,7 @@ export default function ProductDetail() {
                 {allImages.map((img, i) => (
                   <button
                     key={i}
-                    onClick={() => switchImage(img)}
+                    onClick={() => onThumbClick(img)}
                     className={cn(
                       'w-20 h-20 shrink-0 rounded-xl overflow-hidden ring-1 transition-all duration-200',
                       activeImage === img

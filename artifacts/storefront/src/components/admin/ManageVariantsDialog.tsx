@@ -17,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { MediaPicker } from '@/components/media/MediaPicker';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Trash2, Save } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -58,10 +59,11 @@ export function ManageVariantsDialog({
           Each variant is a buyable option (e.g. a size or colour).
           <span className="text-foreground font-medium"> Price</span> is what the customer pays;
           <span className="text-foreground font-medium"> Stock</span> is how many you have;
-          <span className="text-foreground font-medium"> SKU</span> is your own unique code to track the item.
+          <span className="text-foreground font-medium"> SKU</span> is your own unique code.
+          Give each colour its own <span className="text-foreground font-medium">photo</span> — the storefront swaps to it when the shopper picks that colour.
         </p>
 
-        <div className="overflow-y-auto -mx-1 px-1 space-y-4">
+        <div className="overflow-y-auto -mx-1 px-1 space-y-3">
           {isLoading ? (
             <div className="py-8 text-center text-muted-foreground text-sm">Loading variants…</div>
           ) : !variants || variants.length === 0 ? (
@@ -69,10 +71,7 @@ export function ManageVariantsDialog({
               No variants yet. Add one below — a product needs at least one variant to be purchasable.
             </div>
           ) : (
-            <div className="space-y-2">
-              <div className="grid grid-cols-[1fr_80px_80px_90px_70px_auto] gap-2 px-1 text-[11px] font-bold uppercase text-muted-foreground">
-                <span>SKU</span><span>Size</span><span>Color</span><span>Price</span><span>Stock</span><span></span>
-              </div>
+            <div className="space-y-3">
               {(variants as ProductVariant[]).map((v) => (
                 <VariantRow key={v.id} variant={v} onChanged={invalidate} />
               ))}
@@ -98,13 +97,15 @@ function VariantRow({ variant, onChanged }: { variant: ProductVariant; onChanged
   const [color, setColor] = useState(variant.color ?? '');
   const [price, setPrice] = useState(String(variant.price));
   const [stock, setStock] = useState(String(variant.stock));
+  const [imageUrl, setImageUrl] = useState(variant.imageUrl ?? '');
 
   const dirty =
     sku !== variant.sku ||
     size !== (variant.size ?? '') ||
     color !== (variant.color ?? '') ||
     price !== String(variant.price) ||
-    stock !== String(variant.stock);
+    stock !== String(variant.stock) ||
+    imageUrl !== (variant.imageUrl ?? '');
 
   const save = async () => {
     const priceNum = Number(price);
@@ -116,7 +117,14 @@ function VariantRow({ variant, onChanged }: { variant: ProductVariant; onChanged
     try {
       await updateMutation.mutateAsync({
         id: variant.id,
-        data: { sku: sku.trim(), size: size.trim() || undefined, color: color.trim() || undefined, price: priceNum, stock: stockNum },
+        data: {
+          sku: sku.trim(),
+          size: size.trim() || undefined,
+          color: color.trim() || undefined,
+          price: priceNum,
+          stock: stockNum,
+          imageUrl: imageUrl.trim() || undefined,
+        },
       });
       toast({ title: 'Variant updated' });
       onChanged();
@@ -139,20 +147,26 @@ function VariantRow({ variant, onChanged }: { variant: ProductVariant; onChanged
   const busy = updateMutation.isPending || deleteMutation.isPending;
 
   return (
-    <div className="grid grid-cols-[1fr_80px_80px_90px_70px_auto] gap-2 items-center">
-      <Input className="h-9" value={sku} onChange={(e) => setSku(e.target.value)} />
-      <Input className="h-9" value={size} onChange={(e) => setSize(e.target.value)} placeholder="—" />
-      <Input className="h-9" value={color} onChange={(e) => setColor(e.target.value)} placeholder="—" />
-      <Input className="h-9" type="number" min="0" step="1" value={price} onChange={(e) => setPrice(e.target.value)} />
-      <Input className="h-9" type="number" min="0" step="1" value={stock} onChange={(e) => setStock(e.target.value)} />
-      <div className="flex gap-1">
-        <Button size="icon" variant={dirty ? 'default' : 'outline'} className="h-9 w-9" onClick={save} disabled={busy || !dirty} title="Save">
-          <Save className="w-4 h-4" />
-        </Button>
-        <Button size="icon" variant="ghost" className="h-9 w-9 text-destructive" onClick={remove} disabled={busy} title="Delete">
-          <Trash2 className="w-4 h-4" />
-        </Button>
+    <div className="border rounded-lg p-3 space-y-3">
+      <div className="grid grid-cols-[1fr_80px_80px_90px_70px_auto] gap-2 px-0.5 text-[11px] font-bold uppercase text-muted-foreground">
+        <span>SKU</span><span>Size</span><span>Color</span><span>Price</span><span>Stock</span><span></span>
       </div>
+      <div className="grid grid-cols-[1fr_80px_80px_90px_70px_auto] gap-2 items-center">
+        <Input className="h-9" value={sku} onChange={(e) => setSku(e.target.value)} />
+        <Input className="h-9" value={size} onChange={(e) => setSize(e.target.value)} placeholder="—" />
+        <Input className="h-9" value={color} onChange={(e) => setColor(e.target.value)} placeholder="—" />
+        <Input className="h-9" type="number" min="0" step="1" value={price} onChange={(e) => setPrice(e.target.value)} />
+        <Input className="h-9" type="number" min="0" step="1" value={stock} onChange={(e) => setStock(e.target.value)} />
+        <div className="flex gap-1">
+          <Button size="icon" variant={dirty ? 'default' : 'outline'} className="h-9 w-9" onClick={save} disabled={busy || !dirty} title="Save">
+            <Save className="w-4 h-4" />
+          </Button>
+          <Button size="icon" variant="ghost" className="h-9 w-9 text-destructive" onClick={remove} disabled={busy} title="Delete">
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+      <MediaPicker value={imageUrl} onChange={setImageUrl} label={`Photo for ${color || 'this variant'}`} />
     </div>
   );
 }
@@ -170,6 +184,7 @@ function AddVariantForm({ productId, productName, onAdded }: { productId: number
   const [color, setColor] = useState('');
   const [price, setPrice] = useState('');
   const [stock, setStock] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
 
   const add = async () => {
     const priceNum = Number(price);
@@ -181,10 +196,17 @@ function AddVariantForm({ productId, productName, onAdded }: { productId: number
     try {
       await createMutation.mutateAsync({
         id: productId,
-        data: { sku: sku.trim(), size: size.trim() || undefined, color: color.trim() || undefined, price: priceNum, stock: stockNum },
+        data: {
+          sku: sku.trim(),
+          size: size.trim() || undefined,
+          color: color.trim() || undefined,
+          price: priceNum,
+          stock: stockNum,
+          imageUrl: imageUrl.trim() || undefined,
+        },
       });
       toast({ title: 'Variant added' });
-      setSku(''); setSize(''); setColor(''); setPrice(''); setStock('');
+      setSku(suggestSku(productName)); setSize(''); setColor(''); setPrice(''); setStock(''); setImageUrl('');
       onAdded();
     } catch (err) {
       toast({ title: 'Failed to add variant (is the SKU unique?)', variant: 'destructive' });
@@ -192,9 +214,9 @@ function AddVariantForm({ productId, productName, onAdded }: { productId: number
   };
 
   return (
-    <div className="border-t pt-4 mt-2">
+    <div className="border-t pt-4 mt-2 space-y-3">
       <Label className="text-xs font-bold uppercase text-muted-foreground">Add variant</Label>
-      <div className="grid grid-cols-[1fr_80px_80px_90px_70px_auto] gap-2 items-center mt-2">
+      <div className="grid grid-cols-[1fr_80px_80px_90px_70px_auto] gap-2 items-center">
         <Input className="h-9" value={sku} onChange={(e) => setSku(e.target.value)} placeholder="SKU" />
         <Input className="h-9" value={size} onChange={(e) => setSize(e.target.value)} placeholder="Size" />
         <Input className="h-9" value={color} onChange={(e) => setColor(e.target.value)} placeholder="Color" />
@@ -204,6 +226,7 @@ function AddVariantForm({ productId, productName, onAdded }: { productId: number
           <Plus className="w-4 h-4" />
         </Button>
       </div>
+      <MediaPicker value={imageUrl} onChange={setImageUrl} label="Variant photo (optional)" />
     </div>
   );
 }
