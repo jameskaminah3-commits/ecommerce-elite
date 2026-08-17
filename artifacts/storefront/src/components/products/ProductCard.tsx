@@ -51,9 +51,9 @@ export function ProductCard({ product, className }: ProductCardProps) {
             ) : null}
           </div>
 
-          {/* Hover actions */}
+          {/* Actions — always reachable on touch, hover-revealed on desktop */}
           {!soldOut && (
-            <div className="absolute inset-x-0 bottom-0 p-3 flex gap-2 opacity-0 translate-y-3 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0">
+            <div className="absolute inset-x-0 bottom-0 p-3 flex gap-2 opacity-100 translate-y-0 transition-all duration-300 md:opacity-0 md:translate-y-3 md:group-hover:opacity-100 md:group-hover:translate-y-0">
               <button
                 onClick={() => setQuickViewOpen(true)}
                 className="flex-1 flex items-center justify-center gap-1.5 h-10 bg-background/95 backdrop-blur-sm text-foreground text-xs font-semibold rounded-full border border-border/60 shadow-md hover:bg-secondary hover:text-secondary-foreground hover:border-secondary transition-colors"
