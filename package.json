@@ -6,6 +6,8 @@
     "preinstall": "node ./scripts/check-pnpm-user-agent.cjs",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "build:api": "pnpm --filter @workspace/api-server build",
+    "build:deploy": "BASE_PATH=/ PORT=3000 pnpm --filter @workspace/storefront build && pnpm --filter @workspace/api-server build",
+    "start": "pnpm --filter @workspace/api-server start",
     "start:api": "pnpm --filter @workspace/api-server start",
     "db:push": "pnpm --filter @workspace/db push",
     "seed:local": "pnpm --filter @workspace/scripts seed:local",

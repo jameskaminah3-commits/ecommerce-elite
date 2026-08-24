@@ -3,6 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import router from "./routes";
+import { mountStorefront } from "./static";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -53,5 +54,9 @@ app.use(
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
+
+// In production, this same process also serves the built storefront SPA
+// (no-op when the build isn't present, e.g. API-only local dev).
+mountStorefront(app);
 
 export default app;

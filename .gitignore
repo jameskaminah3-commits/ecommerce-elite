@@ -50,3 +50,6 @@ Thumbs.db
 
 # Local Meilisearch Docker data
 meili_data/
+
+# cPanel deploy bundle (generated)
+deploy/
