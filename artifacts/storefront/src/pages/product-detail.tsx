@@ -3,6 +3,8 @@ import { StorefrontLayout } from '@/components/layout/StorefrontLayout';
 import { useGetProduct, ProductVariant } from '@workspace/api-client-react';
 import { useCart } from '@/contexts/CartContext';
 import { useParams } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency, classNames, cn, getPriceInfo } from '@/lib/utils';
 import { ReviewsSection } from '@/components/products/ReviewsSection';
 import { ShareButtons } from '@/components/social/ShareButtons';
@@ -85,6 +87,17 @@ export default function ProductDetail() {
   });
 
   const { addItem, isAdding } = useCart();
+  const { user } = useAuth();
+
+  // When referrals are on, a signed-in customer's shared product link carries
+  // their code — so each share is also a referral that earns the friend a discount.
+  const { data: siteSettings } = useQuery({
+    queryKey: ['site-settings'],
+    queryFn: async () => {
+      const r = await fetch(`${((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '')}/api/site-settings`);
+      return r.ok ? r.json() : {};
+    },
+  });
   const { toast } = useToast();
 
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
@@ -165,6 +178,15 @@ export default function ProductDetail() {
       ) as string[],
     ),
   );
+
+  const shareUrl = (() => {
+    if (typeof window === 'undefined') return '';
+    const u = new URL(`${window.location.origin}/products/${product.id}`);
+    const code = (user as any)?.referralCode as string | undefined;
+    if (code && siteSettings?.referralEnabled && siteSettings?.referralDiscountPercent > 0) u.searchParams.set('ref', code);
+    return u.toString();
+  })();
+  const shareTitle = `${product.name} — ${formatCurrency(displayPrice)} at Happyfine Wholesalers`;
 
   const onThumbClick = (img: string) => {
     const v = variantByImage.get(img);
@@ -261,9 +283,13 @@ export default function ProductDetail() {
                     )}
                   />
                 ))}
-                <span className="text-sm text-muted-foreground ml-1.5 font-medium">
-                  {product.rating?.toFixed(1)} ({product.reviewCount} reviews)
-                </span>
+                <a
+                  href="#reviews"
+                  onClick={(e) => { e.preventDefault(); document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
+                  className="text-sm text-muted-foreground ml-1.5 font-medium hover:text-primary underline-offset-4 hover:underline"
+                >
+                  {(product.reviewCount ?? 0) > 0 ? `${product.rating?.toFixed(1)} (${product.reviewCount} reviews)` : 'No reviews yet'}
+                </a>
               </div>
               <span className="text-muted-foreground/30">|</span>
               <span className={cn('text-sm font-bold flex items-center gap-1', inStock ? 'text-emerald-600' : 'text-destructive')}>
@@ -298,7 +324,7 @@ export default function ProductDetail() {
 
             {/* Share */}
             <div className="mb-7">
-              <ShareButtons url={typeof window !== 'undefined' ? window.location.href : ''} title={product.name} />
+              <ShareButtons url={shareUrl} title={shareTitle} />
             </div>
 
             {/* Variant selectors */}

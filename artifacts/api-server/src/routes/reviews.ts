@@ -26,7 +26,16 @@ async function hasPurchased(userId: number, productId: number): Promise<boolean>
     .from(ordersTable)
     .innerJoin(orderItemsTable, eq(orderItemsTable.orderId, ordersTable.id))
     .innerJoin(productVariantsTable, eq(productVariantsTable.id, orderItemsTable.variantId))
-    .where(and(eq(ordersTable.userId, userId), eq(productVariantsTable.productId, productId)))
+    .where(
+      and(
+        eq(ordersTable.userId, userId),
+        eq(productVariantsTable.productId, productId),
+        // A verified purchase is a paid (or delivered) order that wasn't
+        // cancelled — an abandoned, unpaid checkout doesn't qualify.
+        sql`(${ordersTable.paymentStatus} = 'paid' or ${ordersTable.status} = 'delivered')`,
+        sql`${ordersTable.status} <> 'cancelled'`,
+      ),
+    )
     .limit(1);
   return rows.length > 0;
 }
@@ -94,6 +103,9 @@ router.get("/products/:id/reviews", async (req, res): Promise<void> => {
       title: r.title,
       body: r.body,
       userName: r.authorName ?? r.userName ?? "Customer",
+      // Customer reviews are gated to verified purchases at submit time; reviews
+      // authored by an admin (no user attached) are not badged.
+      verified: r.userId != null,
       createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
     })),
     average,

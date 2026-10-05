@@ -5,7 +5,7 @@ import { useGetAnalyticsOverview, useGetRecentOrders } from '@workspace/api-clie
 import { formatCurrency } from '@/lib/utils';
 import { Link } from 'wouter';
 import {
-  TrendingUp, Users, Package, ShoppingCart, ArrowUpRight, AlertTriangle, Grid
+  TrendingUp, Users, Package, ShoppingCart, AlertTriangle, Grid
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -21,11 +21,13 @@ export default function AdminDashboard() {
     );
   }
 
+  const a = (analytics ?? {}) as any;
+  // Real figures only — no invented trend percentages.
   const stats = [
-    { name: 'Total Revenue', value: formatCurrency(analytics?.totalRevenue || 0), icon: TrendingUp, change: '+12.5%', color: 'text-emerald-600' },
-    { name: 'Total Orders', value: analytics?.totalOrders || 0, icon: ShoppingCart, change: '+5.2%', color: 'text-blue-600' },
-    { name: 'Products', value: analytics?.totalProducts || 0, icon: Package, change: '', color: 'text-purple-600' },
-    { name: 'Customers', value: analytics?.totalCustomers || 0, icon: Users, change: '+18.1%', color: 'text-amber-600' },
+    { name: 'Total Revenue', value: formatCurrency(a.totalRevenue || 0), icon: TrendingUp, sub: `${formatCurrency(a.revenueThisMonth || 0)} this month`, color: 'text-emerald-600' },
+    { name: 'Total Orders', value: a.totalOrders || 0, icon: ShoppingCart, sub: `${a.ordersThisMonth || 0} this month`, color: 'text-blue-600' },
+    { name: 'Products', value: a.totalProducts || 0, icon: Package, sub: '', color: 'text-purple-600' },
+    { name: 'Customers', value: a.totalCustomers || 0, icon: Users, sub: '', color: 'text-amber-600' },
   ];
 
   return (
@@ -36,15 +38,26 @@ export default function AdminDashboard() {
           <p className="text-muted-foreground mt-1">Happyfine store performance and recent activity.</p>
         </div>
 
-        {/* Action Alerts */}
-        {(analytics?.pendingOrders || 0) > 0 && (
-          <div className="mb-6 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-4 flex items-center justify-between shadow-sm">
+        {/* Action alerts — what needs doing today */}
+        {(a.paymentsToVerify || 0) > 0 && (
+          <div className="mb-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
             <div className="flex items-center gap-3">
-              <ShoppingCart className="w-5 h-5 text-amber-600" />
-              <p className="font-medium">You have {analytics?.pendingOrders} pending orders requiring fulfillment.</p>
+              <ShoppingCart className="w-5 h-5 text-amber-600 shrink-0" />
+              <p className="font-medium">{a.paymentsToVerify} M-Pesa payment{a.paymentsToVerify === 1 ? '' : 's'} waiting for you to verify.</p>
             </div>
-            <Button size="sm" asChild variant="outline" className="bg-white border-amber-200 hover:bg-amber-100 text-amber-900">
-              <Link href="/admin/orders">View Orders</Link>
+            <Button size="sm" asChild variant="outline" className="bg-white border-amber-200 hover:bg-amber-100 text-amber-900 self-start sm:self-auto">
+              <Link href="/admin/orders?filter=verify">Verify payments</Link>
+            </Button>
+          </div>
+        )}
+        {(a.toFulfil || 0) > 0 && (
+          <div className="mb-6 bg-blue-50 border border-blue-200 text-blue-900 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-3">
+              <Package className="w-5 h-5 text-blue-600 shrink-0" />
+              <p className="font-medium">{a.toFulfil} paid order{a.toFulfil === 1 ? '' : 's'} ready to fulfil.</p>
+            </div>
+            <Button size="sm" asChild variant="outline" className="bg-white border-blue-200 hover:bg-blue-100 text-blue-900 self-start sm:self-auto">
+              <Link href="/admin/orders?filter=fulfil">View orders</Link>
             </Button>
           </div>
         )}
@@ -62,22 +75,18 @@ export default function AdminDashboard() {
         )}
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8">
           {stats.map((stat) => (
-            <div key={stat.name} className="bg-card rounded-xl p-6 shadow-sm border border-border/50">
-              <div className="flex justify-between items-start mb-4">
+            <div key={stat.name} className="bg-card rounded-xl p-4 sm:p-6 shadow-sm border border-border/50">
+              <div className="flex justify-between items-start mb-3 sm:mb-4">
                 <div className={`p-3 rounded-lg bg-muted ${stat.color}`}>
                   <stat.icon className="w-5 h-5" />
                 </div>
-                {stat.change && (
-                  <span className="flex items-center text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
-                    <ArrowUpRight className="w-3 h-3 mr-1" /> {stat.change}
-                  </span>
-                )}
               </div>
               <div>
                 <p className="text-muted-foreground text-sm font-medium mb-1">{stat.name}</p>
                 <h3 className="text-2xl font-extrabold text-foreground">{stat.value}</h3>
+                {stat.sub && <p className="text-xs text-muted-foreground mt-1">{stat.sub}</p>}
               </div>
             </div>
           ))}

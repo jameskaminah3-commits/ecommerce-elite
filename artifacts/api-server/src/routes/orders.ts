@@ -61,6 +61,7 @@ function formatOrder(order: any, items: any[]) {
     items: items.map((i) => ({
       id: i.id,
       variantId: i.variantId,
+      productId: i.productId ?? null,
       productName: i.productName,
       productImageUrl: i.productImageUrl,
       variantSku: i.variantSku,
@@ -379,7 +380,18 @@ router.get("/orders/:id", async (req, res): Promise<void> => {
     res.status(403).json({ error: "You do not have access to this order." });
     return;
   }
-  const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, order.id));
+  const rawItems = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, order.id));
+  // Resolve each line's product so the confirmation page can link to it (e.g.
+  // "Rate this product" once the order is paid).
+  const variantIds = rawItems.map((i) => i.variantId);
+  const variantRows = variantIds.length
+    ? await db
+        .select({ id: productVariantsTable.id, productId: productVariantsTable.productId })
+        .from(productVariantsTable)
+        .where(inArray(productVariantsTable.id, variantIds))
+    : [];
+  const productByVariant = new Map(variantRows.map((v) => [v.id, v.productId]));
+  const items = rawItems.map((i) => ({ ...i, productId: productByVariant.get(i.variantId) ?? null }));
   res.json(formatOrder(order, items));
 });
 

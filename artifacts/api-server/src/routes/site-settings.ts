@@ -59,10 +59,13 @@ router.get("/site-settings", async (_req, res): Promise<void> => {
   res.json(row);
 });
 
-// Admin: save the footer content. Only known fields are accepted.
+// Admin: save site settings. This is a PARTIAL update — only the fields present
+// in the request body are changed, so one admin screen (footer, M-Pesa details,
+// referral promo) can never blank out another screen's fields.
 router.put("/site-settings", requireAdmin, async (req, res): Promise<void> => {
-  const b = req.body ?? {};
-  const str = (v: unknown, fallback = ""): string => (typeof v === "string" ? v : fallback);
+  const b = (req.body ?? {}) as Record<string, unknown>;
+  const has = (k: string) => Object.prototype.hasOwnProperty.call(b, k);
+  const str = (v: unknown): string => (typeof v === "string" ? v : "");
   const links = (v: unknown): FooterLink[] =>
     Array.isArray(v)
       ? v
@@ -70,38 +73,32 @@ router.put("/site-settings", requireAdmin, async (req, res): Promise<void> => {
           .map((x) => ({ label: String(x.label).slice(0, 120), href: String(x.href).slice(0, 300) }))
       : [];
 
-  await getOrCreate();
-  const [updated] = await db
-    .update(siteSettingsTable)
-    .set({
-      brandBlurb: str(b.brandBlurb),
-      aboutHeading: str(b.aboutHeading, "About us"),
-      aboutLinks: links(b.aboutLinks),
-      supportHeading: str(b.supportHeading, "Customer support"),
-      supportLinks: links(b.supportLinks),
-      contactPhone: str(b.contactPhone),
-      contactEmail: str(b.contactEmail),
-      liveChatUrl: str(b.liveChatUrl),
-      facebookUrl: str(b.facebookUrl),
-      instagramUrl: str(b.instagramUrl),
-      pinterestUrl: str(b.pinterestUrl),
-      tiktokUrl: str(b.tiktokUrl),
-      acceptedPayments: Array.isArray(b.acceptedPayments)
-        ? b.acceptedPayments.filter((x: unknown) => typeof x === "string")
-        : [],
-      currencyLabel: str(b.currencyLabel, "Kenya (KES)"),
-      copyrightText: str(b.copyrightText, "Happyfine Wholesalers"),
-      mpesaPaybill: str(b.mpesaPaybill),
-      mpesaTill: str(b.mpesaTill),
-      mpesaAccountName: str(b.mpesaAccountName),
-      mpesaSendPhone: str(b.mpesaSendPhone),
-      mpesaInstructions: str(b.mpesaInstructions).slice(0, 500),
-      referralEnabled: Boolean(b.referralEnabled),
-      referralDiscountPercent: Math.min(Math.max(parseInt(String(b.referralDiscountPercent ?? 0), 10) || 0, 0), 90),
-    })
-    .where(eq(siteSettingsTable.id, 1))
-    .returning();
+  const patch: Partial<typeof siteSettingsTable.$inferInsert> = {};
+  const textFields = [
+    "brandBlurb", "aboutHeading", "supportHeading", "contactPhone", "contactEmail", "liveChatUrl",
+    "facebookUrl", "instagramUrl", "pinterestUrl", "tiktokUrl", "currencyLabel", "copyrightText",
+    "mpesaPaybill", "mpesaTill", "mpesaAccountName", "mpesaSendPhone",
+  ] as const;
+  for (const k of textFields) if (has(k)) patch[k] = str(b[k]).trim().slice(0, 500);
+  if (has("mpesaInstructions")) patch.mpesaInstructions = str(b["mpesaInstructions"]).slice(0, 500);
+  if (has("aboutLinks")) patch.aboutLinks = links(b["aboutLinks"]);
+  if (has("supportLinks")) patch.supportLinks = links(b["supportLinks"]);
+  if (has("acceptedPayments")) {
+    patch.acceptedPayments = Array.isArray(b["acceptedPayments"])
+      ? (b["acceptedPayments"] as unknown[]).filter((x): x is string => typeof x === "string")
+      : [];
+  }
+  if (has("referralEnabled")) patch.referralEnabled = Boolean(b["referralEnabled"]);
+  if (has("referralDiscountPercent")) {
+    patch.referralDiscountPercent = Math.min(Math.max(parseInt(String(b["referralDiscountPercent"]), 10) || 0, 0), 90);
+  }
 
+  await getOrCreate();
+  if (Object.keys(patch).length === 0) {
+    res.json(await getOrCreate());
+    return;
+  }
+  const [updated] = await db.update(siteSettingsTable).set(patch).where(eq(siteSettingsTable.id, 1)).returning();
   res.json(updated);
 });
 

@@ -8,6 +8,11 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
+// Behind Railway / cPanel the app sits behind a TLS-terminating proxy. Trusting
+// it makes req.protocol / req.get("host") reflect the public URL, which the
+// share-preview tags and sitemap depend on.
+app.set("trust proxy", 1);
+
 app.use(
   pinoHttp({
     logger,

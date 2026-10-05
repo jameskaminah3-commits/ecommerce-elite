@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getGetProductQueryKey } from '@workspace/api-client-react';
 import { Link } from 'wouter';
-import { Star, Lock, CheckCircle2 } from 'lucide-react';
+import { Star, Lock, CheckCircle2, BadgeCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,6 +17,7 @@ interface ReviewItem {
   title: string | null;
   body: string | null;
   userName: string;
+  verified?: boolean;
   createdAt: string;
 }
 interface ReviewsResponse {
@@ -62,6 +63,13 @@ export function ReviewsSection({ productId }: { productId: number }) {
   const [body, setBody] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Deep links like /products/6#reviews (from the order page) land here.
+  React.useEffect(() => {
+    if (!data || window.location.hash !== '#reviews') return;
+    const t = setTimeout(() => document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+    return () => clearTimeout(t);
+  }, [data]);
+
   const viewer = data?.viewer;
   const canWrite = viewer?.authenticated && viewer?.purchased && !viewer?.hasReviewed;
 
@@ -95,21 +103,40 @@ export function ReviewsSection({ productId }: { productId: number }) {
   };
 
   return (
-    <div className="border-t pt-8 mt-8">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="font-bold text-lg">Customer Reviews</h3>
-        {data && data.count > 0 && (
-          <div className="flex items-center gap-2">
-            <Stars value={data.average} />
-            <span className="text-sm text-muted-foreground">{data.average.toFixed(1)} · {data.count} review{data.count === 1 ? '' : 's'}</span>
+    <div id="reviews" className="border-t pt-8 mt-8 scroll-mt-24">
+      <h3 className="font-bold text-lg mb-5">Customer Reviews</h3>
+
+      {/* Summary: big average + how the ratings are distributed */}
+      {data && data.count > 0 && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-8 mb-7 p-5 rounded-xl bg-muted/30 border">
+          <div className="text-center sm:text-left shrink-0">
+            <p className="text-5xl font-semibold tracking-tight leading-none">{data.average.toFixed(1)}</p>
+            <Stars value={data.average} className="mt-2.5 justify-center sm:justify-start" />
+            <p className="text-xs text-muted-foreground mt-1.5">{data.count} review{data.count === 1 ? '' : 's'}</p>
           </div>
-        )}
-      </div>
+          <div className="flex-1 space-y-1.5">
+            {[5, 4, 3, 2, 1].map((star) => {
+              const n = data.items.filter((r) => Math.round(r.rating) === star).length;
+              const pct = data.items.length ? (n / data.items.length) * 100 : 0;
+              return (
+                <div key={star} className="flex items-center gap-2.5 text-xs">
+                  <span className="w-3 text-muted-foreground tabular-nums">{star}</span>
+                  <Star className="w-3 h-3 text-amber-400 fill-amber-400 shrink-0" />
+                  <div className="flex-1 h-2 rounded-full bg-border/70 overflow-hidden">
+                    <div className="h-full rounded-full bg-amber-400 transition-all duration-700" style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="w-6 text-right text-muted-foreground tabular-nums">{n}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Write-a-review area */}
       {canWrite ? (
         <form onSubmit={submit} className="bg-muted/30 border rounded-xl p-5 mb-8 space-y-4">
-          <p className="font-semibold text-sm">Write your review</p>
+          <p className="font-semibold text-sm">How was it? Rate this product</p>
           <div className="flex items-center gap-1">
             {[1, 2, 3, 4, 5].map((s) => (
               <button
@@ -132,6 +159,9 @@ export function ReviewsSection({ productId }: { productId: number }) {
           </div>
           <Input placeholder="Title (optional)" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} />
           <Textarea placeholder="Share your experience (optional)" value={body} onChange={(e) => setBody(e.target.value)} rows={3} maxLength={2000} />
+          <p className="text-xs text-muted-foreground">
+            {rating ? ['', 'Poor', 'Fair', 'Good', 'Very good', 'Excellent'][rating] : 'Tap a star to rate'}
+          </p>
           <Button type="submit" disabled={submitting}>{submitting ? 'Submitting…' : 'Submit Review'}</Button>
         </form>
       ) : (
@@ -174,7 +204,14 @@ export function ReviewsSection({ productId }: { productId: number }) {
               </div>
               {r.title && <p className="font-semibold text-sm">{r.title}</p>}
               {r.body && <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{r.body}</p>}
-              <p className="text-xs text-muted-foreground mt-2">— {r.userName}</p>
+              <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1.5">
+                — {r.userName}
+                {r.verified && (
+                  <span className="inline-flex items-center gap-1 text-emerald-700 font-medium">
+                    <BadgeCheck className="w-3.5 h-3.5" /> Verified buyer
+                  </span>
+                )}
+              </p>
             </div>
           ))}
         </div>

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, gte, desc, sql, lte, inArray } from "drizzle-orm";
+import { eq, gte, desc, sql, lte, inArray, and } from "drizzle-orm";
 import { db, ordersTable, orderItemsTable, productsTable, productVariantsTable, usersTable, categoriesTable } from "@workspace/db";
 import {
   GetAnalyticsSalesQueryParams,
@@ -26,10 +26,23 @@ router.get("/admin/analytics/overview", requireAdmin, async (_req, res): Promise
   const [{ totalCustomers }] = await db.select({ totalCustomers: sql<number>`cast(count(*) as int)` }).from(usersTable).where(eq(usersTable.role, "customer"));
   const [{ pendingOrders }] = await db.select({ pendingOrders: sql<number>`cast(count(*) as int)` }).from(ordersTable).where(eq(ordersTable.status, "pending"));
   const [{ lowStockCount }] = await db.select({ lowStockCount: sql<number>`cast(count(*) as int)` }).from(productVariantsTable).where(lte(productVariantsTable.stock, 5));
-  const [{ revenueThisMonth }] = await db.select({ revenueThisMonth: sql<number>`cast(coalesce(sum(total), 0) as float)` }).from(ordersTable).where(gte(ordersTable.createdAt, startOfMonth));
+  const [{ revenueThisMonth }] = await db.select({ revenueThisMonth: sql<number>`cast(coalesce(sum(total), 0) as float)` }).from(ordersTable).where(and(gte(ordersTable.createdAt, startOfMonth), eq(ordersTable.paymentStatus, "paid")));
   const [{ ordersThisMonth }] = await db.select({ ordersThisMonth: sql<number>`cast(count(*) as int)` }).from(ordersTable).where(gte(ordersTable.createdAt, startOfMonth));
 
+  // Work that needs the admin's attention: manual M-Pesa payments whose code
+  // was submitted but not yet verified, and paid orders waiting to be fulfilled.
+  const [{ paymentsToVerify }] = await db
+    .select({ paymentsToVerify: sql<number>`cast(count(*) as int)` })
+    .from(ordersTable)
+    .where(and(eq(ordersTable.paymentStatus, "pending"), sql`${ordersTable.paymentReference} is not null`, sql`${ordersTable.status} <> 'cancelled'`));
+  const [{ toFulfil }] = await db
+    .select({ toFulfil: sql<number>`cast(count(*) as int)` })
+    .from(ordersTable)
+    .where(and(eq(ordersTable.paymentStatus, "paid"), sql`${ordersTable.status} in ('confirmed','processing')`));
+
   res.json({
+    paymentsToVerify,
+    toFulfil,
     totalOrders,
     totalRevenue,
     totalProducts,

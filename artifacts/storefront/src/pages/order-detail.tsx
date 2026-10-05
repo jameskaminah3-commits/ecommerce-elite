@@ -4,7 +4,7 @@ import { useGetOrder } from '@workspace/api-client-react';
 import { useParams, Link } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { formatCurrency, classNames } from '@/lib/utils';
-import { CheckCircle2, Clock, Truck, PackageCheck, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, Clock, Truck, PackageCheck, AlertTriangle, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
@@ -100,9 +100,16 @@ export default function OrderPage() {
           <div className="p-8 border-b text-center bg-muted/20">
             <div className="flex justify-center mb-4">{getStatusIcon()}</div>
             <h1 className="text-3xl font-extrabold mb-2">
-              {isCancelled ? 'Order Cancelled' : 'Order Confirmed!'}
+              {isCancelled ? 'Order Cancelled' : order.paymentStatus === 'paid' ? 'Order Confirmed!' : 'Order Received'}
             </h1>
             <p className="text-muted-foreground">Order #{order.id} • Placed on {new Date(order.createdAt).toLocaleDateString()}</p>
+            {!isCancelled && order.paymentStatus !== 'paid' && (
+              <p className="mt-4 mx-auto max-w-md text-sm rounded-lg bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3">
+                {(order as any).paymentReference
+                  ? <>We've received your M-Pesa code <strong className="font-mono">{(order as any).paymentReference}</strong> and are verifying it. You'll get a confirmation shortly.</>
+                  : 'Awaiting payment. Your order is confirmed as soon as payment is received.'}
+              </p>
+            )}
           </div>
 
           {!isCancelled && (
@@ -192,6 +199,14 @@ export default function OrderPage() {
                   <div className="text-right">
                     <p className="font-bold text-lg">{formatCurrency(item.price)}</p>
                     <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
+                    {(order.paymentStatus === 'paid' || order.status === 'delivered') && (item as any).productId && (
+                      <Link
+                        href={`/products/${(item as any).productId}#reviews`}
+                        className="inline-flex items-center gap-1 mt-2 text-xs font-semibold text-primary hover:underline"
+                      >
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" /> Rate this product
+                      </Link>
+                    )}
                   </div>
                 </div>
               ))}

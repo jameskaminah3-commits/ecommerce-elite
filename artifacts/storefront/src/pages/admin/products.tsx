@@ -117,6 +117,31 @@ export default function AdminProducts() {
     setDialogOpen(true);
   };
 
+  // Row actions, shared by the desktop table and the phone card list.
+  const rowMenu = (product: ProductRow) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="icon" className="h-9 w-9" aria-label={`Actions for ${product.name}`}>
+          <MoreHorizontal className="w-4 h-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem className="cursor-pointer" onClick={() => openEdit(product)}>
+          <Pencil className="w-4 h-4 mr-2" /> Edit
+        </DropdownMenuItem>
+        <DropdownMenuItem className="cursor-pointer" onClick={() => setStockFor(product)}>
+          <Boxes className="w-4 h-4 mr-2" /> Manage stock &amp; variants
+        </DropdownMenuItem>
+        <DropdownMenuItem className="cursor-pointer" onClick={() => setReviewsFor(product)}>
+          <Star className="w-4 h-4 mr-2" /> Reviews
+        </DropdownMenuItem>
+        <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={() => handleDelete(product.id)}>
+          <Trash2 className="w-4 h-4 mr-2" /> Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   return (
     <AuthGuard requireAdmin>
       <AdminLayout>
@@ -143,7 +168,38 @@ export default function AdminProducts() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* Phone: card per product so price, stock and actions are always visible */}
+          <div className="md:hidden divide-y">
+            {isLoading ? (
+              <div className="px-4 py-8 text-center text-muted-foreground">Loading products…</div>
+            ) : productsData?.items.length === 0 ? (
+              <div className="px-4 py-8 text-center text-muted-foreground">No products found.</div>
+            ) : (
+              productsData?.items.map((product) => (
+                <div key={product.id} className="p-4 flex items-center gap-3">
+                  <div className="w-14 h-14 rounded-lg border bg-muted flex items-center justify-center overflow-hidden shrink-0">
+                    {product.imageUrl ? <img src={product.imageUrl} alt="" className="w-full h-full object-cover" /> : <ImageIcon className="w-5 h-5 text-muted-foreground/30" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold leading-snug line-clamp-2">{product.name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{product.categoryName || 'Uncategorised'}</p>
+                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                      <span className="font-bold text-sm">{formatCurrency(product.basePrice)}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${(product.totalStock || 0) <= 10 ? 'bg-destructive/10 text-destructive' : 'bg-secondary/10 text-secondary'}`}>
+                        {product.totalStock || 0} in stock
+                      </span>
+                      {product.status !== 'active' && (
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-bold uppercase bg-muted text-muted-foreground">{product.status}</span>
+                      )}
+                    </div>
+                  </div>
+                  {rowMenu(product as ProductRow)}
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-muted-foreground uppercase bg-muted/30 border-b">
                 <tr>
@@ -188,25 +244,7 @@ export default function AdminProducts() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="w-4 h-4" /></Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem className="cursor-pointer" onClick={() => openEdit(product as ProductRow)}>
-                              <Pencil className="w-4 h-4 mr-2" /> Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="cursor-pointer" onClick={() => setStockFor(product as ProductRow)}>
-                              <Boxes className="w-4 h-4 mr-2" /> Manage stock
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="cursor-pointer" onClick={() => setReviewsFor(product as ProductRow)}>
-                              <Star className="w-4 h-4 mr-2" /> Reviews
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={() => handleDelete(product.id)}>
-                              <Trash2 className="w-4 h-4 mr-2" /> Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        {rowMenu(product as ProductRow)}
                       </td>
                     </tr>
                   ))
