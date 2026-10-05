@@ -28,6 +28,13 @@ interface SiteSettings {
   acceptedPayments: string[];
   currencyLabel: string;
   copyrightText: string;
+  mpesaPaybill: string;
+  mpesaTill: string;
+  mpesaAccountName: string;
+  mpesaSendPhone: string;
+  mpesaInstructions: string;
+  referralEnabled: boolean;
+  referralDiscountPercent: number;
 }
 
 const PAYMENT_OPTIONS = ['mpesa', 'visa', 'mastercard', 'amex', 'paypal', 'airtel', 'diners', 'discover'];
@@ -147,8 +154,8 @@ export default function AdminFooter() {
       <AdminLayout>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Footer</h1>
-            <p className="text-muted-foreground mt-1">Edit the storefront footer — links, contact, socials and payment badges.</p>
+            <h1 className="text-3xl font-bold tracking-tight">Footer &amp; payments</h1>
+            <p className="text-muted-foreground mt-1">Footer content, M-Pesa manual payment details, and the referral promotion.</p>
           </div>
           <Button className="font-bold shadow-md shadow-primary/20" onClick={save} disabled={saving}>
             {saving ? 'Saving...' : 'Save changes'}
@@ -237,6 +244,63 @@ export default function AdminFooter() {
             <div className="space-y-2">
               <Label>Short blurb <span className="text-muted-foreground font-normal">(optional, stored for future use)</span></Label>
               <Textarea value={form.brandBlurb} onChange={(e) => set('brandBlurb', e.target.value)} rows={2} />
+            </div>
+          </div>
+
+          {/* M-Pesa manual payment (STK fallback) */}
+          <div className="bg-card border rounded-xl p-5 shadow-sm space-y-4">
+            <div>
+              <h3 className="font-bold">M-Pesa manual payment</h3>
+              <p className="text-xs text-muted-foreground mt-1">Shown to customers if the automatic M-Pesa prompt fails. Fill in whichever you use.</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Pay Bill number</Label>
+              <Input value={form.mpesaPaybill || ''} onChange={(e) => set('mpesaPaybill', e.target.value)} placeholder="e.g. 247247" />
+            </div>
+            <div className="space-y-2">
+              <Label>Buy Goods Till number</Label>
+              <Input value={form.mpesaTill || ''} onChange={(e) => set('mpesaTill', e.target.value)} placeholder="e.g. 5203012" />
+            </div>
+            <div className="space-y-2">
+              <Label>Account name / Pay Bill account</Label>
+              <Input value={form.mpesaAccountName || ''} onChange={(e) => set('mpesaAccountName', e.target.value)} placeholder="e.g. Happyfine Wholesalers" />
+            </div>
+            <div className="space-y-2">
+              <Label>Send Money phone <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Input value={form.mpesaSendPhone || ''} onChange={(e) => set('mpesaSendPhone', e.target.value)} placeholder="e.g. 0712 345 678" />
+            </div>
+            <div className="space-y-2">
+              <Label>Instructions <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Textarea value={form.mpesaInstructions || ''} onChange={(e) => set('mpesaInstructions', e.target.value)} rows={2} placeholder="e.g. After paying, enter the M-Pesa confirmation code to complete your order." />
+            </div>
+          </div>
+
+          {/* Referral promotion */}
+          <div className="bg-card border rounded-xl p-5 shadow-sm space-y-4">
+            <div>
+              <h3 className="font-bold">Referral promotion</h3>
+              <p className="text-xs text-muted-foreground mt-1">Customers share a link; their friend gets a discount on their first order.</p>
+            </div>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!form.referralEnabled}
+                onChange={(e) => set('referralEnabled', e.target.checked)}
+                className="w-4 h-4 accent-primary"
+              />
+              <span className="text-sm font-medium">Enable referral discounts</span>
+            </label>
+            <div className="space-y-2">
+              <Label>Friend's first-order discount (%)</Label>
+              <Input
+                type="number"
+                min="0"
+                max="90"
+                value={String(form.referralDiscountPercent ?? 0)}
+                onChange={(e) => set('referralDiscountPercent', Math.min(90, Math.max(0, Number(e.target.value) || 0)))}
+                placeholder="e.g. 10"
+              />
+              <p className="text-xs text-muted-foreground">0 turns the promotion off even if enabled.</p>
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { pgTable, serial, text, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, jsonb, timestamp, boolean, integer } from "drizzle-orm/pg-core";
 
 // A single-row table (id = 1) holding editable site-wide content — currently the
 // footer. Read publicly by the storefront, written from the admin console.
@@ -25,6 +25,17 @@ export const siteSettingsTable = pgTable("site_settings", {
   acceptedPayments: jsonb("accepted_payments").$type<string[]>().notNull().default([]),
   currencyLabel: text("currency_label").notNull().default("Kenya (KES)"),
   copyrightText: text("copyright_text").notNull().default("Happyfine Wholesalers"),
+  // Manual M-Pesa payment details — the fallback shown when the STK push can't
+  // complete. Any subset may be set; the storefront shows whichever are present.
+  mpesaPaybill: text("mpesa_paybill").notNull().default(""),
+  mpesaTill: text("mpesa_till").notNull().default(""),
+  mpesaAccountName: text("mpesa_account_name").notNull().default(""),
+  mpesaSendPhone: text("mpesa_send_phone").notNull().default(""),
+  mpesaInstructions: text("mpesa_instructions").notNull().default(""),
+  // Referral promotion: a friend who checks out with a referral code gets this
+  // percentage off their first order. Disabled by default.
+  referralEnabled: boolean("referral_enabled").notNull().default(false),
+  referralDiscountPercent: integer("referral_discount_percent").notNull().default(0),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
 

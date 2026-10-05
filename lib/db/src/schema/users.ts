@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, boolean, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -16,6 +16,11 @@ export const usersTable = pgTable("users", {
   googleId: text("google_id").unique(),
   // True once the email has been proven (Google sign-in, or a verified OTP).
   emailVerified: boolean("email_verified").notNull().default(false),
+  // Unique code this customer shares to refer friends (e.g. "AMINA-7F3K").
+  // Generated lazily on first login/registration.
+  referralCode: text("referral_code").unique(),
+  // The user whose referral code this customer signed up with (for attribution).
+  referredByUserId: integer("referred_by_user_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

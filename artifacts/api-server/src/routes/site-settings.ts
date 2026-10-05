@@ -31,6 +31,13 @@ const DEFAULTS = {
   acceptedPayments: ["mpesa", "visa", "mastercard", "amex", "paypal"],
   currencyLabel: "Kenya (KES)",
   copyrightText: "Happyfine Wholesalers",
+  mpesaPaybill: "",
+  mpesaTill: "",
+  mpesaAccountName: "",
+  mpesaSendPhone: "",
+  mpesaInstructions: "",
+  referralEnabled: false,
+  referralDiscountPercent: 0,
 };
 
 async function getOrCreate() {
@@ -84,6 +91,13 @@ router.put("/site-settings", requireAdmin, async (req, res): Promise<void> => {
         : [],
       currencyLabel: str(b.currencyLabel, "Kenya (KES)"),
       copyrightText: str(b.copyrightText, "Happyfine Wholesalers"),
+      mpesaPaybill: str(b.mpesaPaybill),
+      mpesaTill: str(b.mpesaTill),
+      mpesaAccountName: str(b.mpesaAccountName),
+      mpesaSendPhone: str(b.mpesaSendPhone),
+      mpesaInstructions: str(b.mpesaInstructions).slice(0, 500),
+      referralEnabled: Boolean(b.referralEnabled),
+      referralDiscountPercent: Math.min(Math.max(parseInt(String(b.referralDiscountPercent ?? 0), 10) || 0, 0), 90),
     })
     .where(eq(siteSettingsTable.id, 1))
     .returning();

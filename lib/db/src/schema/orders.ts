@@ -15,8 +15,15 @@ export const ordersTable = pgTable("orders", {
   total: numeric("total", { precision: 12, scale: 2 }).notNull(),
   deliveryLocation: text("delivery_location"),
   deliveryFee: numeric("delivery_fee", { precision: 12, scale: 2 }).notNull().default("0"),
+  // Discount applied because the order used a friend's referral code.
+  referralDiscount: numeric("referral_discount", { precision: 12, scale: 2 }).notNull().default("0"),
+  // Referral code used at checkout (for attribution/reporting).
+  referralCodeUsed: text("referral_code_used"),
   mpesaCheckoutRequestId: text("mpesa_checkout_request_id"),
   paystackReference: text("paystack_reference"),
+  // The M-Pesa confirmation code a customer pastes when they pay manually to the
+  // Paybill/Till (the STK fallback). Admin verifies it, then marks the order paid.
+  paymentReference: text("payment_reference"),
   // Guards against deducting stock twice for one order (e.g. a webhook that
   // fires more than once). Flipped inside the same transaction as the deduction.
   inventoryDeducted: boolean("inventory_deducted").notNull().default(false),

@@ -5,6 +5,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useParams } from 'wouter';
 import { formatCurrency, classNames, cn, getPriceInfo } from '@/lib/utils';
 import { ReviewsSection } from '@/components/products/ReviewsSection';
+import { ShareButtons } from '@/components/social/ShareButtons';
 import { Star, Truck, ShieldCheck, ChevronRight, Minus, Plus, ShoppingBag, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -293,6 +294,11 @@ export default function ProductDetail() {
                   {formatCurrency(priceInfo.original)}
                 </span>
               )}
+            </div>
+
+            {/* Share */}
+            <div className="mb-7">
+              <ShareButtons url={typeof window !== 'undefined' ? window.location.href : ''} title={product.name} />
             </div>
 
             {/* Variant selectors */}

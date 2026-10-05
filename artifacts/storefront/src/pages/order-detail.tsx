@@ -201,14 +201,20 @@ export default function OrderPage() {
               <div className="w-64 space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Items Subtotal</span>
-                  <span className="font-medium">{formatCurrency(order.total - (order.deliveryFee ?? 0))}</span>
+                  <span className="font-medium">{formatCurrency(order.total - (order.deliveryFee ?? 0) + ((order as any).referralDiscount ?? 0))}</span>
                 </div>
                 <div className="flex justify-between pb-3 border-b">
                   <span className="text-muted-foreground">Delivery{order.deliveryLocation ? ` (${order.deliveryLocation})` : ''}</span>
                   <span className="font-medium">{formatCurrency(order.deliveryFee ?? 0)}</span>
                 </div>
+                {((order as any).referralDiscount ?? 0) > 0 && (
+                  <div className="flex justify-between pb-3 border-b text-emerald-600">
+                    <span>Referral discount</span>
+                    <span className="font-medium">−{formatCurrency((order as any).referralDiscount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center pt-2">
-                  <span className="font-bold text-lg text-foreground">Total Paid</span>
+                  <span className="font-bold text-lg text-foreground">{order.paymentStatus === 'paid' ? 'Total Paid' : 'Total Due'}</span>
                   <span className="font-extrabold text-2xl text-primary">{formatCurrency(order.total)}</span>
                 </div>
               </div>

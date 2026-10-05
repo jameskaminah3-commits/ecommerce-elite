@@ -16,6 +16,7 @@ import homepageRouter from "./homepage";
 import newsletterRouter from "./newsletter";
 import blogRouter from "./blog";
 import siteSettingsRouter from "./site-settings";
+import referralRouter from "./referral";
 
 const router: IRouter = Router();
 
@@ -36,5 +37,6 @@ router.use(homepageRouter);
 router.use(newsletterRouter);
 router.use(blogRouter);
 router.use(siteSettingsRouter);
+router.use(referralRouter);
 
 export default router;

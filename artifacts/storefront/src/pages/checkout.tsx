@@ -13,15 +13,36 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { ShoppingBag, CreditCard, Smartphone, AlertCircle, Truck } from 'lucide-react';
+import { ShoppingBag, CreditCard, Smartphone, AlertCircle, Gift } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
 const STK_COUNTDOWN = 30; // seconds
 const FALLBACK_MSG =
-  'Your mobile money prompt could not be completed. Please try again or pay securely using an alternative channel below.';
+  'Your mobile money prompt could not be completed. Please try again, pay via M-Pesa manually, or use a card below.';
 
-type PaymentMethod = 'mpesa' | 'airtel' | 'card' | 'cash_on_delivery';
+type PaymentMethod = 'mpesa' | 'airtel' | 'card';
+
+interface SiteSettings {
+  mpesaPaybill?: string;
+  mpesaTill?: string;
+  mpesaAccountName?: string;
+  mpesaSendPhone?: string;
+  mpesaInstructions?: string;
+  referralEnabled?: boolean;
+  referralDiscountPercent?: number;
+}
+
+function getCookie(name: string): string {
+  const m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
+async function fetchSiteSettings(): Promise<SiteSettings> {
+  const res = await fetch(`${API_BASE}/api/site-settings`);
+  if (!res.ok) return {};
+  return res.json();
+}
 
 interface DeliveryLocation {
   id: number;
@@ -59,6 +80,26 @@ export default function CheckoutPage() {
   });
   const activeLocations = (deliveryLocations ?? []).filter((l) => l.active);
   const selectedLocation = activeLocations.find((l) => String(l.id) === deliveryLocationId) ?? null;
+
+  // Site settings carry the manual M-Pesa details + referral discount.
+  const { data: settings } = useQuery({ queryKey: ['site-settings'], queryFn: fetchSiteSettings });
+
+  // Validate a referral code captured from a share link, to show the discount.
+  const [referral, setReferral] = useState<{ discountPercent: number; referrerName?: string } | null>(null);
+  React.useEffect(() => {
+    const code = getCookie('ref') || localStorage.getItem('referralCode') || '';
+    if (!code) return;
+    fetch(`${API_BASE}/api/referral/validate?code=${encodeURIComponent(code)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.valid && d.discountPercent > 0) setReferral({ discountPercent: d.discountPercent, referrerName: d.referrerName });
+      })
+      .catch(() => {});
+  }, []);
+
+  // Manual M-Pesa (STK fallback): the code the customer pastes after paying.
+  const [mpesaRef, setMpesaRef] = useState('');
+  const [mpesaRefBusy, setMpesaRefBusy] = useState(false);
 
   // Payment state
   const [pendingOrderId, setPendingOrderId] = useState<number | null>(null);
@@ -148,6 +189,33 @@ export default function CheckoutPage() {
     }
   };
 
+  // Manual M-Pesa (STK fallback): record the confirmation code the customer
+  // pastes after paying to the Paybill/Till. Admin verifies and marks it paid.
+  const submitMpesaReference = async () => {
+    if (!pendingOrderId || !mpesaRef.trim()) return;
+    setMpesaRefBusy(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/orders/${pendingOrderId}/payment-reference`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ reference: mpesaRef.trim() }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Could not submit the code.');
+      }
+      setShowMobileModal(false);
+      clear();
+      setLocation(`/orders/${pendingOrderId}`);
+      toast({ title: 'Payment code received', description: "We'll confirm your M-Pesa payment shortly." });
+    } catch (err: any) {
+      toast({ title: 'Could not submit code', description: err?.message, variant: 'destructive' });
+    } finally {
+      setMpesaRefBusy(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cart?.items || cart.items.length === 0) return;
@@ -155,8 +223,8 @@ export default function CheckoutPage() {
       toast({ title: 'Select a delivery town', description: 'Please choose where your order should be delivered.', variant: 'destructive' });
       return;
     }
-    // Every electronic channel routes through Paystack, which requires an email.
-    if (paymentMethod !== 'cash_on_delivery' && !formData.customerEmail.trim()) {
+    // Every channel routes through Paystack, which requires an email.
+    if (!formData.customerEmail.trim()) {
       toast({ title: 'Email required', description: 'Enter your email address to pay online.', variant: 'destructive' });
       return;
     }
@@ -178,12 +246,8 @@ export default function CheckoutPage() {
       if (paymentMethod === 'mpesa' || paymentMethod === 'airtel') {
         await startMobileMoney(order.id, paymentMethod);
         setBusy(false);
-      } else if (paymentMethod === 'card') {
-        await startCardPayment(order.id); // redirects on success
       } else {
-        // Cash on delivery — nothing to charge now.
-        clear();
-        setLocation(`/orders/${order.id}`);
+        await startCardPayment(order.id); // card — redirects on success
       }
     } catch (err) {
       toast({ title: 'Order failed', description: 'There was a problem creating your order.', variant: 'destructive' });
@@ -211,13 +275,13 @@ export default function CheckoutPage() {
   }
 
   const deliveryFee = selectedLocation?.cost ?? 0;
-  const finalTotal = cart.total + deliveryFee;
+  const referralDiscount = referral ? Math.round(cart.total * (referral.discountPercent / 100) * 100) / 100 : 0;
+  const finalTotal = Math.max(0, cart.total + deliveryFee - referralDiscount);
 
   const PAYMENT_OPTIONS: { value: PaymentMethod; icon: React.ElementType; iconClass: string; title: string; sub: string }[] = [
     { value: 'mpesa', icon: Smartphone, iconClass: 'text-emerald-600', title: 'M-Pesa (STK Push)', sub: 'Pay instantly via a Safaricom M-Pesa SIM PIN prompt.' },
     { value: 'airtel', icon: Smartphone, iconClass: 'text-red-600', title: 'Airtel Money', sub: 'Pay instantly via an Airtel SIM prompt.' },
     { value: 'card', icon: CreditCard, iconClass: 'text-blue-600', title: 'Card / Bank Transfer', sub: 'Pay via Visa, Mastercard, or Equity Bank (Pesalink).' },
-    { value: 'cash_on_delivery', icon: Truck, iconClass: 'text-amber-600', title: 'Cash on Delivery', sub: 'Pay when your order arrives. Note: Verification call required.' },
   ];
 
   return (
@@ -240,7 +304,7 @@ export default function CheckoutPage() {
                   <Input id="customerName" name="customerName" required value={formData.customerName} onChange={handleInputChange} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="customerEmail">Email Address{paymentMethod !== 'cash_on_delivery' ? ' *' : ''}</Label>
+                  <Label htmlFor="customerEmail">Email Address *</Label>
                   <Input id="customerEmail" name="customerEmail" type="email" value={formData.customerEmail} onChange={handleInputChange} />
                   <p className="text-xs text-muted-foreground">Used to send your receipt and confirm online payments.</p>
                 </div>
@@ -350,11 +414,27 @@ export default function CheckoutPage() {
                   <span>Delivery{selectedLocation ? ` (${selectedLocation.name})` : ''}</span>
                   <span>{selectedLocation ? formatCurrency(deliveryFee) : '—'}</span>
                 </div>
+                {referralDiscount > 0 && (
+                  <div className="flex justify-between text-emerald-600 font-medium">
+                    <span className="flex items-center gap-1"><Gift className="w-3.5 h-3.5" /> Referral ({referral?.discountPercent}% off)</span>
+                    <span>−{formatCurrency(referralDiscount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between font-extrabold text-lg pt-3 border-t text-foreground">
                   <span>Total</span>
                   <span className="text-primary">{formatCurrency(finalTotal)}</span>
                 </div>
               </div>
+
+              {referral && (
+                <div className="mt-4 flex items-start gap-2 rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-800">
+                  <Gift className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>
+                    {referral.referrerName ? `${referral.referrerName} referred you — ` : ''}
+                    you get <strong>{referral.discountPercent}% off</strong> your first order. Applied automatically.
+                  </span>
+                </div>
+              )}
 
               <Button
                 type="submit"
@@ -399,6 +479,44 @@ export default function CheckoutPage() {
                 <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
                 <p>{FALLBACK_MSG}</p>
               </div>
+
+              {(settings?.mpesaPaybill || settings?.mpesaTill || settings?.mpesaSendPhone) && (
+                <div className="border border-emerald-200 bg-emerald-50/60 rounded-xl p-4 mb-4 text-left">
+                  <p className="font-bold text-sm text-emerald-800 flex items-center gap-1.5 mb-2">
+                    <Smartphone className="w-4 h-4" /> Pay via M-Pesa manually
+                  </p>
+                  <div className="space-y-1.5 text-sm text-foreground">
+                    {settings?.mpesaPaybill && (
+                      <p>Lipa na M-Pesa → <strong>Pay Bill</strong><br />Business no: <strong className="tabular-nums">{settings.mpesaPaybill}</strong>
+                        {settings?.mpesaAccountName && <> · Account: <strong>{settings.mpesaAccountName}</strong></>}
+                      </p>
+                    )}
+                    {settings?.mpesaTill && (
+                      <p><strong>Buy Goods</strong> → Till no: <strong className="tabular-nums">{settings.mpesaTill}</strong></p>
+                    )}
+                    {settings?.mpesaSendPhone && (
+                      <p><strong>Send Money</strong> to <strong className="tabular-nums">{settings.mpesaSendPhone}</strong>
+                        {settings?.mpesaAccountName && <> ({settings.mpesaAccountName})</>}
+                      </p>
+                    )}
+                    <p className="pt-1">Amount: <strong>{formatCurrency(finalTotal)}</strong>{pendingOrderId ? <> · Ref: <strong>Order #{pendingOrderId}</strong></> : null}</p>
+                    {settings?.mpesaInstructions && <p className="text-xs text-muted-foreground pt-1">{settings.mpesaInstructions}</p>}
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    <Input
+                      value={mpesaRef}
+                      onChange={(e) => setMpesaRef(e.target.value)}
+                      placeholder="M-Pesa code e.g. SGH7XK9QptM"
+                      className="h-10 bg-background"
+                    />
+                    <Button type="button" className="h-10 shrink-0" disabled={mpesaRefBusy || !mpesaRef.trim()} onClick={submitMpesaReference}>
+                      {mpesaRefBusy ? 'Sending…' : "I've paid"}
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-2">Enter the confirmation code from the M-Pesa SMS. We'll verify and confirm your order.</p>
+                </div>
+              )}
+
               <Button
                 size="lg"
                 className="w-full h-12 font-bold shadow-lg shadow-primary/20 mb-3"

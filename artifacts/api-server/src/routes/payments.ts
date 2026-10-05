@@ -43,7 +43,7 @@ async function emailOrderPaid(order: OrderRow): Promise<void> {
 
 // Mark an order paid + confirmed once, and notify the customer. Idempotent: a
 // duplicate webhook/callback for an already-paid order won't re-email.
-async function markOrderPaid(order: OrderRow): Promise<void> {
+export async function markOrderPaid(order: OrderRow): Promise<void> {
   if (order.paymentStatus === "paid") return;
   const [updated] = await db
     .update(ordersTable)

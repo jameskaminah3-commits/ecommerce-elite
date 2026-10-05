@@ -1,8 +1,10 @@
 import { Router, type IRouter, type Request } from "express";
-import { eq, and, desc, sql, inArray } from "drizzle-orm";
-import { db, ordersTable, orderItemsTable, cartItemsTable, productVariantsTable, productsTable, deliveryLocationsTable, deliveryRatesTable, usersTable } from "@workspace/db";
+import { eq, and, desc, sql, inArray, or, isNull } from "drizzle-orm";
+import { db, ordersTable, orderItemsTable, cartItemsTable, productVariantsTable, productsTable, deliveryLocationsTable, deliveryRatesTable, usersTable, siteSettingsTable } from "@workspace/db";
 import { sendOrderReceivedEmail } from "../lib/email";
 import { deductInventoryForOrder, reserveStockForOrder, InsufficientStockError } from "../lib/inventory";
+import { findReferrerByCode } from "../lib/referral";
+import { markOrderPaid } from "./payments";
 import {
   CreateOrderBody,
   ListOrdersQueryParams,
@@ -52,6 +54,8 @@ function formatOrder(order: any, items: any[]) {
     paymentStatus: order.paymentStatus,
     deliveryLocation: order.deliveryLocation ?? null,
     deliveryFee: order.deliveryFee != null ? parseFloat(order.deliveryFee) : 0,
+    referralDiscount: order.referralDiscount != null ? parseFloat(order.referralDiscount) : 0,
+    paymentReference: order.paymentReference ?? null,
     createdAt: order.createdAt instanceof Date ? order.createdAt.toISOString() : order.createdAt,
     updatedAt: order.updatedAt instanceof Date ? order.updatedAt.toISOString() : order.updatedAt,
     items: items.map((i) => ({
@@ -209,7 +213,40 @@ router.post("/orders", async (req, res): Promise<void> => {
     }
   }
 
-  const total = itemsTotal + deliveryFee;
+  // Referral promotion: a valid code from a *different* customer gives the
+  // buyer a discount on their first order. The code arrives in the `ref` cookie
+  // (dropped by the storefront when a share link is opened).
+  let referralDiscount = 0;
+  let referralCodeUsed: string | null = null;
+  let referrerId: number | null = null;
+  const refCode = typeof req.cookies?.ref === "string" ? req.cookies.ref : "";
+  if (refCode) {
+    const [settings] = await db.select().from(siteSettingsTable).where(eq(siteSettingsTable.id, 1));
+    const pct = settings?.referralEnabled ? Math.min(Math.max(settings.referralDiscountPercent ?? 0, 0), 90) : 0;
+    if (pct > 0) {
+      const referrer = await findReferrerByCode(refCode);
+      const buyerEmail = parsed.data.customerEmail?.trim().toLowerCase() || null;
+      // A customer can't refer themselves.
+      const isSelf = referrer != null && (referrer.id === userId || (buyerEmail != null && referrer.email.toLowerCase() === buyerEmail));
+      if (referrer && !isSelf) {
+        // The discount is for first-time buyers only: no prior order under this
+        // account or this email.
+        const priorConds = [] as any[];
+        if (userId != null) priorConds.push(eq(ordersTable.userId, userId));
+        if (buyerEmail != null) priorConds.push(sql`lower(${ordersTable.customerEmail}) = ${buyerEmail}`);
+        const priorCount = priorConds.length
+          ? (await db.select({ c: sql<number>`cast(count(*) as int)` }).from(ordersTable).where(or(...priorConds)))[0]?.c ?? 0
+          : 0;
+        if (priorCount === 0) {
+          referralDiscount = Math.round(itemsTotal * (pct / 100) * 100) / 100;
+          referralCodeUsed = referrer.referralCode;
+          referrerId = referrer.id;
+        }
+      }
+    }
+  }
+
+  const total = Math.max(0, Math.round((itemsTotal + deliveryFee - referralDiscount) * 100) / 100);
 
   // Create the order, its line items, and stock holds atomically. Reserving
   // inside the same transaction means a concurrent checkout for the last unit
@@ -232,6 +269,8 @@ router.post("/orders", async (req, res): Promise<void> => {
           paymentStatus: "pending",
           deliveryLocation: deliveryLocationName,
           deliveryFee: String(deliveryFee),
+          referralDiscount: String(referralDiscount),
+          referralCodeUsed,
           userId,
         })
         .returning();
@@ -303,6 +342,14 @@ router.post("/orders", async (req, res): Promise<void> => {
   // Let this browser view the order it just created, even as a guest.
   grantOrderAccess(req, res, order.id);
 
+  // Permanently attribute a logged-in buyer to their referrer (first time only).
+  if (referrerId != null && userId != null) {
+    await db
+      .update(usersTable)
+      .set({ referredByUserId: referrerId })
+      .where(and(eq(usersTable.id, userId), isNull(usersTable.referredByUserId)));
+  }
+
   res.status(201).json(formatOrder(order, items));
 });
 
@@ -334,6 +381,64 @@ router.get("/orders/:id", async (req, res): Promise<void> => {
   }
   const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, order.id));
   res.json(formatOrder(order, items));
+});
+
+// The customer (owner or guest creator) submits the M-Pesa confirmation code
+// after paying manually to the Paybill/Till (the STK fallback). The order stays
+// pending until an admin verifies the code and marks it paid.
+router.post("/orders/:id/payment-reference", async (req, res): Promise<void> => {
+  const params = GetOrderParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, params.data.id));
+  if (!order) {
+    res.status(404).json({ error: "Order not found" });
+    return;
+  }
+  const userId = getUserId(req);
+  let viewer: SessionUser | null = null;
+  if (userId != null) {
+    [viewer] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  }
+  const isOwner = order.userId != null && viewer?.id === order.userId;
+  const isGuestCreator = rememberedOrderIds(req).has(order.id);
+  if (!isOwner && !isGuestCreator && viewer?.role !== "admin") {
+    res.status(403).json({ error: "You do not have access to this order." });
+    return;
+  }
+  const reference = String(req.body?.reference ?? "").trim().slice(0, 120);
+  if (!reference) {
+    res.status(400).json({ error: "Enter the M-Pesa confirmation code." });
+    return;
+  }
+  const [updated] = await db
+    .update(ordersTable)
+    .set({ paymentReference: reference, paymentMethod: order.paymentMethod ?? "mpesa" })
+    .where(eq(ordersTable.id, order.id))
+    .returning();
+  const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, order.id));
+  res.json(formatOrder(updated, items));
+});
+
+// Admin: confirm a manually-paid order (e.g. after checking the M-Pesa code
+// against the till statement). Marks it paid + confirmed and deducts stock.
+router.post("/orders/:id/mark-paid", requireAdmin, async (req, res): Promise<void> => {
+  const params = GetOrderParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, params.data.id));
+  if (!order) {
+    res.status(404).json({ error: "Order not found" });
+    return;
+  }
+  await markOrderPaid(order);
+  const [fresh] = await db.select().from(ordersTable).where(eq(ordersTable.id, order.id));
+  const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, order.id));
+  res.json(formatOrder(fresh, items));
 });
 
 router.patch("/orders/:id/status", requireAdmin, async (req, res): Promise<void> => {

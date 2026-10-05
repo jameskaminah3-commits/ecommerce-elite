@@ -5,6 +5,7 @@ import { RegisterUserBody, LoginUserBody } from "@workspace/api-zod";
 import crypto from "crypto";
 import { getUserId } from "../middlewares/requireAdmin";
 import { sessionCookieOptions } from "../lib/session";
+import { ensureReferralCodeFor, findReferrerByCode } from "../lib/referral";
 
 const router: IRouter = Router();
 
@@ -53,6 +54,7 @@ function userToPublic(u: typeof usersTable.$inferSelect) {
     email: u.email,
     phone: u.phone,
     role: u.role,
+    referralCode: u.referralCode ?? null,
     createdAt: u.createdAt.toISOString(),
   };
 }
@@ -78,9 +80,22 @@ router.post("/auth/register", async (req, res): Promise<void> => {
       role: "customer",
     })
     .returning();
+
+  // Attribute the signup to a referrer if they arrived with a referral code
+  // (the storefront drops it in a `ref` cookie when someone opens a share link).
+  const refCode = typeof req.cookies?.ref === "string" ? req.cookies.ref : "";
+  if (refCode) {
+    const referrer = await findReferrerByCode(refCode);
+    if (referrer && referrer.id !== user.id) {
+      await db.update(usersTable).set({ referredByUserId: referrer.id }).where(eq(usersTable.id, user.id));
+    }
+  }
+  // Give the new customer their own code to share.
+  const referralCode = await ensureReferralCodeFor(user);
+
   // Log the newly registered user in, mirroring the login flow.
   res.cookie("userId", String(user.id), sessionCookieOptions());
-  res.status(201).json({ user: userToPublic(user) });
+  res.status(201).json({ user: userToPublic({ ...user, referralCode }) });
 });
 
 router.post("/auth/login", async (req, res): Promise<void> => {
@@ -103,7 +118,8 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   }
   // Store userId in a signed cookie-based session
   res.cookie("userId", String(user.id), sessionCookieOptions());
-  res.json({ user: userToPublic(user) });
+  const referralCode = await ensureReferralCodeFor(user);
+  res.json({ user: userToPublic({ ...user, referralCode }) });
 });
 
 router.post("/auth/logout", async (_req, res): Promise<void> => {
@@ -122,7 +138,8 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     res.status(401).json({ error: "Not authenticated" });
     return;
   }
-  res.json(userToPublic(user));
+  const referralCode = await ensureReferralCodeFor(user);
+  res.json(userToPublic({ ...user, referralCode }));
 });
 
 export default router;

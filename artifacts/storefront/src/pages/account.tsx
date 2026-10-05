@@ -9,7 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { ShoppingBag, Package, UserCircle, LogOut, Mail } from 'lucide-react';
+import { ShoppingBag, Package, UserCircle, LogOut, Mail, Gift, Copy, Check } from 'lucide-react';
+import { ShareButtons } from '@/components/social/ShareButtons';
+import { useQuery } from '@tanstack/react-query';
 
 const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
 
@@ -52,6 +54,8 @@ function DashboardView() {
 
           {/* Main Area */}
           <div className="flex-1">
+            <ReferralCard />
+
             <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
               <Package className="w-6 h-6 text-primary" /> Order History
             </h2>
@@ -98,6 +102,60 @@ function DashboardView() {
         </div>
       </div>
     </StorefrontLayout>
+  );
+}
+
+// "Refer a friend" card: shows the customer's shareable link and the current
+// discount their friends get. Only renders when the admin has enabled referrals.
+function ReferralCard() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
+  const code = (user as any)?.referralCode as string | undefined;
+
+  const { data: settings } = useQuery({
+    queryKey: ['site-settings'],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/api/site-settings`);
+      return res.ok ? res.json() : {};
+    },
+  });
+
+  if (!settings?.referralEnabled || !(settings?.referralDiscountPercent > 0) || !code) return null;
+
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const link = `${origin}/?ref=${code}`;
+  const pct = settings.referralDiscountPercent;
+  const title = `Shop quality at Happyfine Wholesalers and get ${pct}% off your first order with my link`;
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      toast({ title: 'Referral link copied' });
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast({ title: 'Could not copy', variant: 'destructive' });
+    }
+  };
+
+  return (
+    <div className="bg-gradient-to-br from-primary/5 to-emerald-50 border border-primary/20 rounded-xl p-6 mb-8">
+      <h3 className="font-bold text-lg flex items-center gap-2 mb-1">
+        <Gift className="w-5 h-5 text-primary" /> Refer a friend, they get {pct}% off
+      </h3>
+      <p className="text-sm text-muted-foreground mb-4">
+        Share your link. When a friend uses it, they get <strong className="text-foreground">{pct}% off their first order</strong>.
+      </p>
+      <div className="flex gap-2 mb-4">
+        <Input readOnly value={link} className="bg-background text-sm" onFocus={(e) => e.currentTarget.select()} />
+        <Button type="button" variant="outline" className="shrink-0" onClick={copy}>
+          {copied ? <Check className="w-4 h-4 mr-1.5 text-emerald-600" /> : <Copy className="w-4 h-4 mr-1.5" />}
+          {copied ? 'Copied' : 'Copy'}
+        </Button>
+      </div>
+      <ShareButtons url={link} title={title} />
+    </div>
   );
 }
 

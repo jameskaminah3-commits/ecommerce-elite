@@ -19,16 +19,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Link } from 'wouter';
 
+const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
+
 export default function AdminOrders() {
   const [statusFilter, setStatusFilter] = useState('all');
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  
+
   const { data: ordersData, isLoading } = useListOrders(
     statusFilter === 'all' ? undefined : { status: statusFilter as any },
     { query: { queryKey: ['admin', 'orders', statusFilter] } as any },
   );
-  
+
   const updateStatus = useUpdateOrderStatus();
 
   const handleUpdateStatus = async (id: number, status: OrderStatusPatchStatus) => {
@@ -38,6 +40,19 @@ export default function AdminOrders() {
       toast({ title: "Order status updated" });
     } catch (e) {
       toast({ title: "Failed to update status", variant: "destructive" });
+    }
+  };
+
+  // Confirm a manually-paid order (e.g. M-Pesa paid to the Paybill/Till).
+  const markPaid = async (id: number) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/orders/${id}/mark-paid`, { method: 'POST', credentials: 'include' });
+      if (!res.ok) throw new Error('failed');
+      queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
+      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'admin' && q.queryKey[1] === 'orders' });
+      toast({ title: 'Order marked paid', description: 'Payment confirmed and stock deducted.' });
+    } catch {
+      toast({ title: 'Failed to mark paid', variant: 'destructive' });
     }
   };
 
@@ -106,6 +121,11 @@ export default function AdminOrders() {
                         }`}>
                           {order.paymentStatus}
                         </span>
+                        {(order as any).paymentReference && (
+                          <div className="text-[11px] text-muted-foreground mt-1">
+                            M-Pesa: <span className="font-mono font-semibold text-foreground">{(order as any).paymentReference}</span>
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
@@ -127,6 +147,11 @@ export default function AdminOrders() {
                               <Link href={`/orders/${order.id}`} className="w-full flex items-center"><Eye className="w-4 h-4 mr-2" /> View Details</Link>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
+                            {order.paymentStatus !== 'paid' && (
+                              <DropdownMenuItem className="cursor-pointer text-emerald-700 focus:text-emerald-700" onClick={() => markPaid(order.id)}>
+                                <CheckCircle className="w-4 h-4 mr-2" /> Mark as Paid
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem className="cursor-pointer" onClick={() => handleUpdateStatus(order.id, 'processing')}>
                               Mark as Processing
                             </DropdownMenuItem>
