@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, gte, desc, sql, lte } from "drizzle-orm";
+import { eq, gte, desc, sql, lte, inArray } from "drizzle-orm";
 import { db, ordersTable, orderItemsTable, productsTable, productVariantsTable, usersTable, categoriesTable } from "@workspace/db";
 import {
   GetAnalyticsSalesQueryParams,
@@ -134,7 +134,7 @@ router.get("/admin/orders/recent", requireAdmin, async (req, res): Promise<void>
 
   const allItems = orders.length > 0
     ? await db.select().from(orderItemsTable).where(
-        sql`${orderItemsTable.orderId} = ANY(${orders.map((o) => o.id)})`
+        inArray(orderItemsTable.orderId, orders.map((o) => o.id))
       )
     : [];
 

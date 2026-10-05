@@ -1,6 +1,6 @@
-import { Router, type IRouter } from "express";
-import { eq, and, desc, sql } from "drizzle-orm";
-import { db, ordersTable, orderItemsTable, cartItemsTable, productVariantsTable, productsTable, deliveryLocationsTable, deliveryRatesTable } from "@workspace/db";
+import { Router, type IRouter, type Request } from "express";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
+import { db, ordersTable, orderItemsTable, cartItemsTable, productVariantsTable, productsTable, deliveryLocationsTable, deliveryRatesTable, usersTable } from "@workspace/db";
 import { sendOrderReceivedEmail } from "../lib/email";
 import { deductInventoryForOrder, reserveStockForOrder, InsufficientStockError } from "../lib/inventory";
 import {
@@ -11,8 +11,33 @@ import {
   UpdateOrderStatusParams,
 } from "@workspace/api-zod";
 import { requireAdmin, requireAuth, getUserId, type SessionUser } from "../middlewares/requireAdmin";
+import { sessionCookieOptions } from "../lib/session";
 
 const router: IRouter = Router();
+
+// A guest checkout has no account, but the person who just placed the order
+// must still be able to see their confirmation. We grant that by storing the
+// order ids they created in a SIGNED, httpOnly cookie — unforgeable, so it
+// exposes only the orders this browser actually created, never anyone else's.
+const MAX_REMEMBERED_ORDERS = 25;
+
+function rememberedOrderIds(req: Request): Set<number> {
+  const raw = (req as Request & { signedCookies?: Record<string, string> }).signedCookies?.orderAccess;
+  if (!raw) return new Set();
+  return new Set(
+    String(raw)
+      .split(",")
+      .map((s) => parseInt(s, 10))
+      .filter((n) => !Number.isNaN(n)),
+  );
+}
+
+function grantOrderAccess(req: Request, res: import("express").Response, orderId: number): void {
+  const ids = rememberedOrderIds(req);
+  ids.add(orderId);
+  const trimmed = Array.from(ids).slice(-MAX_REMEMBERED_ORDERS);
+  res.cookie("orderAccess", trimmed.join(","), sessionCookieOptions());
+}
 
 function formatOrder(order: any, items: any[]) {
   return {
@@ -45,14 +70,21 @@ function formatOrder(order: any, items: any[]) {
 }
 
 // Listing every order exposes customer PII and is admin-only.
-router.get("/orders", requireAdmin, async (req, res): Promise<void> => {
+// Admins see every order; a signed-in customer sees only their own. This is
+// the order-history list behind the account page, so it must not be admin-only.
+router.get("/orders", requireAuth, async (req, res): Promise<void> => {
   const params = ListOrdersQueryParams.safeParse(req.query);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
   }
+  const viewer = (req as Request & { user?: SessionUser }).user;
   const { status, page = 1, limit = 20 } = params.data;
   const conditions = status ? [eq(ordersTable.status, status)] : [];
+  // Non-admins are scoped to their own orders.
+  if (viewer?.role !== "admin" && viewer) {
+    conditions.push(eq(ordersTable.userId, viewer.id));
+  }
   const offset = (page - 1) * limit;
 
   const [{ count }] = await db
@@ -70,11 +102,7 @@ router.get("/orders", requireAdmin, async (req, res): Promise<void> => {
 
   const orderIds = orders.map((o) => o.id);
   const allItems = orderIds.length > 0
-    ? await db.select().from(orderItemsTable).where(
-        orderIds.length === 1
-          ? eq(orderItemsTable.orderId, orderIds[0])
-          : sql`${orderItemsTable.orderId} = ANY(${orderIds})`
-      )
+    ? await db.select().from(orderItemsTable).where(inArray(orderItemsTable.orderId, orderIds))
     : [];
 
   res.json({
@@ -272,11 +300,17 @@ router.post("/orders", async (req, res): Promise<void> => {
     }).catch(() => {});
   }
 
+  // Let this browser view the order it just created, even as a guest.
+  grantOrderAccess(req, res, order.id);
+
   res.status(201).json(formatOrder(order, items));
 });
 
-// An order carries customer PII, so only its owner or an admin may read it.
-router.get("/orders/:id", requireAuth, async (req, res): Promise<void> => {
+// An order carries customer PII, so it is readable only by: an admin, the
+// logged-in user who owns it, or the guest browser that created it (proven by
+// the signed orderAccess cookie). No blanket login requirement, so guest
+// checkout can still show a confirmation page.
+router.get("/orders/:id", async (req, res): Promise<void> => {
   const params = GetOrderParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -287,9 +321,14 @@ router.get("/orders/:id", requireAuth, async (req, res): Promise<void> => {
     res.status(404).json({ error: "Order not found" });
     return;
   }
-  const viewer = (req as typeof req & { user?: SessionUser }).user;
+  const userId = getUserId(req);
+  let viewer: SessionUser | null = null;
+  if (userId != null) {
+    [viewer] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  }
   const isOwner = order.userId != null && viewer?.id === order.userId;
-  if (!isOwner && viewer?.role !== "admin") {
+  const isGuestCreator = rememberedOrderIds(req).has(order.id);
+  if (!isOwner && !isGuestCreator && viewer?.role !== "admin") {
     res.status(403).json({ error: "You do not have access to this order." });
     return;
   }

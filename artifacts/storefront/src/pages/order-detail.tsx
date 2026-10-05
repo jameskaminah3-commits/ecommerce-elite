@@ -9,6 +9,20 @@ import { Button } from '@/components/ui/button';
 
 const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
 
+// Friendly, customer-facing names for the stored payment-method codes — the
+// same wording shown at checkout (never the raw enum like "cash_on_delivery").
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  mpesa: 'M-Pesa',
+  airtel: 'Airtel Money',
+  card: 'Card / Bank Transfer',
+  cash_on_delivery: 'Cash on Delivery',
+};
+
+function paymentMethodLabel(method?: string | null): string {
+  if (!method) return '—';
+  return PAYMENT_METHOD_LABELS[method] ?? method.replace(/_/g, ' ');
+}
+
 export default function OrderPage() {
   const { id } = useParams();
   const orderId = parseInt(id || '0', 10);
@@ -92,12 +106,12 @@ export default function OrderPage() {
           </div>
 
           {!isCancelled && (
-            <div className="p-8 border-b bg-background">
+            <div className="p-5 sm:p-8 border-b bg-background">
               <h3 className="font-bold text-lg mb-6">Tracking Status</h3>
               <div className="relative">
-                <div className="absolute top-5 left-4 right-4 h-1 bg-muted rounded-full">
-                  <div 
-                    className="absolute top-0 left-0 h-full bg-primary transition-all duration-1000" 
+                <div className="absolute top-5 left-[10%] right-[10%] h-1 bg-muted rounded-full">
+                  <div
+                    className="absolute top-0 left-0 h-full bg-primary transition-all duration-1000"
                     style={{ width: `${Math.max(0, (currentIndex / (steps.length - 1)) * 100)}%` }}
                   />
                 </div>
@@ -105,14 +119,14 @@ export default function OrderPage() {
                   {steps.map((step, i) => {
                     const active = i <= currentIndex;
                     return (
-                      <div key={step} className="flex flex-col items-center w-24 text-center">
+                      <div key={step} className="flex flex-col items-center flex-1 min-w-0 px-0.5 text-center">
                         <div className={classNames(
                           "w-10 h-10 rounded-full flex items-center justify-center border-4 mb-2 z-10 transition-colors",
                           active ? "bg-primary border-primary text-primary-foreground shadow-md shadow-primary/20" : "bg-card border-muted text-muted-foreground"
                         )}>
                           {active ? <CheckCircle2 className="w-5 h-5" /> : <div className="w-2.5 h-2.5 rounded-full bg-muted-foreground/30" />}
                         </div>
-                        <span className={classNames("text-xs font-bold uppercase tracking-wider", active ? "text-foreground" : "text-muted-foreground")}>
+                        <span className={classNames("text-[10px] sm:text-xs font-bold uppercase tracking-tight sm:tracking-wider leading-tight", active ? "text-foreground" : "text-muted-foreground")}>
                           {step}
                         </span>
                       </div>
@@ -146,7 +160,7 @@ export default function OrderPage() {
               <div className="space-y-3 text-sm">
                 <div>
                   <span className="text-muted-foreground block mb-0.5">Method</span>
-                  <span className="font-medium capitalize text-emerald-700 bg-emerald-50 px-2 py-1 rounded inline-block">{order.paymentMethod?.replace('_', ' ')}</span>
+                  <span className="font-medium capitalize text-emerald-700 bg-emerald-50 px-2 py-1 rounded inline-block">{paymentMethodLabel(order.paymentMethod)}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground block mb-0.5">Status</span>
