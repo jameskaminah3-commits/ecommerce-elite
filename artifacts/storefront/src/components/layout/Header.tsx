@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { formatCurrency } from '@/lib/utils';
+import { useLivePromotion } from '@/hooks/usePromotion';
 
 const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
 
@@ -47,6 +48,7 @@ export function Header() {
   const { user, logout } = useAuth();
   const { cart, setCartDrawerOpen } = useCart();
   const [location] = useLocation();
+  const { promo } = useLivePromotion();
 
   const [activeMega, setActiveMega] = useState<string | null>(null);
   const [searchFocused, setSearchFocused] = useState(false);
@@ -95,17 +97,27 @@ export function Header() {
 
   return (
     <>
-      {/* Value-prop bar — visible on phones too, since that's where most Kenyan
-          shoppers arrive. Wholesale = the PRICE; there is no minimum order. */}
+      {/* Top bar. While a promotion with an announcement is live it takes over the
+          bar (and links to the deal); otherwise it carries the standing value
+          prop — wholesale = the PRICE, with no minimum order. */}
       <div className="w-full bg-secondary text-secondary-foreground/85 text-[11px] font-medium text-center py-2 px-3 tracking-wide border-b border-white/5">
-        <span className="sm:hidden">
-          <span className="text-primary font-bold">Wholesale prices</span> for everyone · No minimum order
-        </span>
-        <span className="hidden sm:inline">
-          <span className="text-primary font-bold">Wholesale prices for everyone</span>
-          &nbsp;·&nbsp; Buy just one — no minimum order &nbsp;·&nbsp; Free delivery over{' '}
-          <span className="text-primary font-bold">KES 5,000</span> &nbsp;·&nbsp; Pay with M-Pesa
-        </span>
+        {promo?.announcement ? (
+          <Link href={promo.ctaHref.startsWith('/') ? promo.ctaHref : '/products'} className="inline-flex items-center gap-1.5 hover:text-secondary-foreground">
+            <span className="text-primary font-bold">{promo.announcement}</span>
+            <ArrowRight className="w-3 h-3" />
+          </Link>
+        ) : (
+          <>
+            <span className="sm:hidden">
+              <span className="text-primary font-bold">Wholesale prices</span> for everyone · No minimum order
+            </span>
+            <span className="hidden sm:inline">
+              <span className="text-primary font-bold">Wholesale prices for everyone</span>
+              &nbsp;·&nbsp; Buy just one — no minimum order &nbsp;·&nbsp; Free delivery over{' '}
+              <span className="text-primary font-bold">KES 5,000</span> &nbsp;·&nbsp; Pay with M-Pesa
+            </span>
+          </>
+        )}
       </div>
 
       <header

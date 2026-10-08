@@ -15,3 +15,4 @@ export * from "./homepageBlocks";
 export * from "./newsletterSignups";
 export * from "./blogPosts";
 export * from "./siteSettings";
+export * from "./promotions";

@@ -7,7 +7,7 @@ import { PromoGrid, type HomepageBlock } from '@/components/home/PromoBlock';
 import { PinnedSplit } from '@/components/home/PinnedSplit';
 import { SplitHero } from '@/components/home/SplitHero';
 import { Newsletter } from '@/components/home/Newsletter';
-import { CountdownSale } from '@/components/home/CountdownSale';
+import { PromotionBanner } from '@/components/promotions/PromotionBanner';
 import { FromTheJournal } from '@/components/home/FromTheJournal';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
@@ -153,8 +153,8 @@ export default function Home() {
         </section>
       )}
 
-      {/* ── Live countdown sale banner ─────────────────────────────────── */}
-      <CountdownSale target="2026-11-27T00:00:00Z" title="Black Friday countdown" subtitle="Up to 40% off across the store — for a limited time." />
+      {/* ── Scheduled promotion (managed in Admin → Promotions) ────────── */}
+      <PromotionBanner />
 
       {/* ── HERO — Asymmetric 2/3 + 1/3 editorial collage (fallback) ───── */}
       {!hasBlocks && (

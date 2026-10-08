@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   Newspaper,
   PanelBottom,
+  Megaphone,
   LogOut,
   ChevronLeft
 } from 'lucide-react';
@@ -34,6 +35,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
     { name: 'Products', href: '/admin/products', icon: Package },
     { name: 'Categories', href: '/admin/categories', icon: Grid },
+    { name: 'Promotions', href: '/admin/promotions', icon: Megaphone },
     { name: 'Offers', href: '/admin/offers', icon: Tag },
     { name: 'Delivery', href: '/admin/delivery', icon: Truck },
     { name: 'Inventory Alerts', href: '/admin/inventory', icon: AlertTriangle },
