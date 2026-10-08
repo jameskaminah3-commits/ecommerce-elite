@@ -32,6 +32,7 @@ async function buildCart(sessionId: string) {
       variantColor: productVariantsTable.color,
       price: productVariantsTable.price,
       discountPercent: productsTable.discountPercent,
+      compareAtPrice: productsTable.compareAtPrice,
     })
     .from(cartItemsTable)
     .innerJoin(productVariantsTable, eq(cartItemsTable.variantId, productVariantsTable.id))
@@ -41,7 +42,13 @@ async function buildCart(sessionId: string) {
   const items = rows.map((r) => {
     // Charge the discounted unit price so the cart matches what checkout bills.
     const pct = Math.min(Math.max(r.discountPercent ?? 0, 0), 90);
-    const price = Math.round(parseFloat(r.price) * (1 - pct / 100) * 100) / 100;
+    const list = parseFloat(r.price);
+    const price = Math.round(list * (1 - pct / 100) * 100) / 100;
+    // The "typical retail price" the shopper is comparing against — same rule
+    // the product page uses: an active promo is measured against the list price,
+    // otherwise against the admin-set compare-at (retail) price when it's higher.
+    const compareAt = r.compareAtPrice != null ? parseFloat(r.compareAtPrice) : null;
+    const retailPrice = pct > 0 ? list : compareAt != null && compareAt > list ? compareAt : null;
     return {
       id: r.id,
       variantId: r.variantId,
@@ -52,15 +59,23 @@ async function buildCart(sessionId: string) {
       variantSize: r.variantSize,
       variantColor: r.variantColor,
       price,
+      retailPrice,
       quantity: r.quantity,
       subtotal: price * r.quantity,
     };
   });
 
+  // How much cheaper the cart is than buying the same things at retail.
+  const savings = items.reduce(
+    (s, i) => s + (i.retailPrice != null && i.retailPrice > i.price ? (i.retailPrice - i.price) * i.quantity : 0),
+    0,
+  );
+
   return {
     items,
     itemCount: items.reduce((s, i) => s + i.quantity, 0),
     total: items.reduce((s, i) => s + i.subtotal, 0),
+    savings: Math.round(savings * 100) / 100,
   };
 }
 

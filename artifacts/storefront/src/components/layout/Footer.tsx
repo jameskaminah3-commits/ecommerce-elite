@@ -27,7 +27,7 @@ interface SiteSettings {
 
 // Fallback so the footer looks complete even before the API responds.
 const FALLBACK: SiteSettings = {
-  brandBlurb: "Wholesale prices, delivered across Kenya.",
+  brandBlurb: "Wholesale prices for everyone, delivered across Kenya.",
   aboutHeading: 'About us',
   aboutLinks: [
     { label: 'Our story', href: '/about' },

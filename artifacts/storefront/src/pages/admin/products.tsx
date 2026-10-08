@@ -315,6 +315,7 @@ function ProductFormDialog({
       featured: product?.featured ?? false,
       deliveryClassId: product?.deliveryClassId != null ? String(product.deliveryClassId) : 'none',
       tags: (product?.tags ?? []).join(', '),
+      retailPrice: product?.compareAtPrice ? String(product.compareAtPrice) : '',
     }),
     [product],
   );
@@ -351,6 +352,9 @@ function ProductFormDialog({
         .split(',')
         .map((t) => t.trim().toLowerCase())
         .filter(Boolean),
+      // Typical retail price — shown struck through so shoppers see their
+      // wholesale saving. Sending 0 on edit clears a previously-set value.
+      ...(Number(form.retailPrice) > 0 ? { compareAtPrice: Number(form.retailPrice) } : isEdit ? { compareAtPrice: 0 } : {}),
     };
 
     try {
@@ -407,6 +411,23 @@ function ProductFormDialog({
           <div className="rounded-lg border border-dashed bg-muted/20 p-3 text-xs text-muted-foreground">
             Pricing and stock are set per variant under <span className="font-medium text-foreground">Manage stock</span>.
             The product's shown price is the lowest variant price.
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="retailPrice">Typical retail price (KES) <span className="text-muted-foreground font-normal">— optional</span></Label>
+            <Input
+              id="retailPrice"
+              type="number"
+              inputMode="numeric"
+              min="0"
+              step="1"
+              value={form.retailPrice}
+              onChange={(e) => set('retailPrice', e.target.value)}
+              placeholder="e.g. 5200"
+            />
+            <p className="text-xs text-muted-foreground">
+              What shoppers would normally pay in other shops. We show it struck through next to your wholesale price with
+              “You save KES X”. Enter a real price you can stand behind, and leave it blank to show no comparison.
+            </p>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

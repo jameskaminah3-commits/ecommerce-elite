@@ -43,11 +43,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       {
         onSuccess: (newCart) => {
           queryClient.setQueryData(getGetCartQueryKey(), newCart);
+          // The drawer sliding open IS the confirmation. A toast on top of it just
+          // covers the drawer's header, so errors are the only thing we toast.
           setCartDrawerOpen(true);
-          toast({
-            title: "Added to cart",
-            description: "Item has been added to your cart.",
-          });
         },
         onError: () => {
           toast({

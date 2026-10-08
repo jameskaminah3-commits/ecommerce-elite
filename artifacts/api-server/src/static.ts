@@ -69,14 +69,16 @@ export function mountStorefront(app: Express): void {
     if (req.path.startsWith("/api")) return next();
     const origin = publicOrigin(req);
     let html = template;
+    let status = 200;
     try {
       const meta = await metaForPath(req.path, req.query as Record<string, unknown>, origin);
       html = renderHead(template, meta, origin);
+      status = meta.status ?? 200;
     } catch (err) {
       logger.error({ err, path: req.path }, "meta render failed — serving plain shell");
     }
     res.setHeader("Cache-Control", "no-cache");
-    res.type("html").send(html);
+    res.status(status).type("html").send(html);
   });
 
   logger.info({ distDir }, "Serving storefront static build");

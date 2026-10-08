@@ -2,6 +2,7 @@ import React from 'react';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { CartDrawer } from '../cart/CartDrawer';
+import { ChatBubble } from './ChatBubble';
 
 export function StorefrontLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -12,6 +13,7 @@ export function StorefrontLayout({ children }: { children: React.ReactNode }) {
       </main>
       <Footer />
       <CartDrawer />
+      <ChatBubble />
     </div>
   );
 }

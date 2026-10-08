@@ -11,7 +11,7 @@ import { CountdownSale } from '@/components/home/CountdownSale';
 import { FromTheJournal } from '@/components/home/FromTheJournal';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { ArrowRight, ChevronRight, Truck, ShieldCheck, Clock, Headphones, Zap } from 'lucide-react';
+import { ArrowRight, ChevronRight, Truck, ShieldCheck, Tag, Headphones, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
@@ -104,6 +104,37 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── Shop by budget — "affordable" you can click ─────────────────── */}
+      <section className="py-14 md:py-20 border-b border-border/50">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-8 md:mb-12">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary mb-2.5">Wholesale prices, any budget</p>
+            <h2 className="text-3xl md:text-4xl font-semibold tracking-tight">
+              Shop by <span className="serif-accent">budget</span>
+            </h2>
+            <p className="text-muted-foreground mt-3 text-sm md:text-base">No minimum order — buy just one and pay the wholesale price.</p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5 max-w-4xl mx-auto">
+            {[500, 1000, 2500, 5000].map((cap) => (
+              <Link
+                key={cap}
+                href={`/products?maxPrice=${cap}&sort=price_asc`}
+                className="group rounded-2xl bg-muted/40 ring-1 ring-border/50 px-4 py-6 md:py-8 text-center transition-all duration-300 hover:ring-primary/40 hover:bg-primary/5 hover:-translate-y-1 hover:shadow-lg hover:shadow-black/5"
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Under</p>
+                <p className="mt-1 text-2xl md:text-3xl font-semibold tracking-tight text-foreground group-hover:text-primary transition-colors">
+                  <span className="text-sm md:text-base font-medium text-muted-foreground mr-1">KES</span>
+                  {cap.toLocaleString('en-KE')}
+                </p>
+                <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary opacity-80 group-hover:opacity-100">
+                  Shop now <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── Dynamic homepage blocks (admin-managed 12-col grid) ────────── */}
       {hasGrid && (
         <section className="w-full">
@@ -141,14 +172,14 @@ export default function Home() {
             <div className="absolute inset-0 bg-gradient-to-t from-secondary/50 via-transparent to-transparent" />
             <div className="relative z-10 h-full flex flex-col justify-end p-8 md:p-12 max-w-xl">
               <span className="inline-block py-1 px-3 rounded-full bg-primary/20 text-primary font-bold text-[10px] tracking-[0.14em] mb-5 border border-primary/30 self-start uppercase">
-                Shop smarter across Kenya
+                Wholesale prices · No minimum order
               </span>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-5 leading-[1.08] text-secondary-foreground">
                 Everything for<br />
                 <span className="text-primary">You</span> &amp; Home.
               </h1>
               <p className="text-secondary-foreground/75 text-base md:text-lg leading-relaxed mb-8 max-w-md">
-                Thousands of products at wholesale prices, delivered right to your door.
+                Quality products at wholesale prices — buy just one and still pay the low price. Delivered across Kenya.
               </p>
               <div className="flex flex-wrap gap-3">
                 <Button asChild size="lg" className="h-12 px-7 font-bold shadow-lg shadow-primary/25" style={{ willChange: 'transform' }}>
@@ -219,7 +250,7 @@ export default function Home() {
             {[
               { icon: Truck, label: 'Delivery Across Kenya', sub: 'Free over KES 5,000 — right to your door.' },
               { icon: ShieldCheck, label: 'Quality Guaranteed', sub: '100% authentic, every order.' },
-              { icon: Clock, label: 'Wholesale Prices', sub: 'Wholesale prices — for everyone, every day.' },
+              { icon: Tag, label: 'Wholesale Prices', sub: 'The same low price whether you buy one or ten. No minimum order.' },
               { icon: Headphones, label: 'Here to Help', sub: 'A real team in Nairobi, always.' },
             ].map(({ icon: Icon, label, sub }) => (
               <div key={label} className="flex flex-col items-center text-center px-2">

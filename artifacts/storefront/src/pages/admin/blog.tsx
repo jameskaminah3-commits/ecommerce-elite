@@ -160,13 +160,13 @@ export default function AdminBlog() {
                 <Input
                   value={form.title}
                   onChange={(e) => { set('title', e.target.value); if (!slugTouched) set('slug', slugify(e.target.value)); }}
-                  placeholder="How to buy cookware in bulk"
+                  placeholder="How to pick the right cookware set"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>URL slug</Label>
-                  <Input value={form.slug} onChange={(e) => { setSlugTouched(true); set('slug', e.target.value); }} placeholder="buy-cookware-in-bulk" />
+                  <Input value={form.slug} onChange={(e) => { setSlugTouched(true); set('slug', e.target.value); }} placeholder="how-to-pick-a-cookware-set" />
                 </div>
                 <div className="space-y-2">
                   <Label>Author</Label>

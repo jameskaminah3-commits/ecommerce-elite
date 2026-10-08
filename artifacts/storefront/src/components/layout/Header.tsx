@@ -95,11 +95,17 @@ export function Header() {
 
   return (
     <>
-      {/* Utility bar */}
-      <div className="w-full bg-secondary text-secondary-foreground/80 text-[11px] font-medium text-center py-2 tracking-wide border-b border-white/5 hidden sm:block">
-        Free delivery across Kenya on orders over{' '}
-        <span className="text-primary font-bold">KES 5,000</span>
-        &nbsp;·&nbsp; Wholesale prices, no middlemen &nbsp;·&nbsp; Fast, reliable delivery
+      {/* Value-prop bar — visible on phones too, since that's where most Kenyan
+          shoppers arrive. Wholesale = the PRICE; there is no minimum order. */}
+      <div className="w-full bg-secondary text-secondary-foreground/85 text-[11px] font-medium text-center py-2 px-3 tracking-wide border-b border-white/5">
+        <span className="sm:hidden">
+          <span className="text-primary font-bold">Wholesale prices</span> for everyone · No minimum order
+        </span>
+        <span className="hidden sm:inline">
+          <span className="text-primary font-bold">Wholesale prices for everyone</span>
+          &nbsp;·&nbsp; Buy just one — no minimum order &nbsp;·&nbsp; Free delivery over{' '}
+          <span className="text-primary font-bold">KES 5,000</span> &nbsp;·&nbsp; Pay with M-Pesa
+        </span>
       </div>
 
       <header

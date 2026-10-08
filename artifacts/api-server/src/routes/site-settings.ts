@@ -7,7 +7,7 @@ const router: IRouter = Router();
 
 // Sensible starting content so the footer looks complete before any admin edit.
 const DEFAULTS = {
-  brandBlurb: "Wholesale prices, delivered across Kenya. Quality you'll love, at prices that make sense.",
+  brandBlurb: "Wholesale prices for everyone — buy just one, no minimum order. Delivered across Kenya.",
   aboutHeading: "About us",
   aboutLinks: [
     { label: "Our story", href: "/about" },

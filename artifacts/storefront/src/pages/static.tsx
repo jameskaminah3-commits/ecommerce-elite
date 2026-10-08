@@ -37,12 +37,12 @@ const UL = ({ children }: { children: React.ReactNode }) => (
 // ── Our story ──────────────────────────────────────────────────────────────
 export function AboutPage() {
   return (
-    <ContentPage title="Our story" subtitle="Wholesale prices, delivered across Kenya.">
-      <P>Happyfine Wholesalers started with a simple idea: everyday people should be able to buy quality goods at the kind of prices usually reserved for bulk buyers. We cut out the middlemen and pass the saving on to you.</P>
+    <ContentPage title="Our story" subtitle="Wholesale prices for everyone — no minimum order.">
+      <P>Happyfine Wholesalers started with a simple idea: everyday people should be able to buy quality goods at the kind of prices usually reserved for bulk buyers — without having to buy in bulk. We cut out the middlemen and pass the saving on to you. Buy one item or ten: the wholesale price is the price.</P>
       <P>From electronics and home essentials to beauty and fitness, we handpick products that are built to last, and we deliver them straight to your door anywhere in the country.</P>
       <H2>What we stand for</H2>
       <UL>
-        <li><strong className="text-foreground">Fair prices</strong> — wholesale pricing for everyone, every day.</li>
+        <li><strong className="text-foreground">Fair prices</strong> — wholesale pricing for everyone, every day, with no minimum order.</li>
         <li><strong className="text-foreground">Real quality</strong> — every item is checked before it ships.</li>
         <li><strong className="text-foreground">Nationwide delivery</strong> — free on orders over KES 5,000.</li>
         <li><strong className="text-foreground">A team you can reach</strong> — real people in Nairobi, ready to help.</li>
@@ -57,10 +57,12 @@ export function AboutPage() {
 // ── FAQ ─────────────────────────────────────────────────────────────────────
 export function FaqPage() {
   const faqs = [
+    { q: 'Is there a minimum order?', a: 'No. “Wholesale” describes our prices, not how much you have to buy. You can order a single item and still pay the wholesale price.' },
+    { q: 'Why are your prices so low?', a: 'We buy direct from suppliers and cut out the middlemen, then pass the saving on to you. Wholesale pricing applies to every product and every customer — no trade account needed.' },
+    { q: 'How do I know I am getting a good price?', a: 'Where we know what a product usually sells for in other shops, we show that price crossed out next to our wholesale price, and your cart tells you how much you are saving.' },
+    { q: 'What payment methods can I use?', a: 'M-Pesa (a prompt goes straight to your phone), Airtel Money, or a Visa/Mastercard card — all paid securely online. If the M-Pesa prompt does not reach you, you will be shown how to pay manually and confirm with your M-Pesa code.' },
     { q: 'How much is delivery?', a: 'Delivery is calculated by town at checkout, and it is free on all orders over KES 5,000. You will always see the exact fee before you pay.' },
     { q: 'How long does delivery take?', a: 'Most orders within Nairobi arrive within 1–2 business days. Other towns typically take 2–4 business days, depending on your location.' },
-    { q: 'What payment methods can I use?', a: 'You can pay with M-Pesa (STK push straight to your phone) or with a debit/credit card. Cash on delivery is available in selected areas.' },
-    { q: 'Are the “wholesale prices” only for shops?', a: 'No. Our wholesale prices are for everyone — you do not need a business to shop with us.' },
     { q: 'Can I return an item?', a: 'Yes. If something is not right, you can return most items within 7 days. See our Refunds & returns page for the details.' },
     { q: 'How do I track my order?', a: 'Every order has its own status page. You will find the link in your order confirmation and under your account’s order history.' },
   ];
@@ -166,7 +168,7 @@ export function TermsPage() {
       <H2>Orders & pricing</H2>
       <P>All prices are shown in Kenyan Shillings (KES) and include applicable taxes unless stated otherwise. We do our best to keep prices and stock accurate; if an error occurs, we’ll contact you before charging or dispatching your order.</P>
       <H2>Payment</H2>
-      <P>Orders are confirmed once payment is received (via M-Pesa or card) or, where offered, arranged as cash on delivery. Stock is reserved briefly during checkout and released if payment isn’t completed.</P>
+      <P>Orders are confirmed once payment is received (via M-Pesa, Airtel Money or card). Stock is reserved briefly during checkout and released if payment isn’t completed.</P>
       <H2>Delivery</H2>
       <P>Delivery times are estimates. We’re not liable for delays caused by circumstances outside our control, but we’ll always keep you informed.</P>
       <H2>Returns</H2>

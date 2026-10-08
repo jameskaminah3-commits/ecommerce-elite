@@ -74,7 +74,7 @@ function shell(title: string, bodyHtml: string): string {
       <h1 style="margin:0 0 16px;font-size:20px;">${title}</h1>
       ${bodyHtml}
     </div>
-    <p style="color:#9a9a95;font-size:12px;margin-top:24px;text-align:center;">Wholesale prices, delivered across Kenya.</p>
+    <p style="color:#9a9a95;font-size:12px;margin-top:24px;text-align:center;">Wholesale prices for everyone, delivered across Kenya.</p>
   </div>
   </body></html>`;
 }

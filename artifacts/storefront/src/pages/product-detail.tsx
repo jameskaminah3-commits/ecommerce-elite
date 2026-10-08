@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency, classNames, cn, getPriceInfo } from '@/lib/utils';
 import { ReviewsSection } from '@/components/products/ReviewsSection';
 import { ShareButtons } from '@/components/social/ShareButtons';
-import { Star, Truck, ShieldCheck, ChevronRight, Minus, Plus, ShoppingBag, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Star, Truck, ShieldCheck, ChevronRight, Minus, Plus, ShoppingBag, CheckCircle2, AlertCircle, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { SkeletonCard } from '@/components/products/SkeletonCard';
@@ -115,6 +115,15 @@ export default function ProductDetail() {
     }
   }, [product]);
 
+  // Keep the tab/history title in step with the product when navigating
+  // client-side (the server renders the same title for direct visits and crawlers).
+  React.useEffect(() => {
+    if (!product) return;
+    const prev = document.title;
+    document.title = `${product.name} Price in Kenya — ${formatCurrency(getPriceInfo(product).price)} | Happyfine Wholesalers`;
+    return () => { document.title = prev; };
+  }, [product?.id]);
+
   // Smooth image transition when switching variants
   const switchImage = useCallback((img: string) => {
     if (img === activeImage) return;
@@ -186,7 +195,11 @@ export default function ProductDetail() {
     if (code && siteSettings?.referralEnabled && siteSettings?.referralDiscountPercent > 0) u.searchParams.set('ref', code);
     return u.toString();
   })();
-  const shareTitle = `${product.name} — ${formatCurrency(displayPrice)} at Happyfine Wholesalers`;
+  const saveNote =
+    priceInfo.onSale && priceInfo.original != null && priceInfo.original > displayPrice
+      ? ` (retail ${formatCurrency(priceInfo.original)} — save ${priceInfo.discountPct}%)`
+      : '';
+  const shareTitle = `${product.name} — wholesale price ${formatCurrency(displayPrice)}${saveNote}. No minimum order!`;
 
   const onThumbClick = (img: string) => {
     const v = variantByImage.get(img);
@@ -308,17 +321,26 @@ export default function ProductDetail() {
             </div>
 
             {/* Price — updates instantly on variant change */}
-            <div className="flex items-baseline gap-3 mb-7">
-              <span
-                className="text-[2rem] md:text-4xl font-semibold tracking-tight text-foreground transition-all duration-150"
-                style={{ willChange: 'contents' }}
-              >
-                {formatCurrency(displayPrice)}
-              </span>
-              {priceInfo.onSale && priceInfo.original != null && (
-                <span className="text-lg text-muted-foreground/70 line-through">
-                  {formatCurrency(priceInfo.original)}
+            <div className="mb-6">
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary mb-1.5">Wholesale price</p>
+              <div className="flex items-baseline flex-wrap gap-x-3 gap-y-1">
+                <span
+                  className="text-[2rem] md:text-4xl font-semibold tracking-tight text-foreground transition-all duration-150"
+                  style={{ willChange: 'contents' }}
+                >
+                  {formatCurrency(displayPrice)}
                 </span>
+                {priceInfo.onSale && priceInfo.original != null && (
+                  <span className="text-lg text-muted-foreground/70 line-through" title="Typical retail price">
+                    {formatCurrency(priceInfo.original)}
+                  </span>
+                )}
+              </div>
+              {priceInfo.onSale && priceInfo.original != null && priceInfo.original > displayPrice && (
+                <p className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 text-xs font-semibold">
+                  <Tag className="w-3.5 h-3.5" />
+                  You save {formatCurrency(priceInfo.original - displayPrice)} ({priceInfo.discountPct}%) vs typical retail price
+                </p>
               )}
             </div>
 
@@ -489,6 +511,10 @@ export default function ProductDetail() {
                 </Button>
               </div>
             </div>
+
+            <p className="-mt-3 mb-7 text-center text-xs text-muted-foreground">
+              Buy just one — <span className="font-semibold text-foreground">no minimum order</span>. Pay with M-Pesa, Airtel Money or card.
+            </p>
 
             {/* Trust signals */}
             <div className="grid grid-cols-2 gap-3 mb-7">

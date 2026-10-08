@@ -4,7 +4,7 @@ import { useListProducts } from '@workspace/api-client-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { formatCurrency } from '@/lib/utils';
 import { Link } from 'wouter';
-import { Minus, Plus, Trash2, ShoppingBag, Truck, ChevronRight, Package } from 'lucide-react';
+import { Minus, Plus, Trash2, ShoppingBag, Truck, ChevronRight, Package, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const FREE_DELIVERY_THRESHOLD = 5000; // KES
@@ -156,9 +156,16 @@ export function CartDrawer() {
                           <Plus className="w-3 h-3" />
                         </button>
                       </div>
-                      <p className="font-bold text-[13px] text-primary tracking-tight">
-                        {formatCurrency(item.price * item.quantity)}
-                      </p>
+                      <div className="text-right">
+                        <p className="font-bold text-[13px] text-primary tracking-tight">
+                          {formatCurrency(item.price * item.quantity)}
+                        </p>
+                        {(item as any).retailPrice > item.price && (
+                          <p className="text-[11px] text-muted-foreground/70 line-through">
+                            {formatCurrency((item as any).retailPrice * item.quantity)}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </li>
@@ -219,6 +226,14 @@ export function CartDrawer() {
 
             {/* Totals */}
             <div className="px-5 py-4 space-y-3">
+              {((cart as any)?.savings ?? 0) > 0 && (
+                <div className="flex items-center justify-between rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-emerald-800">
+                  <span className="text-xs font-semibold flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5" /> Wholesale savings
+                  </span>
+                  <span className="text-sm font-bold">You save {formatCurrency((cart as any).savings)}</span>
+                </div>
+              )}
               <div className="flex justify-between items-baseline">
                 <span className="text-sm text-muted-foreground">Subtotal</span>
                 <span className="text-xl font-extrabold text-primary tracking-tight">

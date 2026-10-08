@@ -43,8 +43,8 @@ export default function BlogPage() {
   const [featured, ...rest] = posts;
 
   useSeo({
-    title: 'The Happyfine Journal — Wholesale tips & new stock',
-    description: 'Guides, product spotlights and wholesale buying tips from Happyfine Wholesalers, Kenya.',
+    title: 'The Happyfine Journal — Smart buys, tips & new stock',
+    description: 'Buying guides, product spotlights and money-saving tips from Happyfine Wholesalers, Kenya.',
     canonicalPath: '/blog',
     type: 'website',
     jsonLd: {

@@ -426,6 +426,13 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
+              {((cart as any)?.savings ?? 0) > 0 && (
+                <div className="mt-4 flex items-center justify-between rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2.5 text-emerald-800">
+                  <span className="text-xs font-semibold">Wholesale savings vs retail</span>
+                  <span className="text-sm font-bold">{formatCurrency((cart as any).savings)}</span>
+                </div>
+              )}
+
               {referral && (
                 <div className="mt-4 flex items-start gap-2 rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-800">
                   <Gift className="w-4 h-4 shrink-0 mt-0.5" />

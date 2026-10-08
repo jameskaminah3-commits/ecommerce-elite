@@ -309,6 +309,24 @@ export default function ProductsPage() {
           <p className="text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground mb-3">
             Price (KES)
           </p>
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {[500, 1000, 2500, 5000].map((cap) => {
+              const active = !minPrice && maxPrice === String(cap);
+              return (
+                <button
+                  key={cap}
+                  type="button"
+                  onClick={() => (active ? applyPriceRange('', '') : applyPriceRange('', String(cap)))}
+                  className={cn(
+                    'text-xs rounded-full px-3 py-1.5 border transition-colors',
+                    active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border text-muted-foreground hover:border-primary/50 hover:text-foreground',
+                  )}
+                >
+                  Under {cap.toLocaleString('en-KE')}
+                </button>
+              );
+            })}
+          </div>
           <div className="flex items-center gap-2">
             <Input
               type="number"

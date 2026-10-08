@@ -175,7 +175,8 @@ router.post("/products", requireAdmin, async (req, res): Promise<void> => {
   // Base price is derived from variants; default to 0 for a product created
   // before its variants exist.
   data.basePrice = data.basePrice != null ? String(data.basePrice) : "0";
-  if (data.compareAtPrice != null) data.compareAtPrice = String(data.compareAtPrice);
+  // 0 (or blank) means "no retail comparison" — store NULL so it's cleared cleanly.
+  if (data.compareAtPrice !== undefined) data.compareAtPrice = data.compareAtPrice > 0 ? String(data.compareAtPrice) : null;
   const [prod] = await db.insert(productsTable).values(data).returning();
   const [cat] = await db.select({ name: categoriesTable.name }).from(categoriesTable).where(eq(categoriesTable.id, prod.categoryId));
   syncProductToSearchInBackground(prod.id);
@@ -273,7 +274,8 @@ router.patch("/products/:id", requireAdmin, async (req, res): Promise<void> => {
   }
   const data: any = { ...parsed.data };
   if (data.basePrice != null) data.basePrice = String(data.basePrice);
-  if (data.compareAtPrice != null) data.compareAtPrice = String(data.compareAtPrice);
+  // 0 (or blank) means "no retail comparison" — store NULL so it's cleared cleanly.
+  if (data.compareAtPrice !== undefined) data.compareAtPrice = data.compareAtPrice > 0 ? String(data.compareAtPrice) : null;
   const [prod] = await db.update(productsTable).set(data).where(eq(productsTable.id, params.data.id)).returning();
   if (!prod) {
     res.status(404).json({ error: "Product not found" });
