@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
 import { db, cartItemsTable, productVariantsTable, productsTable } from "@workspace/db";
+import { loadPricingPromos, effectiveDiscount, discountedPrice } from "../lib/pricing";
 import {
   AddCartItemBody,
   UpdateCartItemBody,
@@ -31,6 +32,7 @@ async function buildCart(sessionId: string) {
       variantSize: productVariantsTable.size,
       variantColor: productVariantsTable.color,
       price: productVariantsTable.price,
+      categoryId: productsTable.categoryId,
       discountPercent: productsTable.discountPercent,
       compareAtPrice: productsTable.compareAtPrice,
     })
@@ -39,11 +41,14 @@ async function buildCart(sessionId: string) {
     .innerJoin(productsTable, eq(productVariantsTable.productId, productsTable.id))
     .where(eq(cartItemsTable.sessionId, sessionId));
 
+  // Offers and any live promotion, resolved the same way as the listing and checkout.
+  const promos = await loadPricingPromos();
+
   const items = rows.map((r) => {
     // Charge the discounted unit price so the cart matches what checkout bills.
-    const pct = Math.min(Math.max(r.discountPercent ?? 0, 0), 90);
+    const pct = effectiveDiscount({ id: r.productId, categoryId: r.categoryId, discountPercent: r.discountPercent }, promos).percent;
     const list = parseFloat(r.price);
-    const price = Math.round(list * (1 - pct / 100) * 100) / 100;
+    const price = discountedPrice(list, pct);
     // The "typical retail price" the shopper is comparing against — same rule
     // the product page uses: an active promo is measured against the list price,
     // otherwise against the admin-set compare-at (retail) price when it's higher.

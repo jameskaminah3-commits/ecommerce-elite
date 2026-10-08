@@ -1,5 +1,6 @@
 import type { Request } from "express";
 import { logger } from "./lib/logger";
+import { loadPricingPromos, effectiveDiscount } from "./lib/pricing";
 import { and, eq, sql } from "drizzle-orm";
 import { db, productsTable, productVariantsTable, categoriesTable, blogPostsTable, siteSettingsTable } from "@workspace/db";
 
@@ -102,6 +103,7 @@ export async function metaForPath(path: string, query: Record<string, unknown>, 
           imageUrl: productsTable.imageUrl,
           basePrice: productsTable.basePrice,
           compareAtPrice: productsTable.compareAtPrice,
+          categoryId: productsTable.categoryId,
           discountPercent: productsTable.discountPercent,
           rating: productsTable.rating,
           reviewCount: productsTable.reviewCount,
@@ -124,7 +126,11 @@ export async function metaForPath(path: string, query: Record<string, unknown>, 
       // Same rule the storefront uses: an active promo is measured against the
       // list price; otherwise against the admin-set typical retail price.
       const list = parseFloat(p.basePrice);
-      const promo = Math.min(Math.max(p.discountPercent ?? 0, 0), 90);
+      const eff = effectiveDiscount(
+        { id: p.id, categoryId: p.categoryId, discountPercent: p.discountPercent },
+        await loadPricingPromos(),
+      );
+      const promo = eff.percent;
       const price = Math.round(list * (1 - promo / 100));
       const compareAt = p.compareAtPrice != null ? parseFloat(p.compareAtPrice) : null;
       const retail = promo > 0 ? list : compareAt != null && compareAt > list ? compareAt : null;
@@ -134,7 +140,9 @@ export async function metaForPath(path: string, query: Record<string, unknown>, 
       const ratingLine = p.reviewCount > 0 ? ` ★ ${rating.toFixed(1)} (${p.reviewCount} review${p.reviewCount === 1 ? "" : "s"}).` : "";
       const priceLine =
         retail && savePct > 0
-          ? `Wholesale price ${kes(price)} (retail ${kes(retail)} — save ${savePct}%).`
+          // A sale compares against our own regular price; otherwise the admin's
+          // "typical retail price". Say which, so the claim is accurate.
+          ? `Wholesale price ${kes(price)} (${promo > 0 ? "was" : "retail"} ${kes(retail)} — save ${savePct}%).`
           : `Wholesale price ${kes(price)}.`;
       const image = absolute(p.imageUrl, origin);
       const url = `${origin}/products/${p.id}`;
@@ -152,6 +160,8 @@ export async function metaForPath(path: string, query: Record<string, unknown>, 
           priceCurrency: "KES",
           price: String(price),
           itemCondition: "https://schema.org/NewCondition",
+          // A promotion's price is only valid until the campaign ends.
+          ...(eff.promo ? { priceValidUntil: eff.promo.endsAt.toISOString().slice(0, 10) } : {}),
           availability: stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
           url,
           seller: { "@type": "Organization", name: BRAND },

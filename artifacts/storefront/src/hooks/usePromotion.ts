@@ -14,6 +14,9 @@ export interface LivePromotion {
   ctaHref: string;
   theme: PromotionTheme;
   showCountdown: boolean;
+  discountPercent: number;
+  /** e.g. "25% off Audio & Kitchen" — empty for a banner-only promotion. */
+  discountLabel: string;
   endsAt: string;
 }
 

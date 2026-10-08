@@ -25,6 +25,8 @@ export interface BannerData {
   ctaHref: string;
   theme: PromotionTheme;
   showCountdown: boolean;
+  /** Plain-English discount line, e.g. "25% off Audio & Kitchen". */
+  discountLabel?: string;
 }
 
 // The visual banner. Separate from the data-fetching wrapper so the admin can
@@ -45,7 +47,11 @@ export function BannerCard({ data, msLeft, preview = false, compact = false }: {
     // which sits in a narrow dialog even on a wide screen.
     <div className={`rounded-3xl ${t.card} flex flex-col items-center justify-between gap-6 ${compact ? 'px-5 py-6' : 'px-5 py-7 md:px-12 md:py-10 lg:flex-row lg:gap-8'}`}>
       <div className={compact ? 'text-center' : 'text-center lg:text-left'}>
-        <p className={`text-[10px] font-bold uppercase tracking-[0.2em] mb-2 ${t.muted}`}>Limited time</p>
+        {data.discountLabel ? (
+          <p className={`inline-flex items-center rounded-full px-3 py-1 mb-3 text-[11px] font-bold uppercase tracking-[0.12em] ${t.cta}`}>{data.discountLabel}</p>
+        ) : (
+          <p className={`text-[10px] font-bold uppercase tracking-[0.2em] mb-2 ${t.muted}`}>Limited time</p>
+        )}
         <h2 className="text-2xl md:text-3xl font-semibold tracking-tight">{data.title}</h2>
         {data.subtitle && <p className={`${t.muted} mt-1.5 text-sm md:text-base`}>{data.subtitle}</p>}
       </div>

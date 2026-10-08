@@ -27,8 +27,14 @@ type ProductRow = {
   imageUrl?: string | null;
   categoryName?: string | null;
   basePrice: number;
+  /** What shoppers pay right now (Offer or live promotion, whichever is bigger). */
   discountPercent?: number | null;
+  /** The product's OWN Offer — the only value this screen edits. */
+  offerDiscountPercent?: number | null;
+  promotion?: { title: string; endsAt: string } | null;
 };
+
+const ownOffer = (p: ProductRow) => p.offerDiscountPercent ?? p.discountPercent;
 
 export default function AdminOffers() {
   const [search, setSearch] = useState('');
@@ -51,12 +57,12 @@ export default function AdminOffers() {
   };
 
   const products = (productsData?.items ?? []) as ProductRow[];
-  const onOffer = (p: ProductRow) => clampPercent(p.discountPercent) > 0;
+  const onOffer = (p: ProductRow) => clampPercent(ownOffer(p)) > 0;
   const rows = filter === 'onOffer' ? products.filter(onOffer) : products;
   const onOfferCount = products.filter(onOffer).length;
 
   const endOffer = async (p: ProductRow) => {
-    if (!confirm(`End the ${clampPercent(p.discountPercent)}% offer on "${p.name}"?`)) return;
+    if (!confirm(`End the ${clampPercent(ownOffer(p))}% offer on "${p.name}"?`)) return;
     try {
       await updateMutation.mutateAsync({ id: p.id, data: { discountPercent: 0 } });
       invalidate();
@@ -127,7 +133,7 @@ export default function AdminOffers() {
                   </td></tr>
                 ) : (
                   rows.map((p) => {
-                    const pct = clampPercent(p.discountPercent);
+                    const pct = clampPercent(ownOffer(p));
                     const live = pct > 0;
                     return (
                       <tr key={p.id} className="hover:bg-muted/10 transition-colors">
@@ -139,6 +145,11 @@ export default function AdminOffers() {
                             <div>
                               <div className="font-medium text-foreground line-clamp-1">{p.name}</div>
                               <div className="text-xs text-muted-foreground">{p.categoryName || 'General'}</div>
+                              {p.promotion && (
+                                <div className="text-[11px] font-semibold text-primary mt-0.5">
+                                  In “{p.promotion.title}” — {clampPercent(p.discountPercent)}% off while it runs
+                                </div>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -206,7 +217,7 @@ function OfferDialog({
   const updateMutation = useUpdateProduct();
 
   const [percent, setPercent] = useState(
-    product ? String(clampPercent(product.discountPercent) || '') : '',
+    product ? String(clampPercent(ownOffer(product)) || '') : '',
   );
 
   const parsed = clampPercent(Number(percent));
@@ -239,7 +250,7 @@ function OfferDialog({
     <Dialog open={product != null} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{product && clampPercent(product.discountPercent) > 0 ? 'Edit offer' : 'Set offer'}</DialogTitle>
+          <DialogTitle>{product && clampPercent(ownOffer(product)) > 0 ? 'Edit offer' : 'Set offer'}</DialogTitle>
         </DialogHeader>
         {product && (
           <form onSubmit={handleSubmit} className="space-y-4">

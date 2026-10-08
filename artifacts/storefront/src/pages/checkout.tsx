@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StorefrontLayout } from '@/components/layout/StorefrontLayout';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCreateOrder, useGetPaymentStatus } from '@workspace/api-client-react';
+import { useCreateOrder, useGetPaymentStatus, getGetCartQueryKey } from '@workspace/api-client-react';
 import { Link, useLocation } from 'wouter';
 import { classNames, formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { ShoppingBag, CreditCard, Smartphone, AlertCircle, Gift } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -62,6 +62,7 @@ export default function CheckoutPage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const createOrder = useCreateOrder();
 
@@ -231,6 +232,21 @@ export default function CheckoutPage() {
 
     setBusy(true);
     try {
+      // Promotions are time-boxed, so prices can change while someone is mid-checkout
+      // (a campaign ending, or starting). Re-confirm the cart with the server first;
+      // if the total moved, show the new price and let the shopper decide — never
+      // charge an amount they haven't seen.
+      const fresh = await fetch(`${API_BASE}/api/cart`, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      if (fresh && Math.abs((fresh.total ?? 0) - cart.total) > 0.5) {
+        queryClient.setQueryData(getGetCartQueryKey(), fresh);
+        toast({
+          title: 'A price just changed',
+          description: `Your items now total ${formatCurrency(fresh.total)}. Please review your order, then place it again.`,
+        });
+        setBusy(false);
+        return;
+      }
+
       const order = await createOrder.mutateAsync({
         data: {
           customerName: formData.customerName,

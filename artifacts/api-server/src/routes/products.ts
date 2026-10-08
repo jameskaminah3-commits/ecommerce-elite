@@ -21,10 +21,15 @@ import {
   DeleteVariantParams,
 } from "@workspace/api-zod";
 import { requireAdmin } from "../middlewares/requireAdmin";
+import { loadPricingPromos, effectiveDiscount, effectivePriceSql, type PricingPromo } from "../lib/pricing";
 
 const router: IRouter = Router();
 
-function productRow(p: any, categoryName: string | null, totalStock: number) {
+function productRow(p: any, categoryName: string | null, totalStock: number, promos: PricingPromo[] = []) {
+  // `discountPercent` is the discount shoppers actually get right now: the bigger
+  // of the product's own Offer and any live promotion covering it. The raw Offer
+  // value stays available (offerDiscountPercent) for the admin Offers screen.
+  const eff = effectiveDiscount({ id: p.id, categoryId: p.categoryId, discountPercent: p.discountPercent }, promos);
   return {
     id: p.id,
     name: p.name,
@@ -39,7 +44,10 @@ function productRow(p: any, categoryName: string | null, totalStock: number) {
     tags: p.tags ?? [],
     status: p.status,
     featured: p.featured,
-    discountPercent: p.discountPercent ?? 0,
+    discountPercent: eff.percent,
+    offerDiscountPercent: p.discountPercent ?? 0,
+    // Set only when a promotion (not a plain Offer) is what's discounting this item.
+    promotion: eff.promo ? { id: eff.promo.id, title: eff.promo.title, endsAt: eff.promo.endsAt.toISOString() } : null,
     deliveryClassId: p.deliveryClassId ?? null,
     totalStock,
     rating: p.rating ? parseFloat(p.rating) : null,
@@ -113,8 +121,12 @@ router.get("/products", async (req, res): Promise<void> => {
   // Faceted tag filter: OR within the facet — a product matches any selected tag.
   const tagList = String(tags ?? "").split(",").map((t) => t.trim()).filter(Boolean);
   if (tagList.length > 0) conditions.push(arrayOverlaps(productsTable.tags, tagList));
-  if (minPrice != null) conditions.push(gte(productsTable.basePrice, String(minPrice)));
-  if (maxPrice != null) conditions.push(lte(productsTable.basePrice, String(maxPrice)));
+  // Price filters and sorting use the price shoppers actually pay (Offers and live
+  // promotions applied), so "Under KES 1,000" and "Price: low to high" honour sales.
+  const promos = await loadPricingPromos();
+  const priceExpr = effectivePriceSql(promos);
+  if (minPrice != null) conditions.push(sql`${priceExpr} >= ${minPrice}`);
+  if (maxPrice != null) conditions.push(sql`${priceExpr} <= ${maxPrice}`);
   if (searchResult) conditions.push(inArray(productsTable.id, searchResult.ids));
   if (search && !searchResult) conditions.push(ilike(productsTable.name, `%${search}%`));
   if (featured != null) conditions.push(eq(productsTable.featured, featured));
@@ -123,8 +135,8 @@ router.get("/products", async (req, res): Promise<void> => {
 
   let orderBy;
   switch (sort) {
-    case "price_asc": orderBy = asc(productsTable.basePrice); break;
-    case "price_desc": orderBy = desc(productsTable.basePrice); break;
+    case "price_asc": orderBy = sql`${priceExpr} asc`; break;
+    case "price_desc": orderBy = sql`${priceExpr} desc`; break;
     case "popular": orderBy = desc(productsTable.reviewCount); break;
     default: orderBy = desc(productsTable.createdAt);
   }
@@ -158,7 +170,7 @@ router.get("/products", async (req, res): Promise<void> => {
     .offset(searchResult ? 0 : offset);
 
   res.json({
-    items: rows.map((r) => productRow(r.product, r.categoryName ?? null, r.totalStock ?? 0)),
+    items: rows.map((r) => productRow(r.product, r.categoryName ?? null, r.totalStock ?? 0, promos)),
     total: count,
     page,
     limit,
@@ -180,7 +192,7 @@ router.post("/products", requireAdmin, async (req, res): Promise<void> => {
   const [prod] = await db.insert(productsTable).values(data).returning();
   const [cat] = await db.select({ name: categoriesTable.name }).from(categoriesTable).where(eq(categoriesTable.id, prod.categoryId));
   syncProductToSearchInBackground(prod.id);
-  res.status(201).json(productRow(prod, cat?.name ?? null, 0));
+  res.status(201).json(productRow(prod, cat?.name ?? null, 0, await loadPricingPromos()));
 });
 
 // Available filters for a collection: the distinct tags (with counts) and the
@@ -252,7 +264,7 @@ router.get("/products/:id", async (req, res): Promise<void> => {
     .orderBy(productVariantsTable.createdAt);
 
   res.json({
-    ...productRow(row.product, row.categoryName ?? null, row.totalStock ?? 0),
+    ...productRow(row.product, row.categoryName ?? null, row.totalStock ?? 0, await loadPricingPromos()),
     variants: variants.map((v) => ({
       ...v,
       price: parseFloat(v.price),
@@ -283,7 +295,7 @@ router.patch("/products/:id", requireAdmin, async (req, res): Promise<void> => {
   }
   const [cat] = await db.select({ name: categoriesTable.name }).from(categoriesTable).where(eq(categoriesTable.id, prod.categoryId));
   syncProductToSearchInBackground(prod.id);
-  res.json(productRow(prod, cat?.name ?? null, 0));
+  res.json(productRow(prod, cat?.name ?? null, 0, await loadPricingPromos()));
 });
 
 router.delete("/products/:id", requireAdmin, async (req, res): Promise<void> => {

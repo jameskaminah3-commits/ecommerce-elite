@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { Button } from '@/components/ui/button';
@@ -7,8 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, Trash2, Copy, Pause, Play, Megaphone, Info } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Plus, Pencil, Trash2, Copy, Pause, Play, Megaphone, Info, Percent, Search, Check } from 'lucide-react';
+import { cn, formatCurrency } from '@/lib/utils';
 import { BannerCard, PROMOTION_THEMES } from '@/components/promotions/PromotionBanner';
 import type { PromotionTheme } from '@/hooks/usePromotion';
 import { PROMO_PRESETS, nextRange, toNairobiInput, fromNairobiInput, formatNairobi } from '@/lib/promoPresets';
@@ -16,6 +16,7 @@ import { PROMO_PRESETS, nextRange, toNairobiInput, fromNairobiInput, formatNairo
 const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
 
 type Status = 'live' | 'scheduled' | 'ended' | 'off';
+type Scope = 'all' | 'categories' | 'products';
 interface Promo {
   id: number;
   name: string;
@@ -26,6 +27,11 @@ interface Promo {
   ctaHref: string;
   theme: PromotionTheme;
   showCountdown: boolean;
+  discountPercent: number;
+  scope: Scope;
+  categoryIds: number[];
+  productIds: number[];
+  discountLabel: string;
   startsAt: string;
   endsAt: string;
   enabled: boolean;
@@ -41,6 +47,10 @@ interface FormState {
   ctaHref: string;
   theme: PromotionTheme;
   showCountdown: boolean;
+  discountPercent: number;
+  scope: Scope;
+  categoryIds: number[];
+  productIds: number[];
   startsAt: string; // Nairobi wall time for <input type="datetime-local">
   endsAt: string;
   enabled: boolean;
@@ -52,6 +62,7 @@ const blankForm = (): FormState => {
   return {
     name: '', title: '', subtitle: '', announcement: '', ctaLabel: 'Shop the deals', ctaHref: '/products',
     theme: 'brand', showCountdown: true,
+    discountPercent: 0, scope: 'all', categoryIds: [], productIds: [],
     startsAt: toNairobiInput(start.toISOString()),
     endsAt: toNairobiInput(new Date(start.getTime() + 7 * 86_400_000).toISOString()),
     enabled: true,
@@ -60,7 +71,8 @@ const blankForm = (): FormState => {
 
 const fromPromo = (p: Promo): FormState => ({
   name: p.name, title: p.title, subtitle: p.subtitle, announcement: p.announcement, ctaLabel: p.ctaLabel, ctaHref: p.ctaHref,
-  theme: p.theme, showCountdown: p.showCountdown, startsAt: toNairobiInput(p.startsAt), endsAt: toNairobiInput(p.endsAt), enabled: p.enabled,
+  theme: p.theme, showCountdown: p.showCountdown, discountPercent: p.discountPercent ?? 0, scope: p.scope ?? 'all',
+  categoryIds: p.categoryIds ?? [], productIds: p.productIds ?? [], startsAt: toNairobiInput(p.startsAt), endsAt: toNairobiInput(p.endsAt), enabled: p.enabled,
 });
 
 const bodyOf = (f: FormState) => ({ ...f, startsAt: fromNairobiInput(f.startsAt), endsAt: fromNairobiInput(f.endsAt) });
@@ -148,8 +160,9 @@ export default function AdminPromotions() {
         <div className="mb-6 flex gap-3 rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">
           <Info className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
           <p>
-            A promotion is the <strong className="text-foreground">campaign banner, countdown and top-bar message</strong>. The actual price cuts are set per product under{' '}
-            <a href="/admin/offers" className="text-primary font-medium hover:underline">Offers</a> — so only promise a discount you've set there.
+            A promotion can run a <strong className="text-foreground">banner and countdown</strong>, and optionally a <strong className="text-foreground">discount</strong> that
+            applies only while it's live — prices return to normal on their own when it ends. A product with its own{' '}
+            <a href="/admin/offers" className="text-primary font-medium hover:underline">Offer</a> keeps whichever discount is bigger; discounts never stack.
           </p>
         </div>
 
@@ -177,6 +190,15 @@ export default function AdminPromotions() {
                           <span className={cn('w-3 h-3 rounded-full border', PROMOTION_THEMES[p.theme]?.swatch)} title={PROMOTION_THEMES[p.theme]?.label} />
                         </div>
                         <p className="text-sm mt-1 truncate">“{p.title}”{p.subtitle ? ` — ${p.subtitle}` : ''}</p>
+                        <p className="mt-1.5">
+                          {p.discountLabel ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2.5 py-0.5 text-[11px] font-bold">
+                              <Percent className="w-3 h-3" /> {p.discountLabel}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-muted-foreground">Banner only — no price change</span>
+                          )}
+                        </p>
                         <p className="text-xs text-muted-foreground mt-1">{formatNairobi(p.startsAt)} → {formatNairobi(p.endsAt)} <span className="opacity-70">(Nairobi time)</span></p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0 flex-wrap">
@@ -217,6 +239,7 @@ function PromotionDialog({ initial, id, onClose, onSaved }: { initial: FormState
   const [tag, setTag] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const [previewLabel, setPreviewLabel] = useState('');
 
   const applyPreset = (key: string) => {
     const preset = PROMO_PRESETS.find((p) => p.key === key);
@@ -278,7 +301,7 @@ function PromotionDialog({ initial, id, onClose, onSaved }: { initial: FormState
               preview
               compact
               msLeft={((3 * 24 + 4) * 3600 + 27 * 60 + 9) * 1000}
-              data={{ title: form.title || 'Your headline', subtitle: form.subtitle, ctaLabel: form.ctaLabel || 'Shop the deals', ctaHref: form.ctaHref, theme: form.theme, showCountdown: form.showCountdown }}
+              data={{ title: form.title || 'Your headline', subtitle: form.subtitle, ctaLabel: form.ctaLabel || 'Shop the deals', ctaHref: form.ctaHref, theme: form.theme, showCountdown: form.showCountdown, discountLabel: previewLabel }}
             />
           </div>
         </div>
@@ -330,6 +353,8 @@ function PromotionDialog({ initial, id, onClose, onSaved }: { initial: FormState
             <Input id="p-end" type="datetime-local" value={form.endsAt} onChange={(e) => set('endsAt', e.target.value)} />
           </div>
 
+          <DiscountSection form={form} set={set} onLabel={setPreviewLabel} />
+
           <div className="space-y-2 sm:col-span-2">
             <Label>Colour</Label>
             <div className="flex flex-wrap gap-2">
@@ -359,5 +384,213 @@ function PromotionDialog({ initial, id, onClose, onSaved }: { initial: FormState
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ── Discount ────────────────────────────────────────────────────────────────
+interface Cat { id: number; name: string; parentId: number | null }
+interface Prod { id: number; name: string; basePrice: number; categoryName?: string | null }
+interface Impact {
+  percent: number;
+  covered: number;
+  changed: number;
+  keepsOffer: number;
+  samples: { id: number; name: string; before: number; after: number; offerPercent: number }[];
+}
+
+const PERCENT_QUICK = [5, 10, 15, 20, 25, 30, 40, 50];
+
+function DiscountSection({ form, set, onLabel }: {
+  form: FormState;
+  set: <K extends keyof FormState>(k: K, v: FormState[K]) => void;
+  onLabel: (label: string) => void;
+}) {
+  const on = form.discountPercent > 0;
+  const [cats, setCats] = useState<Cat[]>([]);
+  const [products, setProducts] = useState<Prod[]>([]);
+  const [names, setNames] = useState<Record<number, string>>({});
+  const [query, setQuery] = useState('');
+  const [impact, setImpact] = useState<Impact | null>(null);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/categories`).then((r) => r.json()).then((d) => setCats(Array.isArray(d) ? d : [])).catch(() => {});
+  }, []);
+
+  // Product picker: the whole catalogue (it is small), narrowed by the server when searching.
+  useEffect(() => {
+    if (!on || form.scope !== 'products') return;
+    const t = setTimeout(() => {
+      fetch(`${API_BASE}/api/products?limit=${query ? 60 : 200}${query ? `&search=${encodeURIComponent(query)}` : ''}`)
+        .then((r) => r.json())
+        .then((d) => {
+          const items: Prod[] = d.items ?? [];
+          setProducts(items);
+          setNames((n) => ({ ...n, ...Object.fromEntries(items.map((p) => [p.id, p.name])) }));
+        })
+        .catch(() => {});
+    }, query ? 250 : 0);
+    return () => clearTimeout(t);
+  }, [on, form.scope, query]);
+
+  // What this discount would actually do, before the admin commits to it.
+  useEffect(() => {
+    if (!on) { setImpact(null); return; }
+    const t = setTimeout(async () => {
+      try {
+        setImpact(await api('/api/admin/promotions/impact', {
+          method: 'POST',
+          body: JSON.stringify({ discountPercent: form.discountPercent, scope: form.scope, categoryIds: form.categoryIds, productIds: form.productIds }),
+        }));
+      } catch { setImpact(null); }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [on, form.discountPercent, form.scope, form.categoryIds.join(','), form.productIds.join(',')]);
+
+  // The plain-English line shown on the banner.
+  const label = useMemo(() => {
+    if (!on) return '';
+    const pct = `${form.discountPercent}% off`;
+    if (form.scope === 'all') return `${pct} everything`;
+    if (form.scope === 'products') return `${pct} selected items`;
+    const picked = cats.filter((c) => form.categoryIds.includes(c.id)).map((c) => c.name);
+    if (picked.length === 0) return pct;
+    return picked.length <= 2 ? `${pct} ${picked.join(' & ')}` : `${pct} ${picked.slice(0, 2).join(', ')} +${picked.length - 2} more`;
+  }, [on, form.discountPercent, form.scope, form.categoryIds, cats]);
+  useEffect(() => onLabel(label), [label]);
+
+  const toggle = (key: 'categoryIds' | 'productIds', id: number) =>
+    set(key, form[key].includes(id) ? form[key].filter((x) => x !== id) : [...form[key], id]);
+
+  // Category tree, parents first with their children indented beneath.
+  const rows = useMemo(() => {
+    const kids = new Map<number | null, Cat[]>();
+    for (const c of cats) kids.set(c.parentId, [...(kids.get(c.parentId) ?? []), c]);
+    const out: { cat: Cat; depth: number }[] = [];
+    const walk = (parent: number | null, depth: number) => {
+      for (const c of (kids.get(parent) ?? []).sort((a, b) => a.name.localeCompare(b.name))) {
+        out.push({ cat: c, depth });
+        walk(c.id, depth + 1);
+      }
+    };
+    walk(null, 0);
+    return out;
+  }, [cats]);
+
+  return (
+    <div className="sm:col-span-2 rounded-xl border p-4 space-y-4 bg-muted/20">
+      <label className="flex items-start gap-3 cursor-pointer">
+        <input
+          type="checkbox"
+          className="w-4 h-4 mt-1 accent-primary"
+          checked={on}
+          onChange={(e) => set('discountPercent', e.target.checked ? 10 : 0)}
+        />
+        <span>
+          <span className="text-sm font-semibold flex items-center gap-1.5"><Percent className="w-3.5 h-3.5 text-primary" /> Discount prices while this is live</span>
+          <span className="block text-xs text-muted-foreground mt-0.5">
+            Off = banner only. On = covered products are really cheaper everywhere (shop, cart, checkout) until it ends — then they return to normal automatically.
+          </span>
+        </span>
+      </label>
+
+      {on && (
+        <div className="space-y-4">
+          <div>
+            <Label className="text-xs">Discount</Label>
+            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+              {PERCENT_QUICK.map((n) => (
+                <button key={n} type="button" onClick={() => set('discountPercent', n)}
+                  className={cn('h-9 px-3 rounded-full text-sm font-semibold border transition-colors', form.discountPercent === n ? 'bg-primary text-primary-foreground border-primary' : 'bg-background hover:border-primary/50')}>
+                  {n}%
+                </button>
+              ))}
+              <div className="flex items-center gap-1.5 ml-1">
+                <Input
+                  type="number" inputMode="numeric" min={1} max={90} aria-label="Custom discount percent"
+                  value={form.discountPercent || ''}
+                  onChange={(e) => set('discountPercent', Math.min(90, Math.max(0, Math.round(Number(e.target.value) || 0))))}
+                  className="h-9 w-20"
+                />
+                <span className="text-sm text-muted-foreground">% off</span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-xs">Applies to</Label>
+            <div className="grid grid-cols-3 gap-1.5 mt-2 rounded-lg bg-background border p-1">
+              {([['all', 'Everything'], ['categories', 'Categories'], ['products', 'Products']] as [Scope, string][]).map(([k, text]) => (
+                <button key={k} type="button" onClick={() => set('scope', k)}
+                  className={cn('h-9 rounded-md text-xs sm:text-sm font-medium transition-colors', form.scope === k ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
+                  {text}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {form.scope === 'categories' && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-2">Tick a category to include it and all its subcategories.</p>
+              <div className="max-h-48 overflow-y-auto rounded-lg border bg-background divide-y">
+                {rows.length === 0 && <p className="p-3 text-sm text-muted-foreground">No categories yet.</p>}
+                {rows.map(({ cat, depth }) => (
+                  <label key={cat.id} className="flex items-center gap-3 px-3 min-h-[44px] cursor-pointer hover:bg-muted/40" style={{ paddingLeft: 12 + depth * 20 }}>
+                    <input type="checkbox" className="w-4 h-4 accent-primary" checked={form.categoryIds.includes(cat.id)} onChange={() => toggle('categoryIds', cat.id)} />
+                    <span className="text-sm">{cat.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {form.scope === 'products' && (
+            <div>
+              <div className="relative mb-2">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search products…" className="pl-9 h-10 bg-background" />
+              </div>
+              <div className="max-h-52 overflow-y-auto rounded-lg border bg-background divide-y">
+                {products.length === 0 && <p className="p-3 text-sm text-muted-foreground">No products found.</p>}
+                {products.map((p) => (
+                  <label key={p.id} className="flex items-center gap-3 px-3 min-h-[48px] cursor-pointer hover:bg-muted/40">
+                    <input type="checkbox" className="w-4 h-4 accent-primary shrink-0" checked={form.productIds.includes(p.id)} onChange={() => toggle('productIds', p.id)} />
+                    <span className="text-sm flex-1 min-w-0 truncate">{p.name}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">{formatCurrency(p.basePrice)}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">{form.productIds.length} selected{form.productIds.length > 0 && ` — ${form.productIds.slice(0, 3).map((id) => names[id] ?? `#${id}`).join(', ')}${form.productIds.length > 3 ? '…' : ''}`}</p>
+            </div>
+          )}
+
+          {/* Impact preview */}
+          {impact && (
+            <div className={cn('rounded-lg border p-3 text-sm', impact.changed > 0 ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-amber-50 border-amber-200 text-amber-900')}>
+              {impact.changed > 0 ? (
+                <p className="font-semibold flex items-center gap-1.5">
+                  <Check className="w-4 h-4" />
+                  {impact.changed} product{impact.changed === 1 ? '' : 's'} will be {impact.percent}% cheaper
+                  {impact.keepsOffer > 0 && <span className="font-normal"> · {impact.keepsOffer} keep{impact.keepsOffer === 1 ? 's' : ''} a bigger Offer</span>}
+                </p>
+              ) : impact.covered > 0 ? (
+                <p className="font-semibold">No prices would change — the {impact.covered} covered product{impact.covered === 1 ? ' already has' : 's already have'} an equal or bigger Offer.</p>
+              ) : (
+                <p className="font-semibold">No products match this selection yet.</p>
+              )}
+              {impact.samples.length > 0 && (
+                <ul className="mt-2 space-y-1 text-xs">
+                  {impact.samples.map((x) => (
+                    <li key={x.id} className="flex justify-between gap-3">
+                      <span className="truncate">{x.name}</span>
+                      <span className="shrink-0 tabular-nums"><span className="line-through opacity-60">{formatCurrency(x.before)}</span> → <strong>{formatCurrency(x.after)}</strong></span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

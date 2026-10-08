@@ -4,6 +4,7 @@ import { db, ordersTable, orderItemsTable, cartItemsTable, productVariantsTable,
 import { sendOrderReceivedEmail } from "../lib/email";
 import { deductInventoryForOrder, reserveStockForOrder, InsufficientStockError } from "../lib/inventory";
 import { findReferrerByCode } from "../lib/referral";
+import { loadPricingPromos, effectiveDiscount, discountedPrice } from "../lib/pricing";
 import { markOrderPaid } from "./payments";
 import {
   CreateOrderBody,
@@ -149,6 +150,7 @@ router.post("/orders", async (req, res): Promise<void> => {
       variantSize: productVariantsTable.size,
       variantColor: productVariantsTable.color,
       price: productVariantsTable.price,
+      categoryId: productsTable.categoryId,
       discountPercent: productsTable.discountPercent,
       deliveryClassId: productsTable.deliveryClassId,
       stock: productVariantsTable.stock,
@@ -171,11 +173,15 @@ router.post("/orders", async (req, res): Promise<void> => {
     }
   }
 
-  // Apply the product's active promotional discount to the charged unit price.
-  const unitPrice = (r: (typeof cartRows)[number]): number => {
-    const pct = Math.min(Math.max(r.discountPercent ?? 0, 0), 90);
-    return Math.round(parseFloat(r.price) * (1 - pct / 100) * 100) / 100;
-  };
+  // Price each line with the discount that applies RIGHT NOW (the product's Offer
+  // or a live promotion, whichever is bigger) - read fresh, so a campaign that has
+  // just ended can never be charged at its old price.
+  const promos = await loadPricingPromos();
+  const unitPrice = (r: (typeof cartRows)[number]): number =>
+    discountedPrice(
+      parseFloat(r.price),
+      effectiveDiscount({ id: r.productId, categoryId: r.categoryId, discountPercent: r.discountPercent }, promos).percent,
+    );
 
   const itemsTotal = cartRows.reduce((s, r) => s + unitPrice(r) * r.quantity, 0);
 

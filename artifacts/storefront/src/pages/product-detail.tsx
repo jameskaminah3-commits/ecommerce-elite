@@ -39,6 +39,28 @@ function getSwatchColor(color: string) {
   return COLOR_SWATCH[color.toLowerCase()] ?? null;
 }
 
+// "Black Friday price · ends in 2d 23h" — names the campaign behind a promotional
+// price and how long it lasts. Ticks quietly; disappears when the campaign ends.
+function PromoEndsIn({ title, endsAt }: { title: string; endsAt: string }) {
+  const [now, setNow] = useState(() => Date.now());
+  React.useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+  const ms = Date.parse(endsAt) - now;
+  if (ms <= 0) return null;
+  const d = Math.floor(ms / 86_400_000);
+  const h = Math.floor((ms % 86_400_000) / 3_600_000);
+  const m = Math.floor((ms % 3_600_000) / 60_000);
+  const left = d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+  return (
+    <p className="mt-2 flex items-center gap-2 text-xs font-semibold text-primary">
+      <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-60" /><span className="relative inline-flex rounded-full h-2 w-2 bg-primary" /></span>
+      {title} price · ends in {left}
+    </p>
+  );
+}
+
 // Skeleton for the product detail page
 function ProductDetailSkeleton() {
   return (
@@ -180,6 +202,7 @@ export default function ProductDetail() {
   for (const v of product.variants) {
     if (v.imageUrl && !variantByImage.has(v.imageUrl)) variantByImage.set(v.imageUrl, v);
   }
+  const promotion = (product as any).promotion as { title: string; endsAt: string } | null;
   const allImages = Array.from(
     new Set(
       [product.imageUrl, ...(product.images || []), ...product.variants.map((v) => v.imageUrl)].filter(
@@ -301,7 +324,7 @@ export default function ProductDetail() {
                   onClick={(e) => { e.preventDefault(); document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
                   className="text-sm text-muted-foreground ml-1.5 font-medium hover:text-primary underline-offset-4 hover:underline"
                 >
-                  {(product.reviewCount ?? 0) > 0 ? `${product.rating?.toFixed(1)} (${product.reviewCount} reviews)` : 'No reviews yet'}
+                  {(product.reviewCount ?? 0) > 0 ? `${product.rating?.toFixed(1)} (${product.reviewCount} review${product.reviewCount === 1 ? '' : 's'})` : 'No reviews yet'}
                 </a>
               </div>
               <span className="text-muted-foreground/30">|</span>
@@ -339,9 +362,12 @@ export default function ProductDetail() {
               {priceInfo.onSale && priceInfo.original != null && priceInfo.original > displayPrice && (
                 <p className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 text-xs font-semibold">
                   <Tag className="w-3.5 h-3.5" />
-                  You save {formatCurrency(priceInfo.original - displayPrice)} ({priceInfo.discountPct}%) vs typical retail price
+                  {/* A sale is measured against our regular price; otherwise against typical retail. */}
+                  You save {formatCurrency(priceInfo.original - displayPrice)} ({priceInfo.discountPct}%)
+                  {(product.discountPercent ?? 0) > 0 ? '' : ' vs typical retail price'}
                 </p>
               )}
+              {promotion && <PromoEndsIn title={promotion.title} endsAt={promotion.endsAt} />}
             </div>
 
             {/* Share */}
