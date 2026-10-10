@@ -13,6 +13,27 @@ const app: Express = express();
 // share-preview tags and sitemap depend on.
 app.set("trust proxy", 1);
 
+// One address for the shop: visitors (and Google) who arrive on www.<domain> are
+// sent permanently to the PUBLIC_URL address, path and query kept. A safety net
+// behind any Cloudflare/DNS redirect rule. Only the www twin of the canonical host
+// is redirected, so health checks and internal hosts are never affected.
+const canonical = (() => {
+  try {
+    const u = new URL((process.env["PUBLIC_URL"] ?? "").trim());
+    return { origin: u.origin, host: u.host.toLowerCase() };
+  } catch {
+    return null;
+  }
+})();
+if (canonical) {
+  const twin = canonical.host.startsWith("www.") ? canonical.host.slice(4) : `www.${canonical.host}`;
+  app.use((req, res, next) => {
+    const host = (req.get("x-forwarded-host") ?? req.get("host") ?? "").split(",")[0].trim().toLowerCase();
+    if (host !== twin || (req.method !== "GET" && req.method !== "HEAD")) return next();
+    res.redirect(301, `${canonical.origin}${req.originalUrl}`);
+  });
+}
+
 app.use(
   pinoHttp({
     logger,
