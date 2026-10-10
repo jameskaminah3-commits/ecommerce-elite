@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Product } from '@workspace/api-client-react';
 import { Link } from 'wouter';
-import { formatCurrency, classNames, getPriceInfo } from '@/lib/utils';
+import { formatCurrency, classNames, getPriceInfo, productPath } from '@/lib/utils';
 import { ShoppingBag, Star, Eye } from 'lucide-react';
 import { QuickViewModal } from './QuickViewModal';
 
@@ -20,7 +20,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
       <div className={classNames('group relative flex flex-col', className)}>
         {/* Image on a soft, product-on-light panel */}
         <div className="relative aspect-square rounded-2xl bg-muted/40 overflow-hidden ring-1 ring-border/50 transition-all duration-500 group-hover:ring-border group-hover:shadow-lg group-hover:shadow-black/5">
-          <Link href={`/products/${product.id}`} className="block w-full h-full">
+          <Link href={productPath(product)} className="block w-full h-full">
             {product.imageUrl ? (
               <img
                 src={product.imageUrl}
@@ -75,7 +75,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
                 Quick view
               </button>
               <Link
-                href={`/products/${product.id}`}
+                href={productPath(product)}
                 className="flex items-center justify-center w-10 h-10 bg-primary text-primary-foreground rounded-full shadow-md hover:bg-primary/90 transition-colors shrink-0"
                 title="View details"
               >
@@ -98,7 +98,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
             ) : null}
           </div>
 
-          <Link href={`/products/${product.id}`}>
+          <Link href={productPath(product)}>
             <h3 className="font-medium text-[13px] sm:text-sm text-foreground/90 leading-snug line-clamp-2 min-h-[2.55em] group-hover:text-primary transition-colors">
               {product.name}
             </h3>

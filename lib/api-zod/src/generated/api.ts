@@ -176,7 +176,9 @@ export const CreateProductBody = zod.object({
   "featured": zod.boolean().optional(),
   "discountPercent": zod.int().min(createProductBodyDiscountPercentMin).max(createProductBodyDiscountPercentMax).optional(),
   "deliveryClassId": zod.int().nullish(),
-  "tags": zod.array(zod.string()).optional()
+  "tags": zod.array(zod.string()).optional(),
+  "metaTitle": zod.string().max(200).optional(),
+  "metaDescription": zod.string().max(500).optional()
 })
 
 export const CreateProductResponse = zod.object({
@@ -267,7 +269,9 @@ export const UpdateProductBody = zod.object({
   "featured": zod.boolean().optional(),
   "discountPercent": zod.int().min(updateProductBodyDiscountPercentMin).max(updateProductBodyDiscountPercentMax).optional(),
   "deliveryClassId": zod.int().nullish(),
-  "tags": zod.array(zod.string()).optional()
+  "tags": zod.array(zod.string()).optional(),
+  "metaTitle": zod.string().max(200).optional(),
+  "metaDescription": zod.string().max(500).optional()
 })
 
 export const UpdateProductResponse = zod.object({

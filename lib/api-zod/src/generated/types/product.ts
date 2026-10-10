@@ -31,5 +31,9 @@ export interface Product {
   discountPercent?: number;
   /** @nullable */
   deliveryClassId?: number | null;
+  /** Search-engine title override (blank = auto). */
+  metaTitle?: string;
+  /** Search-engine description override (blank = auto). */
+  metaDescription?: string;
   createdAt?: string;
 }

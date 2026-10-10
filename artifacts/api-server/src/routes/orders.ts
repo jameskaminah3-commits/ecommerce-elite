@@ -173,6 +173,7 @@ router.post("/orders", async (req, res): Promise<void> => {
       discountPercent: productsTable.discountPercent,
       deliveryClassId: productsTable.deliveryClassId,
       stock: productVariantsTable.stock,
+      productStatus: productsTable.status,
     })
     .from(cartItemsTable)
     .innerJoin(productVariantsTable, eq(cartItemsTable.variantId, productVariantsTable.id))
@@ -184,8 +185,12 @@ router.post("/orders", async (req, res): Promise<void> => {
     return;
   }
 
-  // Check stock
+  // Every line must still be on sale at a real price, and in stock.
   for (const item of cartRows) {
+    if (item.productStatus !== "active" || parseFloat(item.price) <= 0) {
+      res.status(400).json({ error: `${item.productName} is no longer available. Please remove it from your cart.` });
+      return;
+    }
     if (item.stock < item.quantity) {
       res.status(400).json({ error: `Insufficient stock for ${item.productName}` });
       return;

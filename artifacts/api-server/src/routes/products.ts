@@ -21,11 +21,29 @@ import {
   DeleteVariantParams,
 } from "@workspace/api-zod";
 import { requireAdmin, isAdminRequest } from "../middlewares/requireAdmin";
+import { slugify } from "../lib/slug";
 import { loadPricingPromos, effectiveDiscount, effectivePriceSql, type PricingPromo } from "../lib/pricing";
 
 const router: IRouter = Router();
 
-function productRow(p: any, categoryName: string | null, totalStock: number, promos: PricingPromo[] = []) {
+// Normalise the admin's product fields before saving.
+function cleanProductInput(data: any): void {
+  if (typeof data.slug === "string") data.slug = slugify(data.slug) || slugify(data.name ?? "") || undefined;
+  if (typeof data.metaTitle === "string") data.metaTitle = data.metaTitle.replace(/\s+/g, " ").trim().slice(0, 200);
+  if (typeof data.metaDescription === "string") data.metaDescription = data.metaDescription.replace(/\s+/g, " ").trim().slice(0, 500);
+}
+
+const isUniqueViolation = (err: unknown) => (err as { code?: string; cause?: { code?: string } })?.code === "23505" || (err as { cause?: { code?: string } })?.cause?.code === "23505";
+const SLUG_TAKEN = "Another product already uses this URL slug. Change the slug and save again.";
+
+// A variant needs a real selling price — a blank price must never become KES 0.
+function invalidVariantPrice(price: unknown): boolean {
+  return typeof price !== "number" || !Number.isFinite(price) || price <= 0;
+}
+const SKU_TAKEN = "That SKU is already used by another variant. Each SKU must be unique.";
+const PRICE_REQUIRED = "Enter a selling price above KES 0 for this variant.";
+
+function productRow(p: any, categoryName: string | null, totalStock: number, promos: PricingPromo[] = [], categorySlug: string | null = null) {
   // `discountPercent` is the discount shoppers actually get right now: the bigger
   // of the product's own Offer and any live promotion covering it. The raw Offer
   // value stays available (offerDiscountPercent) for the admin Offers screen.
@@ -39,6 +57,7 @@ function productRow(p: any, categoryName: string | null, totalStock: number, pro
     compareAtPrice: p.compareAtPrice ? parseFloat(p.compareAtPrice) : null,
     categoryId: p.categoryId,
     categoryName,
+    categorySlug,
     imageUrl: p.imageUrl,
     images: p.images ?? [],
     tags: p.tags ?? [],
@@ -49,6 +68,8 @@ function productRow(p: any, categoryName: string | null, totalStock: number, pro
     // Set only when a promotion (not a plain Offer) is what's discounting this item.
     promotion: eff.promo ? { id: eff.promo.id, title: eff.promo.title, endsAt: eff.promo.endsAt.toISOString() } : null,
     deliveryClassId: p.deliveryClassId ?? null,
+    metaTitle: p.metaTitle ?? "",
+    metaDescription: p.metaDescription ?? "",
     totalStock,
     rating: p.rating ? parseFloat(p.rating) : null,
     reviewCount: p.reviewCount,
@@ -81,11 +102,12 @@ async function categorySubtreeIds(rootId: number): Promise<number[]> {
   return result;
 }
 
-// Keep the product's displayed "from" price in sync with its cheapest variant,
-// so variant pricing is the single source of truth.
+// Keep the product's displayed "from" price in sync with its cheapest PRICED
+// variant, so variant pricing is the single source of truth. (An unpriced variant
+// is ignored — it must never drag the whole product down to KES 0.)
 async function syncBasePrice(productId: number): Promise<void> {
   const [row] = await db
-    .select({ min: sql<string | null>`min(${productVariantsTable.price})` })
+    .select({ min: sql<string | null>`min(${productVariantsTable.price}) filter (where ${productVariantsTable.price} > 0)` })
     .from(productVariantsTable)
     .where(eq(productVariantsTable.productId, productId));
   await db
@@ -163,19 +185,20 @@ router.get("/products", async (req, res): Promise<void> => {
     .select({
       product: productsTable,
       categoryName: categoriesTable.name,
+      categorySlug: categoriesTable.slug,
       totalStock: sql<number>`cast(coalesce(sum(${productVariantsTable.stock}), 0) as int)`,
     })
     .from(productsTable)
     .leftJoin(categoriesTable, eq(productsTable.categoryId, categoriesTable.id))
     .leftJoin(productVariantsTable, eq(productVariantsTable.productId, productsTable.id))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .groupBy(productsTable.id, categoriesTable.name)
+    .groupBy(productsTable.id, categoriesTable.name, categoriesTable.slug)
     .orderBy(finalOrderBy)
     .limit(limit)
     .offset(searchResult ? 0 : offset);
 
   res.json({
-    items: rows.map((r) => productRow(r.product, r.categoryName ?? null, r.totalStock ?? 0, promos)),
+    items: rows.map((r) => productRow(r.product, r.categoryName ?? null, r.totalStock ?? 0, promos, r.categorySlug ?? null)),
     total: count,
     page,
     limit,
@@ -189,12 +212,23 @@ router.post("/products", requireAdmin, async (req, res): Promise<void> => {
     return;
   }
   const data: any = { ...parsed.data };
+  cleanProductInput(data);
+  if (!data.slug) data.slug = slugify(data.name) || `product-${Date.now()}`;
   // Base price is derived from variants; default to 0 for a product created
   // before its variants exist.
   data.basePrice = data.basePrice != null ? String(data.basePrice) : "0";
   // 0 (or blank) means "no retail comparison" — store NULL so it's cleared cleanly.
   if (data.compareAtPrice !== undefined) data.compareAtPrice = data.compareAtPrice > 0 ? String(data.compareAtPrice) : null;
-  const [prod] = await db.insert(productsTable).values(data).returning();
+  let prod: typeof productsTable.$inferSelect;
+  try {
+    [prod] = await db.insert(productsTable).values(data).returning();
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      res.status(409).json({ error: SLUG_TAKEN });
+      return;
+    }
+    throw err;
+  }
   const [cat] = await db.select({ name: categoriesTable.name }).from(categoriesTable).where(eq(categoriesTable.id, prod.categoryId));
   syncProductToSearchInBackground(prod.id);
   res.status(201).json(productRow(prod, cat?.name ?? null, 0, await loadPricingPromos()));
@@ -249,28 +283,32 @@ router.get("/products/:id", async (req, res): Promise<void> => {
     .select({
       product: productsTable,
       categoryName: categoriesTable.name,
+      categorySlug: categoriesTable.slug,
       totalStock: sql<number>`cast(coalesce(sum(${productVariantsTable.stock}), 0) as int)`,
     })
     .from(productsTable)
     .leftJoin(categoriesTable, eq(productsTable.categoryId, categoriesTable.id))
     .leftJoin(productVariantsTable, eq(productVariantsTable.productId, productsTable.id))
     .where(eq(productsTable.id, params.data.id))
-    .groupBy(productsTable.id, categoriesTable.name);
+    .groupBy(productsTable.id, categoriesTable.name, categoriesTable.slug);
 
-  // Unpriced products are invisible to shoppers (admins can still open them).
-  if (!row || (parseFloat(row.product.basePrice) <= 0 && !(await isAdminRequest(req)))) {
+  // Unpriced or switched-off products are invisible to shoppers (admins can still open them).
+  const isAdmin = await isAdminRequest(req);
+  if (!row || (!isAdmin && (parseFloat(row.product.basePrice) <= 0 || row.product.status !== "active"))) {
     res.status(404).json({ error: "Product not found" });
     return;
   }
 
-  const variants = await db
+  const allVariants = await db
     .select()
     .from(productVariantsTable)
     .where(eq(productVariantsTable.productId, params.data.id))
     .orderBy(productVariantsTable.createdAt);
+  // Shoppers only see options they can actually buy at a real price.
+  const variants = isAdmin ? allVariants : allVariants.filter((v) => parseFloat(v.price) > 0);
 
   res.json({
-    ...productRow(row.product, row.categoryName ?? null, row.totalStock ?? 0, await loadPricingPromos()),
+    ...productRow(row.product, row.categoryName ?? null, row.totalStock ?? 0, await loadPricingPromos(), row.categorySlug ?? null),
     variants: variants.map((v) => ({
       ...v,
       price: parseFloat(v.price),
@@ -291,10 +329,22 @@ router.patch("/products/:id", requireAdmin, async (req, res): Promise<void> => {
     return;
   }
   const data: any = { ...parsed.data };
-  if (data.basePrice != null) data.basePrice = String(data.basePrice);
+  cleanProductInput(data);
+  if (data.slug === undefined) delete data.slug;
+  // The shown price is derived from the variants (see syncBasePrice) — never set directly.
+  delete data.basePrice;
   // 0 (or blank) means "no retail comparison" — store NULL so it's cleared cleanly.
   if (data.compareAtPrice !== undefined) data.compareAtPrice = data.compareAtPrice > 0 ? String(data.compareAtPrice) : null;
-  const [prod] = await db.update(productsTable).set(data).where(eq(productsTable.id, params.data.id)).returning();
+  let prod: typeof productsTable.$inferSelect | undefined;
+  try {
+    [prod] = await db.update(productsTable).set(data).where(eq(productsTable.id, params.data.id)).returning();
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      res.status(409).json({ error: SLUG_TAKEN });
+      return;
+    }
+    throw err;
+  }
   if (!prod) {
     res.status(404).json({ error: "Product not found" });
     return;
@@ -341,9 +391,26 @@ router.post("/products/:id/variants", requireAdmin, async (req, res): Promise<vo
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  if (invalidVariantPrice(parsed.data.price)) {
+    res.status(400).json({ error: PRICE_REQUIRED });
+    return;
+  }
+  if (!Number.isInteger(parsed.data.stock) || parsed.data.stock < 0) {
+    res.status(400).json({ error: "Stock must be 0 or more." });
+    return;
+  }
   const data: any = { ...parsed.data, productId: params.data.id };
   data.price = String(data.price);
-  const [variant] = await db.insert(productVariantsTable).values(data).returning();
+  let variant: typeof productVariantsTable.$inferSelect;
+  try {
+    [variant] = await db.insert(productVariantsTable).values(data).returning();
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      res.status(409).json({ error: SKU_TAKEN });
+      return;
+    }
+    throw err;
+  }
   await syncBasePrice(params.data.id);
   syncProductToSearchInBackground(params.data.id);
   res.status(201).json({ ...variant, price: parseFloat(variant.price), createdAt: variant.createdAt instanceof Date ? variant.createdAt.toISOString() : variant.createdAt });
@@ -360,9 +427,26 @@ router.patch("/variants/:id", requireAdmin, async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  if (parsed.data.price != null && invalidVariantPrice(parsed.data.price)) {
+    res.status(400).json({ error: PRICE_REQUIRED });
+    return;
+  }
+  if (parsed.data.stock != null && (!Number.isInteger(parsed.data.stock) || parsed.data.stock < 0)) {
+    res.status(400).json({ error: "Stock must be 0 or more." });
+    return;
+  }
   const data: any = { ...parsed.data };
   if (data.price != null) data.price = String(data.price);
-  const [variant] = await db.update(productVariantsTable).set(data).where(eq(productVariantsTable.id, params.data.id)).returning();
+  let variant: typeof productVariantsTable.$inferSelect | undefined;
+  try {
+    [variant] = await db.update(productVariantsTable).set(data).where(eq(productVariantsTable.id, params.data.id)).returning();
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      res.status(409).json({ error: SKU_TAKEN });
+      return;
+    }
+    throw err;
+  }
   if (!variant) {
     res.status(404).json({ error: "Variant not found" });
     return;

@@ -36,6 +36,14 @@ export const SCHEMA_STATEMENTS: string[] = [
   `ALTER TABLE products ADD COLUMN IF NOT EXISTS compare_at_price numeric(12,2)`,
   `ALTER TABLE products ADD COLUMN IF NOT EXISTS discount_percent integer NOT NULL DEFAULT 0`,
   `ALTER TABLE products ADD COLUMN IF NOT EXISTS delivery_class_id integer`,
+  `ALTER TABLE products ADD COLUMN IF NOT EXISTS meta_title text NOT NULL DEFAULT ''`,
+  `ALTER TABLE products ADD COLUMN IF NOT EXISTS meta_description text NOT NULL DEFAULT ''`,
+  // Repair: a product's shown price is its cheapest PRICED variant. Older code let a
+  // variant saved with a blank price (KES 0) drag the whole product to KES 0, which
+  // hides it from shoppers. Re-derive those prices from the variants that do have one.
+  `UPDATE products p SET base_price = v.min_price
+     FROM (SELECT product_id, min(price) AS min_price FROM product_variants WHERE price > 0 GROUP BY product_id) v
+    WHERE v.product_id = p.id AND p.base_price <> v.min_price`,
   `ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS image_url text`,
 
   // ── site settings (footer, M-Pesa manual payment, referrals, notifications) ─

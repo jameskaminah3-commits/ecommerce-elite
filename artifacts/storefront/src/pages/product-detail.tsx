@@ -5,9 +5,10 @@ import { useCart } from '@/contexts/CartContext';
 import { useParams } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { formatCurrency, classNames, cn, getPriceInfo } from '@/lib/utils';
+import { formatCurrency, classNames, cn, getPriceInfo, productPath } from '@/lib/utils';
 import { ReviewsSection } from '@/components/products/ReviewsSection';
 import { ShareButtons } from '@/components/social/ShareButtons';
+import { autoSeoTitle } from '@/lib/productSeo';
 import { Star, Truck, ShieldCheck, ChevronRight, Minus, Plus, ShoppingBag, CheckCircle2, AlertCircle, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -127,13 +128,15 @@ export default function ProductDetail() {
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [imageTransitioning, setImageTransitioning] = useState(false);
 
-  // Initialize on data load
+  // Initialize on data load — preselect the first option that's actually in stock.
   React.useEffect(() => {
     if (product?.variants?.length && !selectedVariant) {
-      setSelectedVariant(product.variants[0]);
+      setSelectedVariant(product.variants.find((v) => (v.stock ?? 0) > 0) ?? product.variants[0]);
     }
-    if (product?.imageUrl && !activeImage) {
-      setActiveImage(product.imageUrl);
+    // Main photo, else the first gallery or variant photo.
+    const firstImage = product?.imageUrl || product?.images?.[0] || product?.variants?.find((v) => v.imageUrl)?.imageUrl;
+    if (firstImage && !activeImage) {
+      setActiveImage(firstImage);
     }
   }, [product]);
 
@@ -142,9 +145,21 @@ export default function ProductDetail() {
   React.useEffect(() => {
     if (!product) return;
     const prev = document.title;
-    document.title = `${product.name} Price in Kenya — ${formatCurrency(getPriceInfo(product).price)} | Happyfine Wholesalers`;
+    document.title =
+      product.metaTitle?.trim() ||
+      autoSeoTitle({ name: product.name, basePrice: getPriceInfo(product).price });
     return () => { document.title = prev; };
   }, [product?.id]);
+
+  // Show the keyword URL (/products/12-abs-roller-wheel) even when the visitor came in
+  // through an old /products/12 link — so what they copy and share is the SEO-friendly one.
+  React.useEffect(() => {
+    if (!product) return;
+    const canonical = productPath(product);
+    if (window.location.pathname !== canonical) {
+      window.history.replaceState(window.history.state, '', canonical + window.location.search + window.location.hash);
+    }
+  }, [product?.id, product?.slug]);
 
   // Smooth image transition when switching variants
   const switchImage = useCallback((img: string) => {
@@ -213,7 +228,7 @@ export default function ProductDetail() {
 
   const shareUrl = (() => {
     if (typeof window === 'undefined') return '';
-    const u = new URL(`${window.location.origin}/products/${product.id}`);
+    const u = new URL(`${window.location.origin}${productPath(product)}`);
     const code = (user as any)?.referralCode as string | undefined;
     if (code && siteSettings?.referralEnabled && siteSettings?.referralDiscountPercent > 0) u.searchParams.set('ref', code);
     return u.toString();
@@ -237,7 +252,10 @@ export default function ProductDetail() {
         <div className="container mx-auto px-4 py-3 text-sm text-muted-foreground flex items-center gap-1.5 flex-wrap">
           <a href="/" className="hover:text-foreground transition-colors">Home</a>
           <ChevronRight className="w-3 h-3 shrink-0" />
-          <a href="/products" className="hover:text-foreground transition-colors">
+          <a
+            href={product.categorySlug ? `/products?category=${encodeURIComponent(product.categorySlug)}` : '/products'}
+            className="hover:text-foreground transition-colors"
+          >
             {product.categoryName || 'Products'}
           </a>
           <ChevronRight className="w-3 h-3 shrink-0" />
@@ -255,15 +273,22 @@ export default function ProductDetail() {
               className="aspect-square bg-muted/40 rounded-3xl overflow-hidden ring-1 ring-border/50 relative"
               style={{ willChange: 'transform' }}
             >
-              <img
-                src={activeImage || ''}
-                alt={product.name}
-                className={cn(
-                  'w-full h-full object-cover transition-opacity duration-150',
-                  imageTransitioning ? 'opacity-0' : 'opacity-100',
-                )}
-                style={{ willChange: 'opacity' }}
-              />
+              {activeImage ? (
+                <img
+                  src={activeImage}
+                  alt={selectedVariant?.color && selectedVariant.imageUrl === activeImage ? `${product.name} — ${selectedVariant.color}` : product.name}
+                  className={cn(
+                    'w-full h-full object-cover transition-opacity duration-150',
+                    imageTransitioning ? 'opacity-0' : 'opacity-100',
+                  )}
+                  style={{ willChange: 'opacity' }}
+                />
+              ) : (
+                // No photo yet — a calm placeholder instead of a broken image.
+                <div className="w-full h-full flex items-center justify-center">
+                  <ShoppingBag className="w-16 h-16 text-muted-foreground/25" aria-hidden />
+                </div>
+              )}
               {priceInfo.onSale && (
                 <div className="absolute top-4 left-4 bg-secondary text-secondary-foreground text-[11px] font-semibold px-3 py-1 rounded-full tracking-wide">
                   –{priceInfo.discountPct}%
@@ -286,7 +311,12 @@ export default function ProductDetail() {
                     )}
                     style={{ willChange: 'transform' }}
                   >
-                    <img src={img} alt="" className="w-full h-full object-cover" />
+                    <img
+                      src={img}
+                      alt={variantByImage.get(img)?.color ? `${product.name} — ${variantByImage.get(img)?.color}` : `${product.name} — photo ${i + 1}`}
+                      loading="lazy"
+                      className="w-full h-full object-cover"
+                    />
                   </button>
                 ))}
               </div>

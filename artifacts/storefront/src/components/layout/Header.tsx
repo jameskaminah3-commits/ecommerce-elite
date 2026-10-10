@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, productPath } from '@/lib/utils';
 import { useLivePromotion } from '@/hooks/usePromotion';
 
 const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
@@ -259,7 +259,7 @@ export function Header() {
                           {searchResults.items.slice(0, 4).map((product) => (
                             <li key={product.id}>
                               <Link
-                                href={`/products/${product.id}`}
+                                href={productPath(product)}
                                 onClick={() => setSearchFocused(false)}
                                 className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group"
                               >
@@ -499,7 +499,7 @@ export function Header() {
                 {searchResults.items.map((product) => (
                   <li key={product.id}>
                     <Link
-                      href={`/products/${product.id}`}
+                      href={productPath(product)}
                       onClick={() => { setMobileSearchOpen(false); setSearchQuery(''); }}
                       className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/50 transition-colors"
                     >

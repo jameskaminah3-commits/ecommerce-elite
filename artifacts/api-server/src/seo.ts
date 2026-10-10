@@ -1,5 +1,6 @@
 import type { Request } from "express";
 import { logger } from "./lib/logger";
+import { productPath } from "./lib/slug";
 import { loadPricingPromos, effectiveDiscount } from "./lib/pricing";
 import { and, eq, sql } from "drizzle-orm";
 import { db, productsTable, productVariantsTable, categoriesTable, blogPostsTable, siteSettingsTable } from "@workspace/db";
@@ -26,6 +27,8 @@ export interface PageMeta {
   ogTitle?: string;
   description: string;
   image?: string | null;
+  /** Describes the share image (falls back to the social title). */
+  imageAlt?: string;
   type?: "website" | "product" | "article";
   canonicalPath?: string;
   /** true = hide the page and its links; "follow" = hide the page but let crawlers follow its links. */
@@ -34,9 +37,25 @@ export interface PageMeta {
   status?: number;
   jsonLd?: JsonLd | JsonLd[] | null;
   price?: { amount: number; currency: string };
+  availability?: "instock" | "oos";
 }
 
 const kes = (n: number) => `KES ${Math.round(n).toLocaleString("en-KE")}`;
+
+// Google shows roughly the first 60–65 characters of a title. Keep the product name
+// and price (what people search and click on) and drop the extras when space is short.
+export function productSeoTitle(name: string, priceText: string): string {
+  const candidates = [
+    `${name} Price in Kenya — ${priceText} | ${BRAND}`,
+    `${name} Price in Kenya — ${priceText}`,
+    `${name} — ${priceText} | ${BRAND}`,
+    `${name} — ${priceText}`,
+  ];
+  const fit = candidates.find((c) => c.length <= 65);
+  if (fit) return fit;
+  const suffix = ` — ${priceText}`;
+  return `${clip(name, Math.max(20, 65 - suffix.length))}${suffix}`;
+}
 
 const STATIC_PAGES: Record<string, { title: string; description: string }> = {
   "/about": { title: `Our story — ${BRAND}`, description: "Why we sell at wholesale prices to everyone — no minimum order, no middlemen, delivered across Kenya." },
@@ -63,7 +82,11 @@ export function esc(s: string): string {
 
 function clip(s: string | null | undefined, max: number): string {
   const t = (s ?? "").replace(/\s+/g, " ").trim();
-  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
+  if (t.length <= max) return t;
+  // Cut at a word boundary so snippets never end mid-word ("po…").
+  const cut = t.slice(0, max - 1);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,;:.\-—]+$/, "")}…`;
 }
 
 // The public origin used for absolute URLs in previews. PUBLIC_URL wins (set it
@@ -92,15 +115,19 @@ export async function metaForPath(path: string, query: Record<string, unknown>, 
   }
 
   try {
-    const productMatch = path.match(/^\/products\/(\d+)\/?$/);
+    // Product URLs are /products/<id>-<keyword-slug>; the bare /products/<id> form
+    // still works (older links) and points search engines at the slug version.
+    const productMatch = path.match(/^\/products\/(\d+)(?:-[^/]*)?\/?$/);
     if (productMatch) {
       const id = parseInt(productMatch[1], 10);
       const [p] = await db
         .select({
           id: productsTable.id,
           name: productsTable.name,
+          slug: productsTable.slug,
           description: productsTable.description,
           imageUrl: productsTable.imageUrl,
+          images: productsTable.images,
           basePrice: productsTable.basePrice,
           compareAtPrice: productsTable.compareAtPrice,
           categoryId: productsTable.categoryId,
@@ -108,6 +135,8 @@ export async function metaForPath(path: string, query: Record<string, unknown>, 
           rating: productsTable.rating,
           reviewCount: productsTable.reviewCount,
           status: productsTable.status,
+          metaTitle: productsTable.metaTitle,
+          metaDescription: productsTable.metaDescription,
           categoryName: categoriesTable.name,
           categorySlug: categoriesTable.slug,
         })
@@ -118,10 +147,16 @@ export async function metaForPath(path: string, query: Record<string, unknown>, 
         // A real 404 (not a 200 "soft 404") so Google drops dead product URLs.
         return { ...base, title: `Product not found — ${BRAND}`, noindex: "follow", status: 404, canonicalPath: undefined };
       }
-      const [{ stock }] = await db
-        .select({ stock: sql<number>`cast(coalesce(sum(${productVariantsTable.stock}), 0) as int)` })
-        .from(productVariantsTable)
-        .where(eq(productVariantsTable.productId, id));
+      // Only options a shopper can actually buy (priced) count towards price and stock.
+      const variants = (
+        await db
+          .select({ sku: productVariantsTable.sku, price: productVariantsTable.price, stock: productVariantsTable.stock })
+          .from(productVariantsTable)
+          .where(eq(productVariantsTable.productId, id))
+      )
+        .map((v) => ({ sku: v.sku, price: parseFloat(v.price), stock: v.stock }))
+        .filter((v) => v.price > 0);
+      const stock = variants.reduce((n, v) => n + Math.max(0, v.stock), 0);
 
       // Same rule the storefront uses: an active promo is measured against the
       // list price; otherwise against the admin-set typical retail price.
@@ -131,10 +166,14 @@ export async function metaForPath(path: string, query: Record<string, unknown>, 
         await loadPricingPromos(),
       );
       const promo = eff.percent;
-      const price = Math.round(list * (1 - promo / 100));
+      const sell = (n: number) => Math.round(n * (1 - promo / 100));
+      const price = sell(list);
+      const highPrice = variants.length ? sell(Math.max(...variants.map((v) => v.price))) : price;
+      const ranged = highPrice > price;
       const compareAt = p.compareAtPrice != null ? parseFloat(p.compareAtPrice) : null;
       const retail = promo > 0 ? list : compareAt != null && compareAt > list ? compareAt : null;
       const savePct = retail ? Math.round(((retail - price) / retail) * 100) : 0;
+      const priceText = `${ranged ? "from " : ""}${kes(price)}`;
 
       const rating = p.rating != null ? Number(p.rating) : 0;
       const ratingLine = p.reviewCount > 0 ? ` ★ ${rating.toFixed(1)} (${p.reviewCount} review${p.reviewCount === 1 ? "" : "s"}).` : "";
@@ -142,41 +181,63 @@ export async function metaForPath(path: string, query: Record<string, unknown>, 
         retail && savePct > 0
           // A sale compares against our own regular price; otherwise the admin's
           // "typical retail price". Say which, so the claim is accurate.
-          ? `Wholesale price ${kes(price)} (${promo > 0 ? "was" : "retail"} ${kes(retail)} — save ${savePct}%).`
-          : `Wholesale price ${kes(price)}.`;
-      const image = absolute(p.imageUrl, origin);
-      const url = `${origin}/products/${p.id}`;
+          ? `Wholesale price ${priceText} (${promo > 0 ? "was" : "retail"} ${kes(retail)} — save ${savePct}%).`
+          : `Wholesale price ${priceText}.`;
+      const gallery = [p.imageUrl, ...(p.images ?? [])]
+        .map((u) => absolute(u, origin))
+        .filter((u, i, arr): u is string => !!u && arr.indexOf(u) === i)
+        .slice(0, 8);
+      const image = gallery[0] ?? null;
+      const canonicalPath = productPath(p);
+      const url = `${origin}${canonicalPath}`;
+      const availability = stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock";
+      const seller = { "@type": "Organization", name: BRAND };
+
+      const offers: JsonLd = ranged
+        ? {
+            // Options at different prices (e.g. sizes): Google shows the price range.
+            "@type": "AggregateOffer",
+            priceCurrency: "KES",
+            lowPrice: String(price),
+            highPrice: String(highPrice),
+            offerCount: variants.length,
+            availability,
+            url,
+            seller,
+          }
+        : {
+            "@type": "Offer",
+            priceCurrency: "KES",
+            price: String(price),
+            itemCondition: "https://schema.org/NewCondition",
+            // A promotion's price is only valid until the campaign ends.
+            ...(eff.promo ? { priceValidUntil: eff.promo.endsAt.toISOString().slice(0, 10) } : {}),
+            availability,
+            url,
+            seller,
+            // Lets Google show the struck-through retail price next to ours.
+            ...(retail && savePct > 0
+              ? {
+                  priceSpecification: {
+                    "@type": "UnitPriceSpecification",
+                    priceType: "https://schema.org/ListPrice",
+                    price: String(Math.round(retail)),
+                    priceCurrency: "KES",
+                  },
+                }
+              : {}),
+          };
 
       const product: JsonLd = {
         "@context": "https://schema.org",
         "@type": "Product",
         name: p.name,
-        description: clip(p.description, 300) || undefined,
-        image: image ? [image] : undefined,
+        description: clip(p.description, 500) || undefined,
+        image: gallery.length ? gallery : undefined,
+        ...(variants.length === 1 ? { sku: variants[0].sku } : {}),
         category: p.categoryName ?? undefined,
         url,
-        offers: {
-          "@type": "Offer",
-          priceCurrency: "KES",
-          price: String(price),
-          itemCondition: "https://schema.org/NewCondition",
-          // A promotion's price is only valid until the campaign ends.
-          ...(eff.promo ? { priceValidUntil: eff.promo.endsAt.toISOString().slice(0, 10) } : {}),
-          availability: stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-          url,
-          seller: { "@type": "Organization", name: BRAND },
-          // Lets Google show the struck-through retail price next to ours.
-          ...(retail && savePct > 0
-            ? {
-                priceSpecification: {
-                  "@type": "UnitPriceSpecification",
-                  priceType: "https://schema.org/ListPrice",
-                  price: String(Math.round(retail)),
-                  priceCurrency: "KES",
-                },
-              }
-            : {}),
-        },
+        offers,
         ...(p.reviewCount > 0 && rating > 0
           ? { aggregateRating: { "@type": "AggregateRating", ratingValue: rating.toFixed(1), reviewCount: p.reviewCount } }
           : {}),
@@ -193,15 +254,24 @@ export async function metaForPath(path: string, query: Record<string, unknown>, 
         ],
       };
 
+      // Each product page gets its own description: price first (that's what makes
+      // people click), then a line of the product's own copy, then the promise.
+      const tail = " No minimum order — pay with M-Pesa, delivered across Kenya.";
+      const room = Math.max(0, 165 - priceLine.length - ratingLine.length - tail.length - 1);
+      const snippet = room >= 40 ? clip(p.description, room) : "";
+      const autoDescription = `${priceLine}${ratingLine}${snippet ? ` ${snippet}` : ""}${tail}`.replace(/\s+/g, " ").trim();
+
       return {
         // "<product> price in Kenya" is exactly how Kenyans search for things.
-        title: `${p.name} Price in Kenya — ${kes(price)} | ${BRAND}`,
-        ogTitle: `${p.name} — ${kes(price)}${savePct > 0 ? ` · Save ${savePct}%` : ""}`,
-        description: `${priceLine}${ratingLine} No minimum order — pay with M-Pesa, delivered across Kenya.`,
+        title: p.metaTitle?.trim() || productSeoTitle(p.name, priceText),
+        ogTitle: `${p.name} — ${priceText}${savePct > 0 ? ` · Save ${savePct}%` : ""}`,
+        description: p.metaDescription?.trim() || autoDescription,
         image,
+        imageAlt: p.name,
         type: "product",
-        canonicalPath: `/products/${p.id}`,
+        canonicalPath,
         price: { amount: price, currency: "KES" },
+        availability: stock > 0 ? "instock" : "oos",
         jsonLd: [product, crumbs],
       };
     }
@@ -331,7 +401,7 @@ export function renderHead(html: string, meta: PageMeta, origin: string): string
   if (meta.image) {
     tags.push(
       `<meta property="og:image" content="${esc(meta.image)}" />`,
-      `<meta property="og:image:alt" content="${esc(social)}" />`,
+      `<meta property="og:image:alt" content="${esc(meta.imageAlt ?? social)}" />`,
       `<meta name="twitter:image" content="${esc(meta.image)}" />`,
     );
   }
@@ -340,6 +410,9 @@ export function renderHead(html: string, meta: PageMeta, origin: string): string
       `<meta property="product:price:amount" content="${meta.price.amount}" />`,
       `<meta property="product:price:currency" content="${meta.price.currency}" />`,
     );
+  }
+  if (meta.availability) {
+    tags.push(`<meta property="product:availability" content="${meta.availability === "instock" ? "in stock" : "out of stock"}" />`);
   }
   if (meta.jsonLd) {
     // `<` is escaped so page text can never close the script tag.
@@ -354,7 +427,7 @@ export function renderHead(html: string, meta: PageMeta, origin: string): string
 
 // ── Sitemap + robots ─────────────────────────────────────────────────────────
 export async function buildSitemap(origin: string): Promise<string> {
-  const urls: { loc: string; lastmod?: string; priority?: string }[] = [
+  const urls: { loc: string; lastmod?: string; priority?: string; images?: string[] }[] = [
     { loc: `${origin}/`, priority: "1.0" },
     { loc: `${origin}/products`, priority: "0.9" },
     { loc: `${origin}/blog`, priority: "0.6" },
@@ -364,10 +437,24 @@ export async function buildSitemap(origin: string): Promise<string> {
   ];
   const iso = (d: unknown) => (d instanceof Date ? d.toISOString() : undefined);
   const products = await db
-    .select({ id: productsTable.id, updatedAt: productsTable.updatedAt })
+    .select({
+      id: productsTable.id,
+      slug: productsTable.slug,
+      name: productsTable.name,
+      imageUrl: productsTable.imageUrl,
+      images: productsTable.images,
+      updatedAt: productsTable.updatedAt,
+    })
     .from(productsTable)
     .where(and(eq(productsTable.status, "active"), sql`${productsTable.basePrice} > 0`));
-  for (const p of products) urls.push({ loc: `${origin}/products/${p.id}`, lastmod: iso(p.updatedAt), priority: "0.8" });
+  for (const p of products) {
+    // Product photos are listed too, so they can rank in Google Images.
+    const images = [p.imageUrl, ...(p.images ?? [])]
+      .map((u) => absolute(u, origin))
+      .filter((u, i, arr): u is string => !!u && arr.indexOf(u) === i)
+      .slice(0, 10);
+    urls.push({ loc: `${origin}${productPath(p)}`, lastmod: iso(p.updatedAt), priority: "0.8", images });
+  }
   const cats = await db.select({ slug: categoriesTable.slug }).from(categoriesTable);
   for (const c of cats) urls.push({ loc: `${origin}/products?category=${c.slug}`, priority: "0.7" });
   const posts = await db
@@ -379,10 +466,10 @@ export async function buildSitemap(origin: string): Promise<string> {
   const body = urls
     .map(
       (u) =>
-        `  <url><loc>${esc(u.loc)}</loc>${u.lastmod ? `<lastmod>${u.lastmod}</lastmod>` : ""}${u.priority ? `<priority>${u.priority}</priority>` : ""}</url>`,
+        `  <url><loc>${esc(u.loc)}</loc>${u.lastmod ? `<lastmod>${u.lastmod}</lastmod>` : ""}${u.priority ? `<priority>${u.priority}</priority>` : ""}${(u.images ?? []).map((img) => `<image:image><image:loc>${esc(img)}</image:loc></image:image>`).join("")}</url>`,
     )
     .join("\n");
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>\n`;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n${body}\n</urlset>\n`;
 }
 
 export function buildRobots(origin: string): string {

@@ -64,6 +64,7 @@ export interface Product {
   categoryId: number;
   /** @nullable */
   categoryName?: string | null;
+  categorySlug?: string | null;
   /** @nullable */
   imageUrl?: string | null;
   images?: string[];
@@ -77,6 +78,10 @@ export interface Product {
   discountPercent?: number;
   /** @nullable */
   deliveryClassId?: number | null;
+  /** Search-engine title override (blank = auto). */
+  metaTitle?: string;
+  /** Search-engine description override (blank = auto). */
+  metaDescription?: string;
   createdAt?: string;
 }
 
@@ -118,6 +123,7 @@ export interface ProductDetail {
   categoryId: number;
   /** @nullable */
   categoryName?: string | null;
+  categorySlug?: string | null;
   /** @nullable */
   imageUrl?: string | null;
   images?: string[];
@@ -130,6 +136,10 @@ export interface ProductDetail {
   discountPercent?: number;
   /** @nullable */
   deliveryClassId?: number | null;
+  /** Search-engine title override (blank = auto). */
+  metaTitle?: string;
+  /** Search-engine description override (blank = auto). */
+  metaDescription?: string;
   createdAt?: string;
   variants: ProductVariant[];
 }
@@ -171,6 +181,10 @@ export interface ProductInput {
   discountPercent?: number;
   /** @nullable */
   deliveryClassId?: number | null;
+  /** Search-engine title override (blank = auto). */
+  metaTitle?: string;
+  /** Search-engine description override (blank = auto). */
+  metaDescription?: string;
 }
 
 export type ProductPatchStatus = typeof ProductPatchStatus[keyof typeof ProductPatchStatus];
@@ -201,6 +215,10 @@ export interface ProductPatch {
   discountPercent?: number;
   /** @nullable */
   deliveryClassId?: number | null;
+  /** Search-engine title override (blank = auto). */
+  metaTitle?: string;
+  /** Search-engine description override (blank = auto). */
+  metaDescription?: string;
 }
 
 export interface ProductVariantInput {

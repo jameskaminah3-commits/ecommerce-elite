@@ -47,10 +47,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           // covers the drawer's header, so errors are the only thing we toast.
           setCartDrawerOpen(true);
         },
-        onError: () => {
+        onError: (err: any) => {
+          // Show the server's reason ("Only 3 left in stock", "out of stock") when it gave one.
           toast({
-            title: "Error",
-            description: "Failed to add item to cart.",
+            title: "Couldn't add to cart",
+            description: err?.data?.error || "Please try again.",
             variant: "destructive",
           });
         }
@@ -64,7 +65,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       {
         onSuccess: (newCart) => {
           queryClient.setQueryData(getGetCartQueryKey(), newCart);
-        }
+        },
+        onError: (err: any) => {
+          toast({
+            title: "Couldn't update quantity",
+            description: err?.data?.error || "Please try again.",
+            variant: "destructive",
+          });
+        },
       }
     );
   };

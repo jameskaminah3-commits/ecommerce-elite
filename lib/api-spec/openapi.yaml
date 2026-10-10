@@ -816,6 +816,8 @@ components:
           type: integer
         categoryName:
           type: ["string", "null"]
+        categorySlug:
+          type: ["string", "null"]
         imageUrl:
           type: ["string", "null"]
         images:
@@ -837,6 +839,12 @@ components:
           type: integer
         deliveryClassId:
           type: ["integer", "null"]
+        metaTitle:
+          type: string
+          description: Search-engine title override (blank = auto).
+        metaDescription:
+          type: string
+          description: Search-engine description override (blank = auto).
         createdAt:
           type: string
 
@@ -860,6 +868,8 @@ components:
           type: integer
         categoryName:
           type: ["string", "null"]
+        categorySlug:
+          type: ["string", "null"]
         imageUrl:
           type: ["string", "null"]
         images:
@@ -881,6 +891,12 @@ components:
           type: integer
         deliveryClassId:
           type: ["integer", "null"]
+        metaTitle:
+          type: string
+          description: Search-engine title override (blank = auto).
+        metaDescription:
+          type: string
+          description: Search-engine description override (blank = auto).
         createdAt:
           type: string
         variants:
@@ -938,6 +954,12 @@ components:
           maximum: 90
         deliveryClassId:
           type: ["integer", "null"]
+        metaTitle:
+          type: string
+          description: Search-engine title override (blank = auto).
+        metaDescription:
+          type: string
+          description: Search-engine description override (blank = auto).
 
     ProductPatch:
       type: object
@@ -971,6 +993,12 @@ components:
           maximum: 90
         deliveryClassId:
           type: ["integer", "null"]
+        metaTitle:
+          type: string
+          description: Search-engine title override (blank = auto).
+        metaDescription:
+          type: string
+          description: Search-engine description override (blank = auto).
 
     # ── VARIANT ──
     ProductVariant:
@@ -1189,7 +1217,7 @@ components:
           type: string
         paymentMethod:
           type: string
-          enum: [mpesa, pesapal, cash_on_delivery]
+          enum: [mpesa, mpesa_manual, airtel, card, paystack, pesapal, cash_on_delivery]
         deliveryLocationId:
           type: integer
 

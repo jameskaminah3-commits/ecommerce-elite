@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useGetProduct } from '@workspace/api-client-react';
 import { useCart } from '@/contexts/CartContext';
-import { formatCurrency, getPriceInfo } from '@/lib/utils';
+import { formatCurrency, getPriceInfo, productPath } from '@/lib/utils';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Star, ShoppingBag, ArrowRight, Minus, Plus } from 'lucide-react';
@@ -195,7 +195,7 @@ export function QuickViewModal({ productId, isOpen, onClose }: QuickViewModalPro
                 </div>
 
                 <Button asChild variant="ghost" className="w-full h-9 text-sm" onClick={onClose}>
-                  <Link href={`/products/${product.id}`}>
+                  <Link href={productPath(product)}>
                     View Full Details <ArrowRight className="w-3.5 h-3.5 ml-2" />
                   </Link>
                 </Button>

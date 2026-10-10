@@ -100,18 +100,33 @@ router.post("/cart/items", async (req, res): Promise<void> => {
   const sessionId = getSessionId(req);
   res.cookie("cartSession", sessionId, { httpOnly: true, sameSite: "lax", maxAge: 30 * 24 * 60 * 60 * 1000 });
 
-  // Check variant exists
-  const [variant] = await db.select().from(productVariantsTable).where(eq(productVariantsTable.id, parsed.data.variantId));
-  if (!variant) {
-    res.status(404).json({ error: "Variant not found" });
+  // The option must exist, be on sale at a real price, and be in stock.
+  const [found] = await db
+    .select({ variant: productVariantsTable, productStatus: productsTable.status })
+    .from(productVariantsTable)
+    .innerJoin(productsTable, eq(productsTable.id, productVariantsTable.productId))
+    .where(eq(productVariantsTable.id, parsed.data.variantId));
+  if (!found || found.productStatus !== "active" || parseFloat(found.variant.price) <= 0) {
+    res.status(404).json({ error: "This item isn't available right now." });
     return;
   }
+  const variant = found.variant;
 
-  // Upsert cart item
   const [existing] = await db
     .select()
     .from(cartItemsTable)
     .where(and(eq(cartItemsTable.sessionId, sessionId), eq(cartItemsTable.variantId, parsed.data.variantId)));
+  const wanted = (existing?.quantity ?? 0) + parsed.data.quantity;
+  if (wanted > variant.stock) {
+    res.status(409).json({
+      error: variant.stock <= 0
+        ? "Sorry, this item is out of stock."
+        : `Only ${variant.stock} left in stock${existing ? ` — you already have ${existing.quantity} in your cart` : ""}.`,
+    });
+    return;
+  }
+
+  // Upsert cart item
 
   if (existing) {
     await db
@@ -142,6 +157,15 @@ router.patch("/cart/items/:id", async (req, res): Promise<void> => {
     return;
   }
   const sessionId = getSessionId(req);
+  const [line] = await db
+    .select({ stock: productVariantsTable.stock })
+    .from(cartItemsTable)
+    .innerJoin(productVariantsTable, eq(productVariantsTable.id, cartItemsTable.variantId))
+    .where(and(eq(cartItemsTable.id, params.data.id), eq(cartItemsTable.sessionId, sessionId)));
+  if (line && parsed.data.quantity > line.stock) {
+    res.status(409).json({ error: line.stock <= 0 ? "Sorry, this item is out of stock." : `Only ${line.stock} left in stock.` });
+    return;
+  }
   await db
     .update(cartItemsTable)
     .set({ quantity: parsed.data.quantity })

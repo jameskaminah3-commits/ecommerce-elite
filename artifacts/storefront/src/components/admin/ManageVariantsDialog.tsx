@@ -68,7 +68,8 @@ export function ManageVariantsDialog({
             <div className="py-8 text-center text-muted-foreground text-sm">Loading variants…</div>
           ) : !variants || variants.length === 0 ? (
             <div className="py-6 text-center text-muted-foreground text-sm border border-dashed rounded-lg">
-              No variants yet. Add one below — a product needs at least one variant to be purchasable.
+              No options yet. Add one below with its price and stock — the product appears in the shop once it has a price.
+              <span className="block mt-1">No sizes or colours? Just add one option with the price and stock.</span>
             </div>
           ) : (
             <div className="space-y-3">
@@ -84,6 +85,27 @@ export function ManageVariantsDialog({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// A variant needs a real selling price: a blank box must never be saved as KES 0
+// (that hides the whole product from the shop).
+function parseVariantNumbers(price: string, stock: string): { priceNum: number; stockNum: number } | string {
+  const priceNum = Number(price);
+  const stockNum = Number(stock);
+  if (price.trim() === '' || !Number.isFinite(priceNum) || priceNum <= 0) return 'Enter a selling price above KES 0.';
+  if (stock.trim() === '' || !Number.isInteger(stockNum) || stockNum < 0) return 'Enter the stock you have (0 or more).';
+  return { priceNum, stockNum };
+}
+
+const GRID = 'grid grid-cols-2 sm:grid-cols-[1fr_80px_80px_96px_76px_auto] gap-2 items-end';
+
+function Field({ label, children, className = '' }: { label: string; children: React.ReactNode; className?: string }) {
+  return (
+    <label className={`block min-w-0 ${className}`}>
+      <span className="block sm:hidden text-[11px] font-bold uppercase text-muted-foreground mb-1">{label}</span>
+      {children}
+    </label>
   );
 }
 
@@ -108,12 +130,12 @@ function VariantRow({ variant, onChanged }: { variant: ProductVariant; onChanged
     imageUrl !== (variant.imageUrl ?? '');
 
   const save = async () => {
-    const priceNum = Number(price);
-    const stockNum = parseInt(stock, 10);
-    if (!sku.trim() || Number.isNaN(priceNum) || Number.isNaN(stockNum)) {
-      toast({ title: 'SKU, a valid price and stock are required.', variant: 'destructive' });
+    const parsed = parseVariantNumbers(price, stock);
+    if (!sku.trim() || typeof parsed === 'string') {
+      toast({ title: !sku.trim() ? 'Enter a SKU.' : parsed as string, variant: 'destructive' });
       return;
     }
+    const { priceNum, stockNum } = parsed;
     try {
       await updateMutation.mutateAsync({
         id: variant.id,
@@ -128,8 +150,8 @@ function VariantRow({ variant, onChanged }: { variant: ProductVariant; onChanged
       });
       toast({ title: 'Variant updated' });
       onChanged();
-    } catch {
-      toast({ title: 'Failed to update variant', variant: 'destructive' });
+    } catch (err: any) {
+      toast({ title: 'Failed to update variant', description: err?.data?.error, variant: 'destructive' });
     }
   };
 
@@ -146,18 +168,24 @@ function VariantRow({ variant, onChanged }: { variant: ProductVariant; onChanged
 
   const busy = updateMutation.isPending || deleteMutation.isPending;
 
+  const unpriced = !(variant.price > 0);
   return (
-    <div className="border rounded-lg p-3 space-y-3">
-      <div className="grid grid-cols-[1fr_80px_80px_90px_70px_auto] gap-2 px-0.5 text-[11px] font-bold uppercase text-muted-foreground">
-        <span>SKU</span><span>Size</span><span>Color</span><span>Price</span><span>Stock</span><span></span>
+    <div className={`border rounded-lg p-3 space-y-3 ${unpriced ? 'border-amber-300 bg-amber-50/50' : ''}`}>
+      {unpriced && (
+        <p className="text-xs font-semibold text-amber-800">
+          No selling price — customers can't see or buy this option. Enter a price and save.
+        </p>
+      )}
+      <div className="hidden sm:grid grid-cols-[1fr_80px_80px_96px_76px_auto] gap-2 px-0.5 text-[11px] font-bold uppercase text-muted-foreground">
+        <span>SKU</span><span>Size</span><span>Color</span><span>Price (KES)</span><span>Stock</span><span></span>
       </div>
-      <div className="grid grid-cols-[1fr_80px_80px_90px_70px_auto] gap-2 items-center">
-        <Input className="h-9" value={sku} onChange={(e) => setSku(e.target.value)} />
-        <Input className="h-9" value={size} onChange={(e) => setSize(e.target.value)} placeholder="—" />
-        <Input className="h-9" value={color} onChange={(e) => setColor(e.target.value)} placeholder="—" />
-        <Input className="h-9" type="number" min="0" step="1" value={price} onChange={(e) => setPrice(e.target.value)} />
-        <Input className="h-9" type="number" min="0" step="1" value={stock} onChange={(e) => setStock(e.target.value)} />
-        <div className="flex gap-1">
+      <div className={GRID}>
+        <Field label="SKU" className="col-span-2 sm:col-span-1"><Input className="h-9" value={sku} onChange={(e) => setSku(e.target.value)} /></Field>
+        <Field label="Size"><Input className="h-9" value={size} onChange={(e) => setSize(e.target.value)} placeholder="—" /></Field>
+        <Field label="Color"><Input className="h-9" value={color} onChange={(e) => setColor(e.target.value)} placeholder="—" /></Field>
+        <Field label="Price (KES)"><Input className={`h-9 ${unpriced ? 'border-amber-400' : ''}`} type="number" inputMode="numeric" min="1" step="1" value={unpriced && price === '0' ? '' : price} placeholder="Price" onChange={(e) => setPrice(e.target.value)} /></Field>
+        <Field label="Stock"><Input className="h-9" type="number" inputMode="numeric" min="0" step="1" value={stock} onChange={(e) => setStock(e.target.value)} /></Field>
+        <div className="flex gap-1 col-span-2 sm:col-span-1 justify-end">
           <Button size="icon" variant={dirty ? 'default' : 'outline'} className="h-9 w-9" onClick={save} disabled={busy || !dirty} title="Save">
             <Save className="w-4 h-4" />
           </Button>
@@ -187,12 +215,12 @@ function AddVariantForm({ productId, productName, onAdded }: { productId: number
   const [imageUrl, setImageUrl] = useState('');
 
   const add = async () => {
-    const priceNum = Number(price);
-    const stockNum = parseInt(stock, 10);
-    if (!sku.trim() || Number.isNaN(priceNum) || Number.isNaN(stockNum)) {
-      toast({ title: 'SKU, price and stock are required.', variant: 'destructive' });
+    const parsed = parseVariantNumbers(price, stock);
+    if (!sku.trim() || typeof parsed === 'string') {
+      toast({ title: !sku.trim() ? 'Enter a SKU.' : parsed as string, variant: 'destructive' });
       return;
     }
+    const { priceNum, stockNum } = parsed;
     try {
       await createMutation.mutateAsync({
         id: productId,
@@ -208,22 +236,22 @@ function AddVariantForm({ productId, productName, onAdded }: { productId: number
       toast({ title: 'Variant added' });
       setSku(suggestSku(productName)); setSize(''); setColor(''); setPrice(''); setStock(''); setImageUrl('');
       onAdded();
-    } catch (err) {
-      toast({ title: 'Failed to add variant (is the SKU unique?)', variant: 'destructive' });
+    } catch (err: any) {
+      toast({ title: 'Failed to add variant', description: err?.data?.error || 'Please check the details and try again.', variant: 'destructive' });
     }
   };
 
   return (
     <div className="border-t pt-4 mt-2 space-y-3">
       <Label className="text-xs font-bold uppercase text-muted-foreground">Add variant</Label>
-      <div className="grid grid-cols-[1fr_80px_80px_90px_70px_auto] gap-2 items-center">
-        <Input className="h-9" value={sku} onChange={(e) => setSku(e.target.value)} placeholder="SKU" />
-        <Input className="h-9" value={size} onChange={(e) => setSize(e.target.value)} placeholder="Size" />
-        <Input className="h-9" value={color} onChange={(e) => setColor(e.target.value)} placeholder="Color" />
-        <Input className="h-9" type="number" min="0" step="1" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Price" />
-        <Input className="h-9" type="number" min="0" step="1" value={stock} onChange={(e) => setStock(e.target.value)} placeholder="Stock" />
-        <Button size="icon" className="h-9 w-9" onClick={add} disabled={createMutation.isPending} title="Add">
-          <Plus className="w-4 h-4" />
+      <div className={GRID}>
+        <Field label="SKU" className="col-span-2 sm:col-span-1"><Input className="h-9" value={sku} onChange={(e) => setSku(e.target.value)} placeholder="SKU" /></Field>
+        <Field label="Size (optional)"><Input className="h-9" value={size} onChange={(e) => setSize(e.target.value)} placeholder="Size" /></Field>
+        <Field label="Color (optional)"><Input className="h-9" value={color} onChange={(e) => setColor(e.target.value)} placeholder="Color" /></Field>
+        <Field label="Price (KES) *"><Input aria-label="Price" className="h-9" type="number" inputMode="numeric" min="1" step="1" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Price" /></Field>
+        <Field label="Stock *"><Input aria-label="Stock" className="h-9" type="number" inputMode="numeric" min="0" step="1" value={stock} onChange={(e) => setStock(e.target.value)} placeholder="Stock" /></Field>
+        <Button className="h-9 col-span-2 sm:col-span-1 sm:w-9 sm:px-0" onClick={add} disabled={createMutation.isPending} title="Add variant">
+          <Plus className="w-4 h-4" /><span className="sm:hidden ml-1.5">Add variant</span>
         </Button>
       </div>
       <MediaPicker value={imageUrl} onChange={setImageUrl} label="Variant photo (optional)" />

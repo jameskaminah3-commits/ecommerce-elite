@@ -11,7 +11,7 @@ import {
   type ProductInput,
 } from '@workspace/api-client-react';
 import { formatCurrency } from '@/lib/utils';
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, Image as ImageIcon } from 'lucide-react';
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, Image as ImageIcon, AlertTriangle, CheckCircle2, Circle, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -44,6 +44,18 @@ import { ManageReviewsDialog } from '@/components/admin/ManageReviewsDialog';
 import { Boxes, Star } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchDeliveryClasses } from '@/lib/deliveryApi';
+import { productPath } from '@/lib/utils';
+import {
+  shopVisibility,
+  seoChecklist,
+  seoScore,
+  autoSeoTitle,
+  autoSeoDescription,
+  previewUrl,
+  TITLE_MAX,
+  DESC_MAX,
+  type Visibility,
+} from '@/lib/productSeo';
 
 type ProductRow = {
   id: number;
@@ -61,14 +73,51 @@ type ProductRow = {
   deliveryClassId?: number | null;
   totalStock?: number;
   tags?: string[];
+  metaTitle?: string;
+  metaDescription?: string;
 };
 
 function slugify(value: string): string {
   return value
     .toLowerCase()
     .trim()
+    .replace(/&/g, ' and ')
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+}
+
+const TONE: Record<Visibility['tone'], string> = {
+  ok: 'bg-emerald-100 text-emerald-700',
+  warn: 'bg-amber-100 text-amber-800',
+  off: 'bg-muted text-muted-foreground',
+};
+
+// "Live", "Hidden · no price", "Draft"… with a one-tap fix for the missing price.
+function VisibilityBadge({ product, onFix }: { product: ProductRow; onFix: () => void }) {
+  const v = shopVisibility(product);
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      <span title={v.hint} className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide whitespace-nowrap ${TONE[v.tone]}`}>
+        {v.label}
+      </span>
+      {!v.live && v.needsPrice && (
+        <button type="button" onClick={onFix} className="text-[11px] font-semibold text-primary hover:underline whitespace-nowrap">
+          Set price →
+        </button>
+      )}
+    </span>
+  );
+}
+
+function SeoChip({ product }: { product: ProductRow }) {
+  const { passed, total } = seoScore(product);
+  const tone = passed >= total - 1 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : passed >= total - 3 ? 'text-amber-800 bg-amber-50 border-amber-200' : 'text-destructive bg-destructive/5 border-destructive/20';
+  return (
+    <span title="SEO & listing quality — open Edit to see what's missing" className={`px-1.5 py-0.5 rounded border text-[10px] font-bold tabular-nums ${tone}`}>
+      SEO {passed}/{total}
+    </span>
+  );
 }
 
 const STATUS_OPTIONS = ['active', 'inactive', 'draft'] as const;
@@ -108,6 +157,11 @@ export default function AdminProducts() {
     }
   };
 
+  const unpriced = ((productsData?.items ?? []) as ProductRow[]).filter((p) => {
+    const v = shopVisibility(p);
+    return !v.live && v.needsPrice;
+  });
+
   const openCreate = () => {
     setEditing(null);
     setDialogOpen(true);
@@ -130,6 +184,13 @@ export default function AdminProducts() {
         <DropdownMenuItem className="cursor-pointer" onClick={() => openEdit(product)}>
           <Pencil className="w-4 h-4 mr-2" /> Edit
         </DropdownMenuItem>
+        {shopVisibility(product).live && (
+          <DropdownMenuItem asChild className="cursor-pointer">
+            <a href={productPath(product)} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="w-4 h-4 mr-2" /> View in shop
+            </a>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem className="cursor-pointer" onClick={() => setStockFor(product)}>
           <Boxes className="w-4 h-4 mr-2" /> Manage stock &amp; variants
         </DropdownMenuItem>
@@ -155,6 +216,31 @@ export default function AdminProducts() {
             <Plus className="w-4 h-4 mr-2" /> Add Product
           </Button>
         </div>
+
+        {unpriced.length > 0 && (
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+            <p className="font-semibold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              {unpriced.length === 1 ? '1 product is' : `${unpriced.length} products are`} hidden from customers — no selling price yet
+            </p>
+            <p className="text-sm mt-1">
+              A product appears in the shop once at least one of its options has a price above KES 0. Tap a product to set it.
+            </p>
+            <div className="flex flex-wrap gap-2 mt-3">
+              {unpriced.slice(0, 8).map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setStockFor(p)}
+                  className="max-w-full inline-flex items-center gap-1 rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-semibold hover:border-amber-500"
+                >
+                  <span className="truncate">{p.name}</span>
+                  <span className="shrink-0 text-primary">· Set price</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="bg-card border rounded-xl shadow-sm overflow-hidden flex flex-col">
           <div className="p-4 border-b bg-muted/10 flex items-center justify-between gap-4">
@@ -185,13 +271,14 @@ export default function AdminProducts() {
                     <p className="font-semibold leading-snug line-clamp-2">{product.name}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{product.categoryName || 'Uncategorised'}</p>
                     <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                      <span className="font-bold text-sm">{formatCurrency(product.basePrice)}</span>
+                      <span className="font-bold text-sm">{product.basePrice > 0 ? formatCurrency(product.basePrice) : 'No price'}</span>
                       <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${(product.totalStock || 0) <= 10 ? 'bg-destructive/10 text-destructive' : 'bg-secondary/10 text-secondary'}`}>
                         {product.totalStock || 0} in stock
                       </span>
-                      {product.status !== 'active' && (
-                        <span className="px-2 py-0.5 rounded-full text-[11px] font-bold uppercase bg-muted text-muted-foreground">{product.status}</span>
-                      )}
+                      <SeoChip product={product as ProductRow} />
+                    </div>
+                    <div className="mt-1.5">
+                      <VisibilityBadge product={product as ProductRow} onFix={() => setStockFor(product as ProductRow)} />
                     </div>
                   </div>
                   {rowMenu(product as ProductRow)}
@@ -225,11 +312,16 @@ export default function AdminProducts() {
                           <div className="w-10 h-10 rounded border bg-muted flex items-center justify-center overflow-hidden shrink-0">
                             {product.imageUrl ? <img src={product.imageUrl} alt="" className="w-full h-full object-cover" /> : <ImageIcon className="w-4 h-4 text-muted-foreground/30" />}
                           </div>
-                          <div className="font-medium text-foreground line-clamp-1">{product.name}</div>
+                          <div className="min-w-0">
+                            <div className="font-medium text-foreground line-clamp-1">{product.name}</div>
+                            <div className="mt-1"><SeoChip product={product as ProductRow} /></div>
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-muted-foreground">{product.categoryName || '-'}</td>
-                      <td className="px-6 py-4 font-bold">{formatCurrency(product.basePrice)}</td>
+                      <td className="px-6 py-4 font-bold whitespace-nowrap">
+                        {product.basePrice > 0 ? formatCurrency(product.basePrice) : <span className="text-amber-700">No price</span>}
+                      </td>
                       <td className="px-6 py-4">
                         <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
                           (product.totalStock || 0) <= 10 ? 'bg-destructive/10 text-destructive' : 'bg-secondary/10 text-secondary'
@@ -238,11 +330,7 @@ export default function AdminProducts() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                          product.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'
-                        }`}>
-                          {product.status}
-                        </span>
+                        <VisibilityBadge product={product as ProductRow} onFix={() => setStockFor(product as ProductRow)} />
                       </td>
                       <td className="px-6 py-4 text-right">
                         {rowMenu(product as ProductRow)}
@@ -261,9 +349,11 @@ export default function AdminProducts() {
           onOpenChange={setDialogOpen}
           product={editing}
           categories={categories ?? []}
-          onSaved={async () => {
+          onSaved={async (saved, created) => {
             await refetchProducts();
             queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
+            // A new product has no price or stock yet — go straight to adding them.
+            if (created && saved) setStockFor(saved);
           }}
         />
 
@@ -296,7 +386,7 @@ function ProductFormDialog({
   onOpenChange: (open: boolean) => void;
   product: ProductRow | null;
   categories: Array<{ id: number; name: string }>;
-  onSaved: () => void | Promise<void>;
+  onSaved: (saved: ProductRow | null, created: boolean) => void | Promise<void>;
 }) {
   const { toast } = useToast();
   const createMutation = useCreateProduct();
@@ -317,6 +407,8 @@ function ProductFormDialog({
       deliveryClassId: product?.deliveryClassId != null ? String(product.deliveryClassId) : 'none',
       tags: (product?.tags ?? []).join(', '),
       retailPrice: product?.compareAtPrice ? String(product.compareAtPrice) : '',
+      metaTitle: product?.metaTitle ?? '',
+      metaDescription: product?.metaDescription ?? '',
     }),
     [product],
   );
@@ -356,26 +448,33 @@ function ProductFormDialog({
       // Typical retail price — shown struck through so shoppers see their
       // wholesale saving. Sending 0 on edit clears a previously-set value.
       ...(Number(form.retailPrice) > 0 ? { compareAtPrice: Number(form.retailPrice) } : isEdit ? { compareAtPrice: 0 } : {}),
+      metaTitle: form.metaTitle.trim(),
+      metaDescription: form.metaDescription.trim(),
     };
 
     try {
       if (isEdit && product) {
         await updateMutation.mutateAsync({ id: product.id, data: payload });
         toast({ title: 'Product updated' });
+        await onSaved(null, false);
       } else {
-        await createMutation.mutateAsync({ data: payload });
-        toast({ title: 'Product created' });
+        const created = await createMutation.mutateAsync({ data: payload });
+        toast({ title: 'Product created', description: 'Now add its price and stock — it shows in the shop once it has a price.' });
+        await onSaved(created as ProductRow, true);
       }
-      await onSaved();
       onOpenChange(false);
-    } catch (err) {
-      toast({ title: isEdit ? 'Failed to update product' : 'Failed to create product', variant: 'destructive' });
+    } catch (err: any) {
+      toast({
+        title: isEdit ? 'Failed to update product' : 'Failed to create product',
+        description: err?.data?.error,
+        variant: 'destructive',
+      });
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden [&>*]:min-w-0">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit Product' : 'Add Product'}</DialogTitle>
         </DialogHeader>
@@ -394,7 +493,7 @@ function ProductFormDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="slug">Slug</Label>
+            <Label htmlFor="slug">URL slug</Label>
             <Input
               id="slug"
               value={form.slug}
@@ -404,6 +503,9 @@ function ProductFormDialog({
               }}
               required
             />
+            <p className="text-xs text-muted-foreground break-all">
+              Page address: <span className="font-mono">{previewUrl({ id: product?.id, name: form.name, slug: slugify(form.slug) }, window.location.origin)}</span>
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
@@ -532,6 +634,14 @@ function ProductFormDialog({
             </div>
           </div>
 
+          <SeoSection
+            form={form}
+            product={product}
+            categoryId={Number(form.categoryId) || null}
+            onTitle={(v) => set('metaTitle', v)}
+            onDescription={(v) => set('metaDescription', v)}
+          />
+
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div>
               <Label htmlFor="featured" className="font-medium">Featured</Label>
@@ -548,5 +658,88 @@ function ProductFormDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// "How this product looks on Google" + an editable title/description + a checklist.
+function SeoSection({
+  form,
+  product,
+  categoryId,
+  onTitle,
+  onDescription,
+}: {
+  form: { name: string; slug: string; description: string; imageUrl: string; images: string[]; tags: string; retailPrice: string; metaTitle: string; metaDescription: string };
+  product: ProductRow | null;
+  categoryId: number | null;
+  onTitle: (v: string) => void;
+  onDescription: (v: string) => void;
+}) {
+  const seo = {
+    id: product?.id,
+    name: form.name,
+    slug: slugify(form.slug),
+    description: form.description,
+    basePrice: product?.basePrice ?? 0,
+    compareAtPrice: Number(form.retailPrice) || null,
+    categoryId,
+    imageUrl: form.imageUrl,
+    images: form.images.filter(Boolean),
+    tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
+    totalStock: product?.totalStock ?? 0,
+  };
+  const autoTitle = autoSeoTitle(seo);
+  const autoDesc = autoSeoDescription(seo);
+  const title = form.metaTitle.trim() || autoTitle;
+  const desc = form.metaDescription.trim() || autoDesc;
+  const checks = seoChecklist(seo);
+  const passed = checks.filter((c) => c.ok).length;
+  const clipTo = (t: string, n: number) => (t.length > n ? `${t.slice(0, n - 1)}…` : t);
+
+  return (
+    <div className="rounded-lg border p-3 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <p className="font-medium text-sm">Search engine listing (SEO)</p>
+          <p className="text-xs text-muted-foreground">How this product can appear on Google. Leave the fields blank to use the automatic text.</p>
+        </div>
+        <span className="shrink-0 text-xs font-bold tabular-nums rounded-full bg-muted px-2 py-1">{passed}/{checks.length}</span>
+      </div>
+
+      {/* Google-style preview */}
+      <div className="rounded-md bg-white border p-3 text-left">
+        <p className="text-[12px] text-[#202124] truncate">{previewUrl(seo, window.location.origin)}</p>
+        <p className="text-[17px] leading-snug text-[#1a0dab] line-clamp-2">{clipTo(title, 70)}</p>
+        <p className="text-[13px] leading-snug text-[#4d5156] line-clamp-3">{clipTo(desc, 170)}</p>
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="metaTitle" className="text-xs">SEO title</Label>
+          <span className={`text-[11px] tabular-nums ${title.length > TITLE_MAX ? 'text-amber-700' : 'text-muted-foreground'}`}>{title.length}/{TITLE_MAX}</span>
+        </div>
+        <Input id="metaTitle" value={form.metaTitle} onChange={(e) => onTitle(e.target.value)} placeholder={autoTitle} maxLength={200} />
+      </div>
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="metaDescription" className="text-xs">SEO description</Label>
+          <span className={`text-[11px] tabular-nums ${desc.length > DESC_MAX + 10 ? 'text-amber-700' : 'text-muted-foreground'}`}>{desc.length}/{DESC_MAX}</span>
+        </div>
+        <Textarea id="metaDescription" value={form.metaDescription} onChange={(e) => onDescription(e.target.value)} placeholder={autoDesc} rows={3} maxLength={500} />
+        <p className="text-[11px] text-muted-foreground">Google shows about {DESC_MAX} characters. The automatic text already includes the live price and your saving.</p>
+      </div>
+
+      <ul className="space-y-1.5">
+        {checks.map((c) => (
+          <li key={c.label} className="flex items-start gap-2 text-xs">
+            {c.ok ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> : <Circle className="w-4 h-4 text-amber-500 shrink-0" />}
+            <span>
+              <span className={c.ok ? 'text-foreground' : 'font-medium text-foreground'}>{c.label}</span>
+              {!c.ok && <span className="block text-muted-foreground">{c.tip}</span>}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

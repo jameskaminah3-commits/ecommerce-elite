@@ -2,7 +2,7 @@ import React from 'react';
 import { useCart } from '@/contexts/CartContext';
 import { useListProducts } from '@workspace/api-client-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, productPath } from '@/lib/utils';
 import { Link } from 'wouter';
 import { Minus, Plus, Trash2, ShoppingBag, Truck, ChevronRight, Package, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -194,7 +194,7 @@ export function CartDrawer() {
                       }}
                     >
                       <Link
-                        href={`/products/${product.id}`}
+                        href={productPath(product)}
                         onClick={() => setCartDrawerOpen(false)}
                         className="block"
                       >

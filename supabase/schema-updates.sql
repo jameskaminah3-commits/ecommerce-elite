@@ -38,6 +38,14 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS discount_percent integer NOT NULL 
 
 ALTER TABLE products ADD COLUMN IF NOT EXISTS delivery_class_id integer;
 
+ALTER TABLE products ADD COLUMN IF NOT EXISTS meta_title text NOT NULL DEFAULT '';
+
+ALTER TABLE products ADD COLUMN IF NOT EXISTS meta_description text NOT NULL DEFAULT '';
+
+UPDATE products p SET base_price = v.min_price
+  FROM (SELECT product_id, min(price) AS min_price FROM product_variants WHERE price > 0 GROUP BY product_id) v
+ WHERE v.product_id = p.id AND p.base_price <> v.min_price;
+
 ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS image_url text;
 
 CREATE TABLE IF NOT EXISTS site_settings (

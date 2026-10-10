@@ -57,3 +57,23 @@ export function getPriceInfo(
   }
   return { price: list, original: null, discountPct: 0, onSale: false };
 }
+
+// URL-safe slug — mirrors the server's slugify so links match the canonical URL.
+export function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80)
+    .replace(/-+$/g, '');
+}
+
+// Product page URL: /products/<id>-<keyword-slug>. The id keeps it stable; the slug
+// puts the product's keywords in the address for Google and for shared links.
+export function productPath(p: { id: number; slug?: string | null; name?: string | null }): string {
+  const tail = slugify(p.slug || p.name || '');
+  return tail ? `/products/${p.id}-${tail}` : `/products/${p.id}`;
+}

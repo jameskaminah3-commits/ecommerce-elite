@@ -23,6 +23,9 @@ export const productsTable = pgTable("products", {
   discountPercent: integer("discount_percent").notNull().default(0),
   // Delivery class (null = Standard/base town rate). Drives per-town shipping cost.
   deliveryClassId: integer("delivery_class_id"),
+  // Optional search-engine overrides. Blank = generated from name, price and description.
+  metaTitle: text("meta_title").notNull().default(""),
+  metaDescription: text("meta_description").notNull().default(""),
   rating: numeric("rating", { precision: 3, scale: 2 }),
   reviewCount: integer("review_count").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
