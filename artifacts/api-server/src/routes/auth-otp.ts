@@ -118,7 +118,7 @@ router.post("/auth/otp/verify", async (req, res): Promise<void> => {
   await db.update(emailOtpCodesTable).set({ consumedAt: new Date() }).where(eq(emailOtpCodesTable.id, row.id));
 
   // Find or create the user (passwordless signup on first verified login).
-  let [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+  let [user] = await db.select().from(usersTable).where(sql`lower(${usersTable.email}) = ${String(email).trim().toLowerCase()}`);
   if (!user) {
     [user] = await db
       .insert(usersTable)

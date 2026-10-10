@@ -138,6 +138,8 @@ export interface OrderEmailData {
   paymentMethodLabel?: string | null;
   paymentPaid?: boolean;
   referralDiscount?: number;
+  discountAmount?: number;
+  discountCode?: string | null;
 }
 
 // Where and how to pay by hand — the admin's M-Pesa details.
@@ -160,7 +162,7 @@ function orderRows(items: OrderEmailItem[]): string {
 }
 
 function totalsRows(data: OrderEmailData): string {
-  return `${data.referralDiscount ? `<tr><td style="padding:8px 0;color:#0a7a45;">Referral discount</td><td style="padding:8px 0;text-align:right;color:#0a7a45;">−${currencyKES(data.referralDiscount)}</td></tr>` : ""}
+  return `${data.discountAmount ? `<tr><td style="padding:8px 0;color:#0a7a45;">Discount${data.discountCode ? ` (${esc(data.discountCode)})` : ""}</td><td style="padding:8px 0;text-align:right;color:#0a7a45;">−${currencyKES(data.discountAmount)}</td></tr>` : ""}${data.referralDiscount ? `<tr><td style="padding:8px 0;color:#0a7a45;">Referral discount</td><td style="padding:8px 0;text-align:right;color:#0a7a45;">−${currencyKES(data.referralDiscount)}</td></tr>` : ""}
        <tr><td style="padding:8px 0;color:#9a9a95;">Delivery${data.deliveryLocation ? ` (${esc(data.deliveryLocation)})` : ""}</td><td style="padding:8px 0;text-align:right;color:#9a9a95;">${currencyKES(data.deliveryFee)}</td></tr>
        <tr><td style="padding:12px 0 0;font-weight:800;">Total</td><td style="padding:12px 0 0;text-align:right;font-weight:800;">${currencyKES(data.total)}</td></tr>`;
 }
@@ -276,4 +278,52 @@ export async function sendAdminOrderEmail(
      ${ctx.adminUrl ? button(ctx.adminUrl, event === "code" ? "Verify & mark paid" : "Open in admin") : ""}`,
   );
   return sendEmail({ to: recipients, subject, html });
+}
+
+// Newsletter welcome: the personal first-order code, big and easy to copy.
+export async function sendWelcomeEmail(
+  to: string,
+  opts: { code?: string | null; percent: number; expiresAt?: Date | null; shopUrl: string; unsubscribeUrl?: string },
+): Promise<boolean> {
+  const hasCode = Boolean(opts.code && opts.percent > 0);
+  const until = opts.expiresAt
+    ? opts.expiresAt.toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Nairobi" })
+    : null;
+  const html = shell(
+    hasCode ? `Here's ${opts.percent}% off your first order` : "Welcome to the list",
+    `<p style="margin:0 0 16px;color:#555;">Thanks for joining! You'll be first to hear about deals and new arrivals — all at wholesale prices, no minimum order.</p>
+     ${hasCode ? `<div style="text-align:center;background:#f6f6f4;border:1px dashed #d6d6d2;border-radius:12px;padding:18px 12px;margin:8px 0 12px;">
+        <div style="color:#9a9a95;font-size:12px;letter-spacing:.08em;text-transform:uppercase;">Your code</div>
+        <div style="font-family:monospace;font-size:28px;font-weight:800;letter-spacing:3px;margin-top:4px;">${esc(opts.code)}</div>
+        <div style="color:#555;font-size:13px;margin-top:6px;">${opts.percent}% off your first order${until ? ` · valid until ${esc(until)}` : ""}</div>
+      </div>
+      <p style="margin:0;color:#555;font-size:14px;">Enter it at checkout in the <strong>Discount code</strong> box. One use, on your first order.</p>` : ""}
+     ${button(opts.shopUrl, "Start shopping")}
+     ${opts.unsubscribeUrl ? `<p style="margin:22px 0 0;color:#9a9a95;font-size:12px;">Don't want these emails? <a href="${esc(opts.unsubscribeUrl)}" style="color:#9a9a95;">Unsubscribe</a>.</p>` : ""}`,
+  );
+  return sendEmail({
+    to,
+    subject: hasCode ? `Your ${opts.percent}% welcome code: ${opts.code}` : `Welcome to ${BRAND}`,
+    html,
+    text: hasCode
+      ? `Thanks for joining ${BRAND}! Your code ${opts.code} gives ${opts.percent}% off your first order${until ? ` (valid until ${until})` : ""}. Shop: ${opts.shopUrl}`
+      : `Thanks for joining ${BRAND}! Shop: ${opts.shopUrl}`,
+  });
+}
+
+// New account: a warm hello and what the account is for.
+export async function sendAccountWelcomeEmail(to: string, opts: { name: string; shopUrl: string; accountUrl: string }): Promise<boolean> {
+  const first = (opts.name || "").trim().split(/\s+/)[0] || "there";
+  const html = shell(
+    `Welcome, ${first}!`,
+    `<p style="margin:0 0 14px;color:#555;">Your ${BRAND} account is ready. Everything in the shop is at wholesale prices — and you can buy just one.</p>
+     <ul style="margin:0 0 6px;padding-left:18px;color:#555;font-size:14px;line-height:1.8;">
+       <li>Track your orders and payments in one place</li>
+       <li>Faster checkout — your details are filled in</li>
+       <li>Rate products you've bought</li>
+     </ul>
+     ${button(opts.shopUrl, "Start shopping")}
+     <p style="margin:16px 0 0;font-size:13px;color:#9a9a95;">Your account: <a href="${esc(opts.accountUrl)}" style="color:#9a9a95;">${esc(opts.accountUrl)}</a></p>`,
+  );
+  return sendEmail({ to, subject: `Welcome to ${BRAND}`, html, text: `Welcome, ${first}! Your ${BRAND} account is ready. Shop: ${opts.shopUrl}` });
 }

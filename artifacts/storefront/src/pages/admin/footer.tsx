@@ -41,6 +41,9 @@ interface SiteSettings {
   onlinePaymentsAvailable?: boolean;
   manualMpesaAvailable?: boolean;
   orderNotifyEmails: string;
+  welcomeDiscountPercent: number;
+  welcomeCodeDays: number;
+  emailConfigured?: boolean;
   referralEnabled: boolean;
   referralDiscountPercent: number;
 }
@@ -336,6 +339,11 @@ export default function AdminFooter() {
                 Enabled, but the payment gateway isn't connected on the server yet, so customers won't see these options.
               </p>
             )}
+            <p className={`text-xs rounded-md px-3 py-2 ${form.emailConfigured ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-amber-50 text-amber-900 border border-amber-200'}`}>
+              {form.emailConfigured
+                ? 'Email sending is connected (Resend). Order, payment and welcome emails go out automatically.'
+                : 'Email sending isn’t connected yet — add RESEND_API_KEY and RESEND_FROM in Railway → Variables, then redeploy.'}
+            </p>
             <div className="space-y-2">
               <Label>Order notification emails</Label>
               <Input
@@ -373,6 +381,42 @@ export default function AdminFooter() {
               <p className="text-muted-foreground">Your sitemap (submit this in Search Console › Sitemaps):</p>
               <p className="font-mono break-all text-foreground mt-0.5">{typeof window !== 'undefined' ? `${window.location.origin}/sitemap.xml` : '/sitemap.xml'}</p>
             </div>
+          </div>
+
+          {/* Newsletter welcome offer */}
+          <div className="bg-card border rounded-xl p-5 shadow-sm space-y-4">
+            <div>
+              <h3 className="font-bold">Newsletter welcome offer</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Everyone who joins the list on the homepage gets a personal, single-use code for their first order — shown on
+                screen and emailed. See who joined in <strong>Subscribers</strong>.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Discount (%)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="50"
+                  inputMode="numeric"
+                  value={String(form.welcomeDiscountPercent ?? 10)}
+                  onChange={(e) => set('welcomeDiscountPercent', Math.min(50, Math.max(0, Number(e.target.value) || 0)))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Code valid for (days)</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="365"
+                  inputMode="numeric"
+                  value={String(form.welcomeCodeDays ?? 30)}
+                  onChange={(e) => set('welcomeCodeDays', Math.min(365, Math.max(1, Number(e.target.value) || 30)))}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">Set 0% to turn the offer off — the homepage then simply invites people to join for deals.</p>
           </div>
 
           {/* Referral promotion */}

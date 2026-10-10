@@ -1,11 +1,17 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import { RegisterUserBody, LoginUserBody } from "@workspace/api-zod";
 import crypto from "crypto";
 import { getUserId } from "../middlewares/requireAdmin";
 import { sessionCookieOptions } from "../lib/session";
 import { ensureReferralCodeFor, findReferrerByCode } from "../lib/referral";
+import { sendAccountWelcomeEmail } from "../lib/email";
+import { publicOrigin } from "../seo";
+import { logger } from "../lib/logger";
+
+// Emails are matched case-insensitively: Jane@Gmail.com and jane@gmail.com are one account.
+const byEmail = (email: string) => sql`lower(${usersTable.email}) = ${email.trim().toLowerCase()}`;
 
 const router: IRouter = Router();
 
@@ -65,16 +71,16 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const existing = await db.select().from(usersTable).where(eq(usersTable.email, parsed.data.email));
+  const existing = await db.select().from(usersTable).where(byEmail(parsed.data.email));
   if (existing.length > 0) {
-    res.status(400).json({ error: "Email already registered" });
+    res.status(400).json({ error: "An account with this email already exists. Please sign in instead." });
     return;
   }
   const [user] = await db
     .insert(usersTable)
     .values({
-      name: parsed.data.name,
-      email: parsed.data.email,
+      name: parsed.data.name.trim(),
+      email: parsed.data.email.trim().toLowerCase(),
       phone: parsed.data.phone,
       passwordHash: hashPassword(parsed.data.password),
       role: "customer",
@@ -93,6 +99,12 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   // Give the new customer their own code to share.
   const referralCode = await ensureReferralCodeFor(user);
 
+  // Welcome email (fire-and-forget — never blocks signing up).
+  const origin = publicOrigin(req);
+  void sendAccountWelcomeEmail(user.email, { name: user.name, shopUrl: `${origin}/products`, accountUrl: `${origin}/account` }).catch((err) =>
+    logger.error({ err }, "Account welcome email failed"),
+  );
+
   // Log the newly registered user in, mirroring the login flow.
   res.cookie("userId", String(user.id), sessionCookieOptions());
   res.status(201).json({ user: userToPublic({ ...user, referralCode }) });
@@ -104,9 +116,9 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, parsed.data.email));
+  const [user] = await db.select().from(usersTable).where(byEmail(parsed.data.email));
   if (!user || !verifyPassword(parsed.data.password, user.passwordHash)) {
-    res.status(401).json({ error: "Invalid credentials" });
+    res.status(401).json({ error: "That email and password don't match. Please try again." });
     return;
   }
   // Transparently upgrade legacy SHA-256 hashes to scrypt on successful login.

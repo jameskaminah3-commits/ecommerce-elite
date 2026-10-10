@@ -6,6 +6,8 @@ import { getPaymentOptions, ONLINE_METHODS } from "../lib/paymentOptions";
 import { notifyOrderPlaced, notifyPaymentCode } from "../lib/orderNotifications";
 import { publicOrigin } from "../seo";
 import { findReferrerByCode } from "../lib/referral";
+import { lookupCode, hasPreviousOrder, claimCode, releaseCodeForOrder, normalizeCode } from "../lib/welcomeCodes";
+import { releaseReservationsForOrder } from "../lib/inventory";
 import { loadPricingPromos, effectiveDiscount, discountedPrice } from "../lib/pricing";
 import { markOrderPaid } from "./payments";
 import {
@@ -44,6 +46,8 @@ function grantOrderAccess(req: Request, res: import("express").Response, orderId
   res.cookie("orderAccess", trimmed.join(","), sessionCookieOptions());
 }
 
+class CodeAlreadyUsedError extends Error {}
+
 function formatOrder(order: any, items: any[]) {
   return {
     id: order.id,
@@ -58,6 +62,8 @@ function formatOrder(order: any, items: any[]) {
     deliveryLocation: order.deliveryLocation ?? null,
     deliveryFee: order.deliveryFee != null ? parseFloat(order.deliveryFee) : 0,
     referralDiscount: order.referralDiscount != null ? parseFloat(order.referralDiscount) : 0,
+    discountCode: order.discountCode ?? null,
+    discountAmount: order.discountAmount != null ? parseFloat(order.discountAmount) : 0,
     paymentReference: order.paymentReference ?? null,
     createdAt: order.createdAt instanceof Date ? order.createdAt.toISOString() : order.createdAt,
     updatedAt: order.updatedAt instanceof Date ? order.updatedAt.toISOString() : order.updatedAt,
@@ -277,7 +283,32 @@ router.post("/orders", async (req, res): Promise<void> => {
     }
   }
 
-  const total = Math.max(0, Math.round((itemsTotal + deliveryFee - referralDiscount) * 100) / 100);
+  // Welcome / discount code from the newsletter: a percentage off the items, first
+  // order only, single use. It doesn't stack with a referral — the bigger one wins.
+  let discountAmount = 0;
+  let discountCode: string | null = null;
+  const enteredCode = normalizeCode(req.body?.discountCode);
+  if (enteredCode) {
+    const check = await lookupCode(enteredCode);
+    if (!check.ok) {
+      res.status(400).json({ error: check.error });
+      return;
+    }
+    if (await hasPreviousOrder({ userId, email: parsed.data.customerEmail, phone: parsed.data.customerPhone })) {
+      res.status(400).json({ error: "Welcome codes are for your first order only. Please remove the code to continue." });
+      return;
+    }
+    const amount = Math.round(itemsTotal * (check.percent / 100) * 100) / 100;
+    if (amount >= referralDiscount) {
+      discountAmount = amount;
+      discountCode = check.code;
+      referralDiscount = 0;
+      referralCodeUsed = null;
+      referrerId = null;
+    }
+  }
+
+  const total = Math.max(0, Math.round((itemsTotal + deliveryFee - referralDiscount - discountAmount) * 100) / 100);
 
   // Create the order, its line items, and stock holds atomically. Reserving
   // inside the same transaction means a concurrent checkout for the last unit
@@ -302,9 +333,16 @@ router.post("/orders", async (req, res): Promise<void> => {
           deliveryFee: String(deliveryFee),
           referralDiscount: String(referralDiscount),
           referralCodeUsed,
+          discountCode,
+          discountAmount: String(discountAmount),
           userId,
         })
         .returning();
+
+      // Claim the code in the same transaction, so two checkouts can't both use it.
+      if (discountCode && !(await claimCode(tx, discountCode, ord.id))) {
+        throw new CodeAlreadyUsedError();
+      }
 
       const its = await tx
         .insert(orderItemsTable)
@@ -338,6 +376,10 @@ router.post("/orders", async (req, res): Promise<void> => {
   } catch (err) {
     if (err instanceof InsufficientStockError) {
       res.status(409).json({ error: err.message });
+      return;
+    }
+    if (err instanceof CodeAlreadyUsedError) {
+      res.status(409).json({ error: "This code has just been used. Please remove it to continue." });
       return;
     }
     throw err;
@@ -510,6 +552,12 @@ router.patch("/orders/:id/status", requireAdmin, async (req, res): Promise<void>
   if (!order) {
     res.status(404).json({ error: "Order not found" });
     return;
+  }
+  // Cancelling frees what the order was holding: reserved stock (if it was never
+  // paid) and its welcome code, so the customer can use it on a new order.
+  if (parsed.data.status === "cancelled") {
+    if (order.paymentStatus !== "paid") await releaseReservationsForOrder(order.id).catch(() => {});
+    await releaseCodeForOrder(order.id).catch(() => {});
   }
   const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, order.id));
   res.json(formatOrder(order, items));

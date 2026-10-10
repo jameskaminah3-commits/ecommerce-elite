@@ -5,6 +5,7 @@ import { requireAdmin, isAdminRequest } from "../middlewares/requireAdmin";
 import { paymentOptionsFrom } from "../lib/paymentOptions";
 import { parseEmailList } from "../lib/orderNotifications";
 import { manualPaymentHoldMs } from "../lib/inventory";
+import { isEmailConfigured } from "../lib/email";
 
 const router: IRouter = Router();
 
@@ -44,6 +45,8 @@ const DEFAULTS = {
   mpesaInstructions: "",
   onlinePaymentsEnabled: true,
   orderNotifyEmails: "",
+  welcomeDiscountPercent: 10,
+  welcomeCodeDays: 30,
   referralEnabled: false,
   referralDiscountPercent: 0,
 };
@@ -67,7 +70,7 @@ function view(row: Awaited<ReturnType<typeof getOrCreate>>, isAdmin: boolean) {
   const options = paymentOptionsFrom(row);
   const { orderNotifyEmails, ...publicRow } = row;
   return {
-    ...(isAdmin ? { ...publicRow, orderNotifyEmails } : publicRow),
+    ...(isAdmin ? { ...publicRow, orderNotifyEmails, emailConfigured: isEmailConfigured() } : publicRow),
     onlinePaymentsAvailable: options.onlineAvailable,
     manualMpesaAvailable: options.manualMpesaAvailable,
     manualPaymentMode: options.manualPaymentMode,
@@ -120,6 +123,12 @@ router.put("/site-settings", requireAdmin, async (req, res): Promise<void> => {
   if (has("onlinePaymentsEnabled")) patch.onlinePaymentsEnabled = Boolean(b["onlinePaymentsEnabled"]);
   // Keep only well-formed addresses, normalised to a clean comma-separated list.
   if (has("orderNotifyEmails")) patch.orderNotifyEmails = parseEmailList(str(b["orderNotifyEmails"])).slice(0, 10).join(", ");
+  if (has("welcomeDiscountPercent")) {
+    patch.welcomeDiscountPercent = Math.min(Math.max(parseInt(String(b["welcomeDiscountPercent"]), 10) || 0, 0), 50);
+  }
+  if (has("welcomeCodeDays")) {
+    patch.welcomeCodeDays = Math.min(Math.max(parseInt(String(b["welcomeCodeDays"]), 10) || 30, 1), 365);
+  }
   if (has("referralEnabled")) patch.referralEnabled = Boolean(b["referralEnabled"]);
   if (has("referralDiscountPercent")) {
     patch.referralDiscountPercent = Math.min(Math.max(parseInt(String(b["referralDiscountPercent"]), 10) || 0, 0), 90);

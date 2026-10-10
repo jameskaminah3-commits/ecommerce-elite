@@ -14,7 +14,8 @@ import {
   PanelBottom,
   Megaphone,
   LogOut,
-  ChevronLeft
+  ChevronLeft,
+  Mail,
 } from 'lucide-react';
 import { classNames } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -30,7 +31,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const navigation = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
     { name: 'Homepage', href: '/admin/homepage', icon: LayoutGrid },
-    { name: 'Footer', href: '/admin/footer', icon: PanelBottom },
+    { name: 'Footer & payments', href: '/admin/footer', icon: PanelBottom },
     { name: 'Journal', href: '/admin/blog', icon: Newspaper },
     { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
     { name: 'Products', href: '/admin/products', icon: Package },
@@ -38,6 +39,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { name: 'Promotions', href: '/admin/promotions', icon: Megaphone },
     { name: 'Offers', href: '/admin/offers', icon: Tag },
     { name: 'Delivery', href: '/admin/delivery', icon: Truck },
+    { name: 'Subscribers', href: '/admin/subscribers', icon: Mail },
     { name: 'Inventory Alerts', href: '/admin/inventory', icon: AlertTriangle },
   ];
 

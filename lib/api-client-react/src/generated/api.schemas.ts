@@ -364,6 +364,8 @@ export interface OrderInput {
   shippingAddress?: string;
   paymentMethod: OrderInputPaymentMethod;
   deliveryLocationId?: number;
+  /** Newsletter welcome / discount code. */
+  discountCode?: string;
 }
 
 export type OrderStatusPatchStatus = typeof OrderStatusPatchStatus[keyof typeof OrderStatusPatchStatus];

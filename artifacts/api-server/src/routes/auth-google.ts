@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import crypto from "crypto";
 import { db, usersTable } from "@workspace/db";
 import { isGoogleConfigured, buildAuthUrl, exchangeCodeForProfile } from "../lib/google";
@@ -69,7 +69,7 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     // Match by Google id first, then by existing email (linking the account).
     let [user] = await db.select().from(usersTable).where(eq(usersTable.googleId, profile.sub));
     if (!user) {
-      [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+      [user] = await db.select().from(usersTable).where(sql`lower(${usersTable.email}) = ${String(email).trim().toLowerCase()}`);
       if (user) {
         // Link this Google identity to the existing email account.
         await db

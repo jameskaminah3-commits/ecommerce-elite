@@ -54,6 +54,8 @@ type Row = {
   paymentStatus: string;
   paymentReference?: string | null;
   referralDiscount?: number;
+  discountCode?: string | null;
+  discountAmount?: number;
   createdAt: string;
 };
 
@@ -186,6 +188,11 @@ export default function AdminOrders() {
       {order.paymentReference && (
         <div className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
           <Smartphone className="w-3 h-3" /> Code: <span className="font-mono font-semibold text-foreground">{order.paymentReference}</span>
+        </div>
+      )}
+      {order.discountCode && (
+        <div className="text-[11px] text-emerald-700 mt-1">
+          Discount {order.discountCode}{order.discountAmount ? ` · −KES ${Math.round(order.discountAmount).toLocaleString('en-KE')}` : ''}
         </div>
       )}
     </div>

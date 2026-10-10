@@ -86,11 +86,43 @@ ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS mpesa_pochi_phone text NOT NU
 
 ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS whatsapp_number text NOT NULL DEFAULT '';
 
+ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS welcome_discount_percent integer NOT NULL DEFAULT 10;
+
+ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS welcome_code_days integer NOT NULL DEFAULT 30;
+
 ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS google_site_verification text NOT NULL DEFAULT '';
 
 ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS online_payments_enabled boolean NOT NULL DEFAULT true;
 
 ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS order_notify_emails text NOT NULL DEFAULT '';
+
+CREATE TABLE IF NOT EXISTS newsletter_signups (
+  id serial PRIMARY KEY,
+  email text NOT NULL UNIQUE,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE newsletter_signups ADD COLUMN IF NOT EXISTS code text;
+
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'newsletter_signups_code_unique') THEN ALTER TABLE newsletter_signups ADD CONSTRAINT newsletter_signups_code_unique UNIQUE (code); END IF; END $$;
+
+ALTER TABLE newsletter_signups ADD COLUMN IF NOT EXISTS discount_percent integer NOT NULL DEFAULT 0;
+
+ALTER TABLE newsletter_signups ADD COLUMN IF NOT EXISTS expires_at timestamptz;
+
+ALTER TABLE newsletter_signups ADD COLUMN IF NOT EXISTS used_at timestamptz;
+
+ALTER TABLE newsletter_signups ADD COLUMN IF NOT EXISTS used_order_id integer;
+
+ALTER TABLE newsletter_signups ADD COLUMN IF NOT EXISTS unsubscribe_token text;
+
+ALTER TABLE newsletter_signups ADD COLUMN IF NOT EXISTS unsubscribed_at timestamptz;
+
+ALTER TABLE newsletter_signups ADD COLUMN IF NOT EXISTS last_emailed_at timestamptz;
+
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_code text;
+
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_amount numeric(12,2) NOT NULL DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS promotions (
   id serial PRIMARY KEY,

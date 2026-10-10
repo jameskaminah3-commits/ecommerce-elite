@@ -58,6 +58,8 @@ async function buildData(order: OrderRow): Promise<OrderEmailData> {
     deliveryFee: parseFloat(order.deliveryFee ?? "0"),
     deliveryLocation: order.deliveryLocation,
     referralDiscount: parseFloat(order.referralDiscount ?? "0") || 0,
+    discountAmount: parseFloat((order as any).discountAmount ?? "0") || 0,
+    discountCode: (order as any).discountCode ?? null,
     paymentMethodLabel: METHOD_LABELS[order.paymentMethod ?? ""] ?? order.paymentMethod ?? null,
     paymentPaid: order.paymentStatus === "paid",
     items: items.map((i) => ({ productName: i.productName, quantity: i.quantity, subtotal: parseFloat(i.subtotal) })),

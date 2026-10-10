@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { ShoppingBag, CreditCard, Smartphone, AlertCircle, Gift, ShieldCheck, Clock3, PhoneCall } from 'lucide-react';
+import { ShoppingBag, CreditCard, Smartphone, AlertCircle, Gift, ShieldCheck, Clock3, PhoneCall, Tag } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ManualMpesaPanel, hasMpesaDetails, paymentWays, MpesaMark } from '@/components/checkout/ManualMpesaPanel';
 
@@ -109,6 +109,43 @@ export default function CheckoutPage() {
 
   // Validate a referral code captured from a share link, to show the discount.
   const [referral, setReferral] = useState<{ discountPercent: number; referrerName?: string } | null>(null);
+
+  // Discount / welcome code. A code saved when the shopper joined the newsletter on
+  // this device is applied automatically; the server re-checks it with the order.
+  const [codeInput, setCodeInput] = useState('');
+  const [appliedCode, setAppliedCode] = useState<{ code: string; percent: number } | null>(null);
+  const [codeError, setCodeError] = useState('');
+  const [codeBusy, setCodeBusy] = useState(false);
+  const [codeOpen, setCodeOpen] = useState(false);
+  const applyCode = React.useCallback(async (raw: string, silent = false) => {
+    const code = raw.trim().toUpperCase();
+    if (!code) return;
+    setCodeBusy(true);
+    setCodeError('');
+    try {
+      const qs = new URLSearchParams({ code });
+      const r = await fetch(`${API_BASE}/api/discount-codes/validate?${qs}`, { credentials: 'include' });
+      const d = await r.json();
+      if (d?.valid) {
+        setAppliedCode({ code: d.code, percent: d.percent });
+        setCodeInput('');
+        setCodeOpen(false);
+      } else if (!silent) {
+        setCodeError(d?.error || 'That code isn’t valid.');
+      } else {
+        try { localStorage.removeItem('welcomeCode'); } catch { /* ignore */ }
+      }
+    } catch {
+      if (!silent) setCodeError('Could not check the code. Please try again.');
+    } finally {
+      setCodeBusy(false);
+    }
+  }, []);
+  React.useEffect(() => {
+    let saved = '';
+    try { saved = localStorage.getItem('welcomeCode') || ''; } catch { /* ignore */ }
+    if (saved) applyCode(saved, true);
+  }, [applyCode]);
   React.useEffect(() => {
     const code = getCookie('ref') || localStorage.getItem('referralCode') || '';
     if (!code) return;
@@ -250,9 +287,13 @@ export default function CheckoutPage() {
           shippingAddress: formData.shippingAddress,
           paymentMethod,
           deliveryLocationId: selectedLocation.id,
+          ...(appliedCode ? { discountCode: appliedCode.code } : {}),
         },
       });
       setPendingOrderId(order.id);
+      if (appliedCode) {
+        try { localStorage.removeItem('welcomeCode'); } catch { /* ignore */ }
+      }
 
       if (paymentMethod === 'mpesa_manual') {
         // Nothing to charge — the order page walks them through paying and entering the code.
@@ -274,6 +315,13 @@ export default function CheckoutPage() {
     } catch (err: any) {
       // Surface the server's reason (e.g. a method that just became unavailable) when it sent one.
       const reason = err?.data?.error;
+      // A code refused at the last moment (first-order rule, already used): drop it so they can continue.
+      if (appliedCode && reason && /code/i.test(reason)) {
+        setAppliedCode(null);
+        setCodeError(reason);
+        setCodeOpen(true);
+        try { localStorage.removeItem('welcomeCode'); } catch { /* ignore */ }
+      }
       toast({ title: 'Order failed', description: reason || 'There was a problem creating your order.', variant: 'destructive' });
       setBusy(false);
     }
@@ -299,8 +347,13 @@ export default function CheckoutPage() {
   }
 
   const deliveryFee = selectedLocation?.cost ?? 0;
-  const referralDiscount = referral ? Math.round(cart.total * (referral.discountPercent / 100) * 100) / 100 : 0;
-  const finalTotal = Math.max(0, cart.total + deliveryFee - referralDiscount);
+  const referralAmount = referral ? Math.round(cart.total * (referral.discountPercent / 100) * 100) / 100 : 0;
+  const codeAmount = appliedCode ? Math.round(cart.total * (appliedCode.percent / 100) * 100) / 100 : 0;
+  // Same rule as the server: a code and a referral don't stack — the bigger one applies.
+  const codeWins = codeAmount > 0 && codeAmount >= referralAmount;
+  const referralDiscount = codeWins ? 0 : referralAmount;
+  const discountAmount = codeWins ? codeAmount : 0;
+  const finalTotal = Math.max(0, cart.total + deliveryFee - referralDiscount - discountAmount);
 
   const payNow = (settings?.manualPaymentMode ?? 'pay_now') === 'pay_now' && hasMpesaDetails(settings);
   const ways = paymentWays(settings);
@@ -503,6 +556,43 @@ export default function CheckoutPage() {
                 ))}
               </div>
 
+              {/* Discount code */}
+              <div className="pt-4 border-t mb-4" data-testid="discount-code">
+                {appliedCode ? (
+                  <div className="flex items-center justify-between gap-3 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2.5 text-sm">
+                    <span className="flex items-center gap-2 text-emerald-800 min-w-0">
+                      <Tag className="w-4 h-4 shrink-0" />
+                      <span className="truncate"><strong className="font-mono">{appliedCode.code}</strong> applied — {appliedCode.percent}% off</span>
+                    </span>
+                    <button type="button" className="text-xs font-semibold text-muted-foreground hover:text-foreground shrink-0" onClick={() => { setAppliedCode(null); try { localStorage.removeItem('welcomeCode'); } catch { /* ignore */ } }}>
+                      Remove
+                    </button>
+                  </div>
+                ) : codeOpen ? (
+                  <div className="space-y-1.5">
+                    <div className="flex gap-2">
+                      <Input
+                        value={codeInput}
+                        onChange={(e) => { setCodeInput(e.target.value.toUpperCase()); setCodeError(''); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyCode(codeInput); } }}
+                        placeholder="Discount code"
+                        aria-label="Discount code"
+                        autoCapitalize="characters"
+                        className="h-11 bg-background font-mono tracking-wide"
+                      />
+                      <Button type="button" variant="outline" className="h-11 shrink-0" disabled={codeBusy || !codeInput.trim()} onClick={() => applyCode(codeInput)}>
+                        {codeBusy ? 'Checking…' : 'Apply'}
+                      </Button>
+                    </div>
+                    {codeError && <p role="alert" className="text-xs text-destructive">{codeError}</p>}
+                  </div>
+                ) : (
+                  <button type="button" className="text-sm font-semibold text-primary hover:underline inline-flex items-center gap-1.5" onClick={() => setCodeOpen(true)}>
+                    <Tag className="w-4 h-4" /> Have a discount code?
+                  </button>
+                )}
+              </div>
+
               <div className="space-y-3 pt-4 border-t text-sm">
                 <div className="flex justify-between text-muted-foreground">
                   <span>Subtotal</span>
@@ -512,6 +602,12 @@ export default function CheckoutPage() {
                   <span>Delivery{selectedLocation ? ` (${selectedLocation.name})` : ''}</span>
                   <span>{selectedLocation ? formatCurrency(deliveryFee) : '—'}</span>
                 </div>
+                {discountAmount > 0 && appliedCode && (
+                  <div className="flex justify-between text-emerald-600 font-medium">
+                    <span className="flex items-center gap-1"><Tag className="w-3.5 h-3.5" /> {appliedCode.code} ({appliedCode.percent}% off)</span>
+                    <span>−{formatCurrency(discountAmount)}</span>
+                  </div>
+                )}
                 {referralDiscount > 0 && (
                   <div className="flex justify-between text-emerald-600 font-medium">
                     <span className="flex items-center gap-1"><Gift className="w-3.5 h-3.5" /> Referral ({referral?.discountPercent}% off)</span>

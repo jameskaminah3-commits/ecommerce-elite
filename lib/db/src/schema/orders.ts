@@ -19,6 +19,9 @@ export const ordersTable = pgTable("orders", {
   referralDiscount: numeric("referral_discount", { precision: 12, scale: 2 }).notNull().default("0"),
   // Referral code used at checkout (for attribution/reporting).
   referralCodeUsed: text("referral_code_used"),
+  // A welcome / promo code entered at checkout, and how much it took off.
+  discountCode: text("discount_code"),
+  discountAmount: numeric("discount_amount", { precision: 12, scale: 2 }).notNull().default("0"),
   mpesaCheckoutRequestId: text("mpesa_checkout_request_id"),
   paystackReference: text("paystack_reference"),
   // The M-Pesa confirmation code a customer pastes when they pay manually to the

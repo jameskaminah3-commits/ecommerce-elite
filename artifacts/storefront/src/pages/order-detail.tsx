@@ -262,12 +262,18 @@ export default function OrderPage() {
               <div className="w-64 space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Items Subtotal</span>
-                  <span className="font-medium">{formatCurrency(order.total - (order.deliveryFee ?? 0) + ((order as any).referralDiscount ?? 0))}</span>
+                  <span className="font-medium">{formatCurrency(order.total - (order.deliveryFee ?? 0) + ((order as any).referralDiscount ?? 0) + ((order as any).discountAmount ?? 0))}</span>
                 </div>
                 <div className="flex justify-between pb-3 border-b">
                   <span className="text-muted-foreground">Delivery{order.deliveryLocation ? ` (${order.deliveryLocation})` : ''}</span>
                   <span className="font-medium">{formatCurrency(order.deliveryFee ?? 0)}</span>
                 </div>
+                {((order as any).discountAmount ?? 0) > 0 && (
+                  <div className="flex justify-between pb-3 border-b text-emerald-600">
+                    <span>Discount{(order as any).discountCode ? ` (${(order as any).discountCode})` : ''}</span>
+                    <span className="font-medium">−{formatCurrency((order as any).discountAmount)}</span>
+                  </div>
+                )}
                 {((order as any).referralDiscount ?? 0) > 0 && (
                   <div className="flex justify-between pb-3 border-b text-emerald-600">
                     <span>Referral discount</span>

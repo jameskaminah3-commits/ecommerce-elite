@@ -37,6 +37,7 @@ const AdminProducts = lazy(() => import('@/pages/admin/products'));
 const AdminOrders = lazy(() => import('@/pages/admin/orders'));
 const AdminCategories = lazy(() => import('@/pages/admin/categories'));
 const AdminInventory = lazy(() => import('@/pages/admin/inventory'));
+const AdminSubscribers = lazy(() => import('@/pages/admin/subscribers'));
 const AdminOffers = lazy(() => import('@/pages/admin/offers'));
 const AdminDelivery = lazy(() => import('@/pages/admin/delivery'));
 const AdminHomepage = lazy(() => import('@/pages/admin/homepage'));
@@ -95,6 +96,7 @@ function Router() {
       <Route path="/admin/footer" component={AdminFooter} />
       <Route path="/admin/promotions" component={AdminPromotions} />
       <Route path="/admin/inventory" component={AdminInventory} />
+      <Route path="/admin/subscribers" component={AdminSubscribers} />
       
       <Route component={NotFound} />
     </Switch>

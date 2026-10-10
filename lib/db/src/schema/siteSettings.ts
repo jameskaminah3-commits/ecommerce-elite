@@ -47,6 +47,10 @@ export const siteSettingsTable = pgTable("site_settings", {
   orderNotifyEmails: text("order_notify_emails").notNull().default(""),
   // Referral promotion: a friend who checks out with a referral code gets this
   // percentage off their first order. Disabled by default.
+  // Newsletter welcome offer: each new subscriber gets a single-use code worth this
+  // percentage off their first order, valid for this many days. 0% = no offer.
+  welcomeDiscountPercent: integer("welcome_discount_percent").notNull().default(10),
+  welcomeCodeDays: integer("welcome_code_days").notNull().default(30),
   referralEnabled: boolean("referral_enabled").notNull().default(false),
   referralDiscountPercent: integer("referral_discount_percent").notNull().default(0),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
