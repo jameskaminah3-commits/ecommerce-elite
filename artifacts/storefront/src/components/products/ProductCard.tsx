@@ -51,12 +51,25 @@ export function ProductCard({ product, className }: ProductCardProps) {
             ) : null}
           </div>
 
-          {/* Actions — always reachable on touch, hover-revealed on desktop */}
+          {/* Phones: one compact round quick-add button (no hover on touch, and a
+              wide pill would cover the product photo in a two-column grid). */}
           {!soldOut && (
-            <div className="absolute inset-x-0 bottom-0 p-3 flex gap-2 opacity-100 translate-y-0 transition-all duration-300 md:opacity-0 md:translate-y-3 md:group-hover:opacity-100 md:group-hover:translate-y-0">
+            <button
+              type="button"
+              onClick={() => setQuickViewOpen(true)}
+              aria-label={`Quick add ${product.name}`}
+              className="md:hidden absolute right-2 bottom-2 z-10 w-10 h-10 rounded-full bg-background/95 backdrop-blur-sm text-foreground border border-border/60 shadow-md flex items-center justify-center active:scale-95 transition-transform"
+            >
+              <ShoppingBag className="w-[18px] h-[18px]" />
+            </button>
+          )}
+
+          {/* Desktop: pills revealed on hover */}
+          {!soldOut && (
+            <div className="hidden md:flex absolute inset-x-0 bottom-0 p-3 gap-2 opacity-0 translate-y-3 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0">
               <button
                 onClick={() => setQuickViewOpen(true)}
-                className="flex-1 flex items-center justify-center gap-1.5 h-10 bg-background/95 backdrop-blur-sm text-foreground text-xs font-semibold rounded-full border border-border/60 shadow-md hover:bg-secondary hover:text-secondary-foreground hover:border-secondary transition-colors"
+                className="flex-1 flex items-center justify-center gap-1.5 h-10 whitespace-nowrap bg-background/95 backdrop-blur-sm text-foreground text-xs font-semibold rounded-full border border-border/60 shadow-md hover:bg-secondary hover:text-secondary-foreground hover:border-secondary transition-colors"
               >
                 <Eye className="w-3.5 h-3.5" />
                 Quick view
@@ -72,36 +85,34 @@ export function ProductCard({ product, className }: ProductCardProps) {
           )}
         </div>
 
-        {/* Content — airy, quiet hierarchy */}
-        <div className="pt-3.5 px-0.5 flex flex-col">
-          <div className="text-[11px] text-muted-foreground/80 mb-1 tracking-wide">
-            {product.categoryName || 'General'}
+        {/* Content — each element gets its own line, so a long name, a big price and a
+            rating can never collide, even in a narrow two-column phone grid. */}
+        <div className="pt-3 px-0.5 flex flex-col">
+          <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground/80 tracking-wide mb-1">
+            <span className="truncate">{product.categoryName || 'General'}</span>
+            {(product.rating || product.reviewCount) ? (
+              <span className="inline-flex items-center gap-0.5 shrink-0">
+                <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                <span className="font-medium text-foreground/80 tabular-nums">{product.rating?.toFixed(1)}</span>
+              </span>
+            ) : null}
           </div>
 
           <Link href={`/products/${product.id}`}>
-            <h3 className="font-medium text-sm text-foreground/90 leading-snug line-clamp-1 group-hover:text-primary transition-colors">
+            <h3 className="font-medium text-[13px] sm:text-sm text-foreground/90 leading-snug line-clamp-2 min-h-[2.55em] group-hover:text-primary transition-colors">
               {product.name}
             </h3>
           </Link>
 
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <div className="flex items-baseline gap-2">
-              <span className="font-semibold text-[15px] tracking-tight text-foreground">
-                {formatCurrency(price)}
+          <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <span className="font-semibold text-[15px] tracking-tight text-foreground tabular-nums whitespace-nowrap">
+              {formatCurrency(price)}
+            </span>
+            {onSale && original != null && (
+              <span className="text-xs text-muted-foreground/70 line-through tabular-nums whitespace-nowrap">
+                {formatCurrency(original)}
               </span>
-              {onSale && original != null && (
-                <span className="text-xs text-muted-foreground/70 line-through">
-                  {formatCurrency(original)}
-                </span>
-              )}
-            </div>
-
-            {(product.rating || product.reviewCount) ? (
-              <div className="flex items-center text-[11px] text-muted-foreground shrink-0">
-                <Star className="w-3 h-3 text-amber-400 fill-amber-400 mr-0.5" />
-                <span className="font-medium text-foreground/80">{product.rating?.toFixed(1)}</span>
-              </div>
-            ) : null}
+            )}
           </div>
         </div>
       </div>

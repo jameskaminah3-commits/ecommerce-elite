@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db, categoriesTable, productsTable } from "@workspace/db";
 import {
   CreateCategoryBody,
@@ -57,7 +57,11 @@ router.get("/categories/tree", async (_req, res): Promise<void> => {
       productCount: sql<number>`cast(count(${productsTable.id}) as int)`,
     })
     .from(categoriesTable)
-    .leftJoin(productsTable, eq(productsTable.categoryId, categoriesTable.id))
+    // Menu counts match what shoppers can actually see and buy.
+    .leftJoin(
+      productsTable,
+      and(eq(productsTable.categoryId, categoriesTable.id), eq(productsTable.status, "active"), sql`${productsTable.basePrice} > 0`),
+    )
     .groupBy(categoriesTable.id)
     .orderBy(categoriesTable.name);
 

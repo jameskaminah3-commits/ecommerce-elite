@@ -20,7 +20,7 @@ import {
   UpdateVariantParams,
   DeleteVariantParams,
 } from "@workspace/api-zod";
-import { requireAdmin } from "../middlewares/requireAdmin";
+import { requireAdmin, isAdminRequest } from "../middlewares/requireAdmin";
 import { loadPricingPromos, effectiveDiscount, effectivePriceSql, type PricingPromo } from "../lib/pricing";
 
 const router: IRouter = Router();
@@ -132,6 +132,11 @@ router.get("/products", async (req, res): Promise<void> => {
   if (featured != null) conditions.push(eq(productsTable.featured, featured));
   // Only show active products in storefront by default
   conditions.push(eq(productsTable.status, "active"));
+  // A product with no priced variant (base price 0) can't be bought, so shoppers
+  // never see it as "KES 0". Admin screens opt in to see it so they can finish setup.
+  if (!(req.query["includeUnpriced"] === "1" && (await isAdminRequest(req)))) {
+    conditions.push(sql`${productsTable.basePrice} > 0`);
+  }
 
   let orderBy;
   switch (sort) {
@@ -211,7 +216,7 @@ router.get("/products/facets", async (req, res): Promise<void> => {
   const tagResult: any = await db.execute(sql`
     select unnest(tags) as tag, cast(count(*) as int) as count
     from products
-    where status = 'active'${catFilter}
+    where status = 'active' and base_price > 0${catFilter}
     group by tag
     order by count desc, tag asc
   `);
@@ -219,7 +224,7 @@ router.get("/products/facets", async (req, res): Promise<void> => {
     select cast(coalesce(min(base_price), 0) as float8) as min,
            cast(coalesce(max(base_price), 0) as float8) as max
     from products
-    where status = 'active'${catFilter}
+    where status = 'active' and base_price > 0${catFilter}
   `);
 
   const tagRows = (tagResult.rows ?? tagResult) as { tag: string; count: number }[];
@@ -252,7 +257,8 @@ router.get("/products/:id", async (req, res): Promise<void> => {
     .where(eq(productsTable.id, params.data.id))
     .groupBy(productsTable.id, categoriesTable.name);
 
-  if (!row) {
+  // Unpriced products are invisible to shoppers (admins can still open them).
+  if (!row || (parseFloat(row.product.basePrice) <= 0 && !(await isAdminRequest(req)))) {
     res.status(404).json({ error: "Product not found" });
     return;
   }

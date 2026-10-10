@@ -114,7 +114,7 @@ export async function metaForPath(path: string, query: Record<string, unknown>, 
         .from(productsTable)
         .leftJoin(categoriesTable, eq(categoriesTable.id, productsTable.categoryId))
         .where(eq(productsTable.id, id));
-      if (!p || p.status !== "active") {
+      if (!p || p.status !== "active" || parseFloat(p.basePrice) <= 0) {
         // A real 404 (not a 200 "soft 404") so Google drops dead product URLs.
         return { ...base, title: `Product not found — ${BRAND}`, noindex: "follow", status: 404, canonicalPath: undefined };
       }
@@ -366,7 +366,7 @@ export async function buildSitemap(origin: string): Promise<string> {
   const products = await db
     .select({ id: productsTable.id, updatedAt: productsTable.updatedAt })
     .from(productsTable)
-    .where(eq(productsTable.status, "active"));
+    .where(and(eq(productsTable.status, "active"), sql`${productsTable.basePrice} > 0`));
   for (const p of products) urls.push({ loc: `${origin}/products/${p.id}`, lastmod: iso(p.updatedAt), priority: "0.8" });
   const cats = await db.select({ slug: categoriesTable.slug }).from(categoriesTable);
   for (const c of cats) urls.push({ loc: `${origin}/products?category=${c.slug}`, priority: "0.7" });

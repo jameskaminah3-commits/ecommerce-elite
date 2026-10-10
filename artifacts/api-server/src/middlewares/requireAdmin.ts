@@ -21,6 +21,13 @@ async function loadUser(req: Request): Promise<SessionUser | null> {
   return user ?? null;
 }
 
+// True when the request carries a valid admin session. Used by public endpoints
+// that show a little more to admins (e.g. products not yet priced) without
+// rejecting anonymous shoppers.
+export async function isAdminRequest(req: Request): Promise<boolean> {
+  return (await loadUser(req))?.role === "admin";
+}
+
 // Any authenticated user.
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const user = await loadUser(req);

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { MessageCircle } from 'lucide-react';
 import { SiWhatsapp } from 'react-icons/si';
@@ -10,6 +11,7 @@ const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/
 // admin's existing "Live chat URL" setting (e.g. https://wa.me/2547XXXXXXXX) and
 // stays hidden until that is set.
 export function ChatBubble() {
+  const [location] = useLocation();
   const { data } = useQuery({
     queryKey: ['site-settings'],
     queryFn: async () => {
@@ -19,6 +21,10 @@ export function ChatBubble() {
   });
   const url = (data?.liveChatUrl as string | undefined)?.trim();
   if (!url) return null;
+  // Browsing grids are full of tappable cards (quick-add, ratings) at the screen
+  // edge — a floating button there competes with them. It appears where shoppers
+  // are deciding or paying: product pages, cart/checkout, orders and help pages.
+  if (location === '/' || location === '/products' || location.startsWith('/blog') || location.startsWith('/admin')) return null;
   const isWhatsapp = /wa\.me|whatsapp/i.test(url);
 
   return (

@@ -81,7 +81,8 @@ export default function AdminProducts() {
   const [reviewsFor, setReviewsFor] = useState<ProductRow | null>(null);
 
   const { data: productsData, isLoading } = useListProducts(
-    { search: search || undefined, limit: 100 },
+    // includeUnpriced: admins also need to see products that aren't priced yet.
+    { search: search || undefined, limit: 100, includeUnpriced: '1' } as any,
     { query: { queryKey: ['admin', 'products', search] } as any },
   );
   const { data: categories } = useListCategories();
