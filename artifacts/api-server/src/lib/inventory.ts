@@ -28,6 +28,11 @@ export function reservationTtlMs(): number {
   return (Number.isFinite(minutes) && minutes > 0 ? minutes : 15) * 60 * 1000;
 }
 
+export function manualPaymentHoldMs(): number {
+  const hours = Number(process.env["MANUAL_PAYMENT_HOLD_HOURS"]);
+  return (Number.isFinite(hours) && hours > 0 ? hours : 24) * 60 * 60 * 1000;
+}
+
 export interface ReservationLine {
   variantId: number;
   quantity: number;
@@ -42,9 +47,12 @@ export async function reserveStockForOrder(
   tx: Tx,
   orderId: number,
   lines: ReservationLine[],
+  // Pay-by-hand orders wait for a person to confirm the M-Pesa code, so they hold
+  // stock far longer than an STK push (default 24h; MANUAL_PAYMENT_HOLD_HOURS).
+  holdMs: number = reservationTtlMs(),
 ): Promise<void> {
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + reservationTtlMs());
+  const expiresAt = new Date(now.getTime() + holdMs);
 
   for (const line of lines) {
     // Lock the variant row so concurrent checkouts serialise on this variant.

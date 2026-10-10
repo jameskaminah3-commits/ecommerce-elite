@@ -1,8 +1,10 @@
 import { Router, type IRouter, type Request } from "express";
 import { eq, and, desc, sql, inArray, or, isNull } from "drizzle-orm";
 import { db, ordersTable, orderItemsTable, cartItemsTable, productVariantsTable, productsTable, deliveryLocationsTable, deliveryRatesTable, usersTable, siteSettingsTable } from "@workspace/db";
-import { sendOrderReceivedEmail } from "../lib/email";
-import { deductInventoryForOrder, reserveStockForOrder, InsufficientStockError } from "../lib/inventory";
+import { deductInventoryForOrder, reserveStockForOrder, manualPaymentHoldMs, InsufficientStockError } from "../lib/inventory";
+import { getPaymentOptions, ONLINE_METHODS } from "../lib/paymentOptions";
+import { notifyOrderPlaced, notifyPaymentCode } from "../lib/orderNotifications";
+import { publicOrigin } from "../seo";
 import { findReferrerByCode } from "../lib/referral";
 import { loadPricingPromos, effectiveDiscount, discountedPrice } from "../lib/pricing";
 import { markOrderPaid } from "./payments";
@@ -123,6 +125,23 @@ router.post("/orders", async (req, res): Promise<void> => {
   const parsed = CreateOrderBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  // Only accept a payment method the shop can actually take right now (the checkout
+  // page hides the others, but a stale tab or a hand-made request must be refused).
+  const methods = await getPaymentOptions();
+  const method = parsed.data.paymentMethod as string;
+  if (method === "cash_on_delivery") {
+    res.status(400).json({ error: "Cash on delivery is not available. Please pay with M-Pesa." });
+    return;
+  }
+  if (ONLINE_METHODS.has(method) && !methods.onlineAvailable) {
+    res.status(400).json({ error: "Online payment is unavailable right now. Please choose M-Pesa (pay manually)." });
+    return;
+  }
+  if (method === "mpesa_manual" && !methods.manualMpesaAvailable) {
+    res.status(400).json({ error: "Manual M-Pesa payment isn't set up yet. Please try another payment method." });
     return;
   }
 
@@ -304,6 +323,7 @@ router.post("/orders", async (req, res): Promise<void> => {
         tx,
         ord.id,
         cartRows.map((r) => ({ variantId: r.variantId, quantity: r.quantity, productName: r.productName })),
+        method === "mpesa_manual" ? manualPaymentHoldMs() : undefined,
       );
 
       return { ord, its };
@@ -329,22 +349,9 @@ router.post("/orders", async (req, res): Promise<void> => {
   // Clear cart
   await db.delete(cartItemsTable).where(eq(cartItemsTable.sessionId, sessionId));
 
-  // Email the customer an order-received confirmation (fire-and-forget so a
-  // slow/absent email provider never blocks checkout).
-  if (order.customerEmail) {
-    void sendOrderReceivedEmail(order.customerEmail, {
-      orderId: order.id,
-      customerName: order.customerName,
-      total: parseFloat(order.total),
-      deliveryFee: parseFloat(order.deliveryFee ?? "0"),
-      deliveryLocation: order.deliveryLocation,
-      items: items.map((i) => ({
-        productName: i.productName,
-        quantity: i.quantity,
-        subtotal: parseFloat(i.subtotal),
-      })),
-    }).catch(() => {});
-  }
+  // Email the customer a receipt (with pay-by-hand instructions when relevant) and
+  // alert the shop team. Fire-and-forget so email trouble never blocks checkout.
+  notifyOrderPlaced(order, publicOrigin(req));
 
   // Let this browser view the order it just created, even as a guest.
   grantOrderAccess(req, res, order.id);
@@ -426,16 +433,36 @@ router.post("/orders/:id/payment-reference", async (req, res): Promise<void> => 
     res.status(403).json({ error: "You do not have access to this order." });
     return;
   }
-  const reference = String(req.body?.reference ?? "").trim().slice(0, 120);
+  // M-Pesa codes are 10 letters/digits (e.g. SGH7XK9QPM). People type them in lower
+  // case or paste the whole SMS, so normalise: upper-case, and pull the code out of
+  // surrounding text. Anything that doesn't look like a code is rejected here, where
+  // it's cheap, rather than becoming a mystery for the team to chase.
+  const typed = String(req.body?.reference ?? "").toUpperCase().slice(0, 600);
+  const compact = typed.replace(/[\s-]+/g, "");
+  const reference =
+    (/^[A-Z0-9]{8,12}$/.test(compact) && /[A-Z]/.test(compact) && /\d/.test(compact) ? compact : null) ??
+    typed.match(/\b(?=[A-Z0-9]*[A-Z])(?=[A-Z0-9]*\d)[A-Z0-9]{10}\b/)?.[0] ??
+    "";
   if (!reference) {
-    res.status(400).json({ error: "Enter the M-Pesa confirmation code." });
+    res.status(400).json({ error: "That doesn't look like an M-Pesa code. It's 10 letters and numbers, like SGH7XK9QPM." });
+    return;
+  }
+  // One payment can only settle one order.
+  const [dupe] = await db
+    .select({ id: ordersTable.id })
+    .from(ordersTable)
+    .where(and(eq(ordersTable.paymentReference, reference), sql`${ordersTable.id} <> ${order.id}`));
+  if (dupe) {
+    res.status(409).json({ error: "This code has already been used for another order. Please check it and try again." });
     return;
   }
   const [updated] = await db
     .update(ordersTable)
-    .set({ paymentReference: reference, paymentMethod: order.paymentMethod ?? "mpesa" })
+    .set({ paymentReference: reference, paymentMethod: order.paymentMethod ?? "mpesa_manual" })
     .where(eq(ordersTable.id, order.id))
     .returning();
+  // Ask the team to verify the code, and reassure the customer.
+  notifyPaymentCode(updated, reference, publicOrigin(req));
   const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, order.id));
   res.json(formatOrder(updated, items));
 });
@@ -453,7 +480,7 @@ router.post("/orders/:id/mark-paid", requireAdmin, async (req, res): Promise<voi
     res.status(404).json({ error: "Order not found" });
     return;
   }
-  await markOrderPaid(order);
+  await markOrderPaid(order, { byAdmin: true });
   const [fresh] = await db.select().from(ordersTable).where(eq(ordersTable.id, order.id));
   const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, order.id));
   res.json(formatOrder(fresh, items));

@@ -33,6 +33,10 @@ interface SiteSettings {
   mpesaAccountName: string;
   mpesaSendPhone: string;
   mpesaInstructions: string;
+  onlinePaymentsEnabled: boolean;
+  onlinePaymentsAvailable?: boolean;
+  manualMpesaAvailable?: boolean;
+  orderNotifyEmails: string;
   referralEnabled: boolean;
   referralDiscountPercent: number;
 }
@@ -247,31 +251,78 @@ export default function AdminFooter() {
             </div>
           </div>
 
-          {/* M-Pesa manual payment (STK fallback) */}
+          {/* M-Pesa manual payment */}
           <div className="bg-card border rounded-xl p-5 shadow-sm space-y-4">
             <div>
-              <h3 className="font-bold">M-Pesa manual payment</h3>
-              <p className="text-xs text-muted-foreground mt-1">Shown to customers if the automatic M-Pesa prompt fails. Fill in whichever you use.</p>
+              <h3 className="font-bold">M-Pesa — pay to our number</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Customers send money to the details below, then enter the M-Pesa code on their order. You confirm each payment
+                in <strong>Orders</strong>. Fill in whichever you use — it appears at checkout as soon as one is set.
+              </p>
             </div>
             <div className="space-y-2">
-              <Label>Pay Bill number</Label>
-              <Input value={form.mpesaPaybill || ''} onChange={(e) => set('mpesaPaybill', e.target.value)} placeholder="e.g. 247247" />
+              <Label>Send Money phone number</Label>
+              <Input value={form.mpesaSendPhone || ''} onChange={(e) => set('mpesaSendPhone', e.target.value)} placeholder="e.g. 0712 345 678" inputMode="tel" />
             </div>
             <div className="space-y-2">
-              <Label>Buy Goods Till number</Label>
-              <Input value={form.mpesaTill || ''} onChange={(e) => set('mpesaTill', e.target.value)} placeholder="e.g. 5203012" />
+              <Label>Registered name <span className="text-muted-foreground font-normal">(shown so customers can check it before paying)</span></Label>
+              <Input value={form.mpesaAccountName || ''} onChange={(e) => set('mpesaAccountName', e.target.value)} placeholder="e.g. James Kaminah" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Buy Goods Till <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <Input value={form.mpesaTill || ''} onChange={(e) => set('mpesaTill', e.target.value)} placeholder="e.g. 5203012" />
+              </div>
+              <div className="space-y-2">
+                <Label>Pay Bill number <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <Input value={form.mpesaPaybill || ''} onChange={(e) => set('mpesaPaybill', e.target.value)} placeholder="e.g. 247247" />
+              </div>
             </div>
             <div className="space-y-2">
-              <Label>Account name / Pay Bill account</Label>
-              <Input value={form.mpesaAccountName || ''} onChange={(e) => set('mpesaAccountName', e.target.value)} placeholder="e.g. Happyfine Wholesalers" />
+              <Label>Extra instructions <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Textarea value={form.mpesaInstructions || ''} onChange={(e) => set('mpesaInstructions', e.target.value)} rows={2} placeholder="e.g. Please pay within 24 hours to keep your items reserved." />
             </div>
-            <div className="space-y-2">
-              <Label>Send Money phone <span className="text-muted-foreground font-normal">(optional)</span></Label>
-              <Input value={form.mpesaSendPhone || ''} onChange={(e) => set('mpesaSendPhone', e.target.value)} placeholder="e.g. 0712 345 678" />
+            {!form.manualMpesaAvailable && (
+              <p className="text-xs rounded-md bg-amber-50 border border-amber-200 text-amber-900 px-3 py-2">
+                Manual M-Pesa isn't shown to customers yet — add a Send Money number, Till or Pay Bill and save.
+              </p>
+            )}
+          </div>
+
+          {/* Online payments switch + order emails */}
+          <div className="bg-card border rounded-xl p-5 shadow-sm space-y-4">
+            <div>
+              <h3 className="font-bold">Online payments &amp; order emails</h3>
+              <p className="text-xs text-muted-foreground mt-1">Control which payment options customers see, and who gets an email for each new order.</p>
             </div>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!form.onlinePaymentsEnabled}
+                onChange={(e) => set('onlinePaymentsEnabled', e.target.checked)}
+                className="w-4 h-4 accent-primary mt-0.5"
+              />
+              <span className="text-sm">
+                <span className="font-medium">Offer instant payment (M-Pesa prompt, Airtel Money, card)</span>
+                <span className="block text-xs text-muted-foreground">Turn off to take payments by manual M-Pesa only, e.g. while the payment gateway is being set up.</span>
+              </span>
+            </label>
+            {form.onlinePaymentsEnabled && form.onlinePaymentsAvailable === false && (
+              <p className="text-xs rounded-md bg-amber-50 border border-amber-200 text-amber-900 px-3 py-2">
+                Enabled, but the payment gateway isn't connected on the server yet, so customers won't see these options.
+              </p>
+            )}
             <div className="space-y-2">
-              <Label>Instructions <span className="text-muted-foreground font-normal">(optional)</span></Label>
-              <Textarea value={form.mpesaInstructions || ''} onChange={(e) => set('mpesaInstructions', e.target.value)} rows={2} placeholder="e.g. After paying, enter the M-Pesa confirmation code to complete your order." />
+              <Label>Order notification emails</Label>
+              <Input
+                value={form.orderNotifyEmails || ''}
+                onChange={(e) => set('orderNotifyEmails', e.target.value)}
+                placeholder="owner@example.com, team@example.com"
+                inputMode="email"
+              />
+              <p className="text-xs text-muted-foreground">
+                Comma-separated. These addresses are emailed for every new order and whenever a customer submits an M-Pesa code to verify.
+              </p>
             </div>
           </div>
 

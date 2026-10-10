@@ -33,7 +33,8 @@ const FILTERS: { key: Filter; label: string }[] = [
 ];
 
 const PAYMENT_LABELS: Record<string, string> = {
-  mpesa: 'M-Pesa',
+  mpesa: 'M-Pesa (STK)',
+  mpesa_manual: 'M-Pesa (manual)',
   airtel: 'Airtel Money',
   card: 'Card',
   paystack: 'Card',

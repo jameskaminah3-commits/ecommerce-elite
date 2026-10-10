@@ -117,8 +117,19 @@ re-upload `deploy/cpanel/`, and hit **Restart** in cPanel.
 
 ## Notes
 - **Database:** Supabase is reached over the network from any host, so the same
-  DB backs both Railway and cPanel. Run `pnpm db:push` whenever the schema
-  changes.
+  DB backs both Railway and cPanel. The API adds any missing tables/columns by
+  itself on every boot (`SKIP_SCHEMA_SYNC=1` disables this), so a deploy can't
+  leave the catalogue broken by an out-of-date database. `pnpm db:push` still
+  works for larger changes.
+- **Order emails (Resend):** set `RESEND_API_KEY`, `RESEND_FROM` (a verified
+  sender on your domain), `PUBLIC_URL` and optionally `ADMIN_ORDER_EMAILS`.
+  The shop team is emailed for every new order and every M-Pesa code a customer
+  submits; the customer gets order + payment-confirmed emails.
+- **Manual M-Pesa:** set the Send Money number / Till / Pay Bill and the
+  registered name in Admin → Footer & payments. Customers pay, enter the
+  M-Pesa code on their order, and you confirm it from Admin → Orders
+  (**Mark paid**). Untick "Offer instant payment" there to run on manual M-Pesa
+  alone until the Paystack gateway is connected.
 - **Images:** uploads go to Supabase Storage via the service-role key, so they
   work identically on both platforms.
 - **Custom domain on Railway:** Settings → Networking → Custom Domain, then

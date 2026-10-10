@@ -2,10 +2,11 @@ import React from 'react';
 import { StorefrontLayout } from '@/components/layout/StorefrontLayout';
 import { useGetOrder } from '@workspace/api-client-react';
 import { useParams, Link } from 'wouter';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatCurrency, classNames } from '@/lib/utils';
 import { CheckCircle2, Clock, Truck, PackageCheck, AlertTriangle, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ManualMpesaPanel, hasMpesaDetails, type MpesaDetails } from '@/components/checkout/ManualMpesaPanel';
 
 const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
 
@@ -13,6 +14,7 @@ const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/
 // same wording shown at checkout (never the raw enum like "cash_on_delivery").
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   mpesa: 'M-Pesa',
+  mpesa_manual: 'M-Pesa (paid manually)',
   airtel: 'Airtel Money',
   card: 'Card / Bank Transfer',
   cash_on_delivery: 'Cash on Delivery',
@@ -23,6 +25,11 @@ function paymentMethodLabel(method?: string | null): string {
   return PAYMENT_METHOD_LABELS[method] ?? method.replace(/_/g, ' ');
 }
 
+async function fetchPayDetails(): Promise<MpesaDetails> {
+  const res = await fetch(`${API_BASE}/api/site-settings`);
+  return res.ok ? res.json() : {};
+}
+
 export default function OrderPage() {
   const { id } = useParams();
   const orderId = parseInt(id || '0', 10);
@@ -31,6 +38,8 @@ export default function OrderPage() {
   const { data: order, isLoading } = useGetOrder(orderId, {
     query: { queryKey: ['/api/orders', orderId], enabled: !!orderId } as any,
   });
+
+  const { data: payDetails } = useQuery({ queryKey: ['site-settings'], queryFn: fetchPayDetails });
 
   // When Paystack redirects back here it appends ?reference=…&trxref=…. Confirm
   // the payment server-side, then refresh the order so the status reflects it.
@@ -92,6 +101,11 @@ export default function OrderPage() {
   const steps = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
   const currentIndex = steps.indexOf(order.status);
   const isCancelled = order.status === 'cancelled';
+  const paymentReference = (order as any).paymentReference as string | null | undefined;
+  const isMpesaOrder = !order.paymentMethod || order.paymentMethod === 'mpesa' || order.paymentMethod === 'mpesa_manual';
+  // Still owes an M-Pesa payment and hasn't told us the code yet → show how to pay.
+  const needsManualPayment =
+    !isCancelled && order.paymentStatus !== 'paid' && !paymentReference && isMpesaOrder && hasMpesaDetails(payDetails);
 
   return (
     <StorefrontLayout>
@@ -105,12 +119,25 @@ export default function OrderPage() {
             <p className="text-muted-foreground">Order #{order.id} • Placed on {new Date(order.createdAt).toLocaleDateString()}</p>
             {!isCancelled && order.paymentStatus !== 'paid' && (
               <p className="mt-4 mx-auto max-w-md text-sm rounded-lg bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3">
-                {(order as any).paymentReference
-                  ? <>We've received your M-Pesa code <strong className="font-mono">{(order as any).paymentReference}</strong> and are verifying it. You'll get a confirmation shortly.</>
-                  : 'Awaiting payment. Your order is confirmed as soon as payment is received.'}
+                {paymentReference
+                  ? <>We've received your M-Pesa code <strong className="font-mono">{paymentReference}</strong> and are verifying it. You'll get a confirmation shortly.</>
+                  : needsManualPayment
+                    ? 'Almost done — pay with M-Pesa below, then enter your code to confirm your order.'
+                    : 'Awaiting payment. Your order is confirmed as soon as payment is received.'}
               </p>
             )}
           </div>
+
+          {needsManualPayment && (
+            <div className="p-4 sm:p-8 border-b bg-background">
+              <ManualMpesaPanel
+                settings={payDetails}
+                orderId={order.id}
+                amount={order.total}
+                onSubmitted={() => queryClient.invalidateQueries({ queryKey: ['/api/orders', orderId] })}
+              />
+            </div>
+          )}
 
           {!isCancelled && (
             <div className="p-5 sm:p-8 border-b bg-background">

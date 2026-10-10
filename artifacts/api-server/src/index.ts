@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { ensureSchema } from "./lib/ensureSchema";
 
 const rawPort = process.env["PORT"];
 
@@ -15,6 +16,10 @@ if (!rawPort) {
 const numericPort = Number(rawPort);
 const listenTarget: number | string =
   Number.isNaN(numericPort) || numericPort <= 0 ? rawPort : numericPort;
+
+// Bring the database up to the shape this version expects before serving traffic.
+// Failures are logged, never fatal — the app still starts and degrades gracefully.
+await ensureSchema().catch((err) => logger.warn({ err }, "ensureSchema failed"));
 
 app.listen(listenTarget, (err?: Error) => {
   if (err) {

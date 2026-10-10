@@ -57,6 +57,16 @@ async function toJson(p: Promotion) {
 // wrong phone clock, so the countdown matches the real deadline.
 router.get("/promotions/active", async (_req, res): Promise<void> => {
   const now = new Date();
+  try {
+    await sendActive(res, now);
+  } catch {
+    // A banner is never worth an error page — show none.
+    res.set("Cache-Control", "no-cache");
+    res.json({ serverNow: now.toISOString(), items: [] });
+  }
+});
+
+async function sendActive(res: import("express").Response, now: Date): Promise<void> {
   const rows = await db
     .select()
     .from(promotionsTable)
@@ -84,7 +94,7 @@ router.get("/promotions/active", async (_req, res): Promise<void> => {
       })),
     ),
   });
-});
+}
 
 // ── Admin ────────────────────────────────────────────────────────────────────
 router.get("/admin/promotions", requireAdmin, async (_req, res): Promise<void> => {

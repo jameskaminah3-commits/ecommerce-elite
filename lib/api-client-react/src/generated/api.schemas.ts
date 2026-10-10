@@ -329,6 +329,7 @@ export type OrderInputPaymentMethod = typeof OrderInputPaymentMethod[keyof typeo
 
 export const OrderInputPaymentMethod = {
   mpesa: 'mpesa',
+  mpesa_manual: 'mpesa_manual',
   airtel: 'airtel',
   card: 'card',
   paystack: 'paystack',

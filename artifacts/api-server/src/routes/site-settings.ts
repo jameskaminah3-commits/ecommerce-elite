@@ -1,7 +1,9 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, siteSettingsTable, type FooterLink } from "@workspace/db";
-import { requireAdmin } from "../middlewares/requireAdmin";
+import { requireAdmin, isAdminRequest } from "../middlewares/requireAdmin";
+import { paymentOptionsFrom } from "../lib/paymentOptions";
+import { parseEmailList } from "../lib/orderNotifications";
 
 const router: IRouter = Router();
 
@@ -36,6 +38,8 @@ const DEFAULTS = {
   mpesaAccountName: "",
   mpesaSendPhone: "",
   mpesaInstructions: "",
+  onlinePaymentsEnabled: true,
+  orderNotifyEmails: "",
   referralEnabled: false,
   referralDiscountPercent: 0,
 };
@@ -53,10 +57,22 @@ async function getOrCreate() {
   return row;
 }
 
-// Public: the storefront footer reads this.
-router.get("/site-settings", async (_req, res): Promise<void> => {
+// What the storefront needs, plus what's actually available to pay with right now.
+// The team's notification addresses are private: only admins get them.
+function view(row: Awaited<ReturnType<typeof getOrCreate>>, isAdmin: boolean) {
+  const options = paymentOptionsFrom(row);
+  const { orderNotifyEmails, ...publicRow } = row;
+  return {
+    ...(isAdmin ? { ...publicRow, orderNotifyEmails } : publicRow),
+    onlinePaymentsAvailable: options.onlineAvailable,
+    manualMpesaAvailable: options.manualMpesaAvailable,
+  };
+}
+
+// Public: the storefront footer and checkout read this.
+router.get("/site-settings", async (req, res): Promise<void> => {
   const row = await getOrCreate();
-  res.json(row);
+  res.json(view(row, await isAdminRequest(req)));
 });
 
 // Admin: save site settings. This is a PARTIAL update — only the fields present
@@ -88,6 +104,9 @@ router.put("/site-settings", requireAdmin, async (req, res): Promise<void> => {
       ? (b["acceptedPayments"] as unknown[]).filter((x): x is string => typeof x === "string")
       : [];
   }
+  if (has("onlinePaymentsEnabled")) patch.onlinePaymentsEnabled = Boolean(b["onlinePaymentsEnabled"]);
+  // Keep only well-formed addresses, normalised to a clean comma-separated list.
+  if (has("orderNotifyEmails")) patch.orderNotifyEmails = parseEmailList(str(b["orderNotifyEmails"])).slice(0, 10).join(", ");
   if (has("referralEnabled")) patch.referralEnabled = Boolean(b["referralEnabled"]);
   if (has("referralDiscountPercent")) {
     patch.referralDiscountPercent = Math.min(Math.max(parseInt(String(b["referralDiscountPercent"]), 10) || 0, 0), 90);
@@ -95,11 +114,11 @@ router.put("/site-settings", requireAdmin, async (req, res): Promise<void> => {
 
   await getOrCreate();
   if (Object.keys(patch).length === 0) {
-    res.json(await getOrCreate());
+    res.json(view(await getOrCreate(), true));
     return;
   }
   const [updated] = await db.update(siteSettingsTable).set(patch).where(eq(siteSettingsTable.id, 1)).returning();
-  res.json(updated);
+  res.json(view(updated, true));
 });
 
 export default router;

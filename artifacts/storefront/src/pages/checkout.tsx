@@ -13,15 +13,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { ShoppingBag, CreditCard, Smartphone, AlertCircle, Gift } from 'lucide-react';
+import { ShoppingBag, CreditCard, Smartphone, AlertCircle, Gift, HandCoins } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { ManualMpesaPanel, hasMpesaDetails } from '@/components/checkout/ManualMpesaPanel';
 
 const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
 const STK_COUNTDOWN = 30; // seconds
 const FALLBACK_MSG =
   'Your mobile money prompt could not be completed. Please try again, pay via M-Pesa manually, or use a card below.';
 
-type PaymentMethod = 'mpesa' | 'airtel' | 'card';
+type PaymentMethod = 'mpesa' | 'airtel' | 'card' | 'mpesa_manual';
 
 interface SiteSettings {
   mpesaPaybill?: string;
@@ -29,6 +30,9 @@ interface SiteSettings {
   mpesaAccountName?: string;
   mpesaSendPhone?: string;
   mpesaInstructions?: string;
+  onlinePaymentsAvailable?: boolean;
+  manualMpesaAvailable?: boolean;
+  contactPhone?: string;
   referralEnabled?: boolean;
   referralDiscountPercent?: number;
 }
@@ -72,7 +76,7 @@ export default function CheckoutPage() {
     customerPhone: user?.phone || '',
     shippingAddress: '',
   });
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('mpesa');
+  const [chosenMethod, setChosenMethod] = useState<PaymentMethod | null>(null);
   const [deliveryLocationId, setDeliveryLocationId] = useState<string>('');
 
   const { data: deliveryLocations } = useQuery({
@@ -83,7 +87,21 @@ export default function CheckoutPage() {
   const selectedLocation = activeLocations.find((l) => String(l.id) === deliveryLocationId) ?? null;
 
   // Site settings carry the manual M-Pesa details + referral discount.
-  const { data: settings } = useQuery({ queryKey: ['site-settings'], queryFn: fetchSiteSettings });
+  const { data: settings, isLoading: settingsLoading } = useQuery({ queryKey: ['site-settings'], queryFn: fetchSiteSettings });
+
+  // Which ways to pay are open right now is decided by the server (gateway configured +
+  // admin switch) — the shop can run on manual M-Pesa alone while the gateway is set up.
+  const onlineOpen = settings?.onlinePaymentsAvailable ?? true;
+  const manualOpen = settings?.manualMpesaAvailable ?? false;
+  const availableMethods: PaymentMethod[] = [
+    ...(manualOpen ? (['mpesa_manual'] as PaymentMethod[]) : []),
+    ...(onlineOpen ? (['mpesa', 'airtel', 'card'] as PaymentMethod[]) : []),
+  ];
+  // Offer the instant option first when it exists; otherwise the manual one.
+  const defaultMethod: PaymentMethod | null = onlineOpen ? 'mpesa' : manualOpen ? 'mpesa_manual' : null;
+  const paymentMethod: PaymentMethod | null =
+    chosenMethod && availableMethods.includes(chosenMethod) ? chosenMethod : defaultMethod;
+  const setPaymentMethod = (m: PaymentMethod) => setChosenMethod(m);
 
   // Validate a referral code captured from a share link, to show the discount.
   const [referral, setReferral] = useState<{ discountPercent: number; referrerName?: string } | null>(null);
@@ -97,10 +115,6 @@ export default function CheckoutPage() {
       })
       .catch(() => {});
   }, []);
-
-  // Manual M-Pesa (STK fallback): the code the customer pastes after paying.
-  const [mpesaRef, setMpesaRef] = useState('');
-  const [mpesaRefBusy, setMpesaRefBusy] = useState(false);
 
   // Payment state
   const [pendingOrderId, setPendingOrderId] = useState<number | null>(null);
@@ -190,33 +204,6 @@ export default function CheckoutPage() {
     }
   };
 
-  // Manual M-Pesa (STK fallback): record the confirmation code the customer
-  // pastes after paying to the Paybill/Till. Admin verifies and marks it paid.
-  const submitMpesaReference = async () => {
-    if (!pendingOrderId || !mpesaRef.trim()) return;
-    setMpesaRefBusy(true);
-    try {
-      const res = await fetch(`${API_BASE}/api/orders/${pendingOrderId}/payment-reference`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ reference: mpesaRef.trim() }),
-      });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        throw new Error(d.error || 'Could not submit the code.');
-      }
-      setShowMobileModal(false);
-      clear();
-      setLocation(`/orders/${pendingOrderId}`);
-      toast({ title: 'Payment code received', description: "We'll confirm your M-Pesa payment shortly." });
-    } catch (err: any) {
-      toast({ title: 'Could not submit code', description: err?.message, variant: 'destructive' });
-    } finally {
-      setMpesaRefBusy(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cart?.items || cart.items.length === 0) return;
@@ -224,8 +211,12 @@ export default function CheckoutPage() {
       toast({ title: 'Select a delivery town', description: 'Please choose where your order should be delivered.', variant: 'destructive' });
       return;
     }
-    // Every channel routes through Paystack, which requires an email.
-    if (!formData.customerEmail.trim()) {
+    if (!paymentMethod) {
+      toast({ title: 'No payment method available', description: 'Please contact us to complete your order.', variant: 'destructive' });
+      return;
+    }
+    // Online channels route through Paystack, which requires an email. Manual M-Pesa doesn't.
+    if (paymentMethod !== 'mpesa_manual' && !formData.customerEmail.trim()) {
       toast({ title: 'Email required', description: 'Enter your email address to pay online.', variant: 'destructive' });
       return;
     }
@@ -259,14 +250,24 @@ export default function CheckoutPage() {
       });
       setPendingOrderId(order.id);
 
+      if (paymentMethod === 'mpesa_manual') {
+        // Nothing to charge — the order page walks them through paying and entering the code.
+        clear();
+        setLocation(`/orders/${order.id}`);
+        toast({ title: 'Order placed', description: 'Complete your M-Pesa payment to confirm it.' });
+        setBusy(false);
+        return;
+      }
       if (paymentMethod === 'mpesa' || paymentMethod === 'airtel') {
         await startMobileMoney(order.id, paymentMethod);
         setBusy(false);
       } else {
         await startCardPayment(order.id); // card — redirects on success
       }
-    } catch (err) {
-      toast({ title: 'Order failed', description: 'There was a problem creating your order.', variant: 'destructive' });
+    } catch (err: any) {
+      // Surface the server's reason (e.g. a method that just became unavailable) when it sent one.
+      const reason = err?.data?.error;
+      toast({ title: 'Order failed', description: reason || 'There was a problem creating your order.', variant: 'destructive' });
       setBusy(false);
     }
   };
@@ -294,11 +295,14 @@ export default function CheckoutPage() {
   const referralDiscount = referral ? Math.round(cart.total * (referral.discountPercent / 100) * 100) / 100 : 0;
   const finalTotal = Math.max(0, cart.total + deliveryFee - referralDiscount);
 
-  const PAYMENT_OPTIONS: { value: PaymentMethod; icon: React.ElementType; iconClass: string; title: string; sub: string }[] = [
+  const ALL_OPTIONS: { value: PaymentMethod; icon: React.ElementType; iconClass: string; title: string; sub: string }[] = [
+    { value: 'mpesa_manual', icon: HandCoins, iconClass: 'text-emerald-600', title: 'M-Pesa — pay to our number', sub: 'Place your order, send the money on your phone, then enter the M-Pesa code. We confirm it shortly.' },
     { value: 'mpesa', icon: Smartphone, iconClass: 'text-emerald-600', title: 'M-Pesa (STK Push)', sub: 'Pay instantly via a Safaricom M-Pesa SIM PIN prompt.' },
     { value: 'airtel', icon: Smartphone, iconClass: 'text-red-600', title: 'Airtel Money', sub: 'Pay instantly via an Airtel SIM prompt.' },
     { value: 'card', icon: CreditCard, iconClass: 'text-blue-600', title: 'Card / Bank Transfer', sub: 'Pay via Visa, Mastercard, or Equity Bank (Pesalink).' },
   ];
+  const PAYMENT_OPTIONS = ALL_OPTIONS.filter((o) => availableMethods.includes(o.value));
+  const emailRequired = paymentMethod !== 'mpesa_manual';
 
   return (
     <StorefrontLayout>
@@ -320,14 +324,16 @@ export default function CheckoutPage() {
                   <Input id="customerName" name="customerName" required value={formData.customerName} onChange={handleInputChange} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="customerEmail">Email Address *</Label>
-                  <Input id="customerEmail" name="customerEmail" type="email" value={formData.customerEmail} onChange={handleInputChange} />
-                  <p className="text-xs text-muted-foreground">Used to send your receipt and confirm online payments.</p>
+                  <Label htmlFor="customerEmail">Email Address{emailRequired ? ' *' : ' (optional)'}</Label>
+                  <Input id="customerEmail" name="customerEmail" type="email" inputMode="email" autoComplete="email" value={formData.customerEmail} onChange={handleInputChange} />
+                  <p className="text-xs text-muted-foreground">
+                    {emailRequired ? 'Used to send your receipt and confirm online payments.' : 'We\'ll email your order confirmation and receipt.'}
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="customerPhone">Phone Number *</Label>
                   <Input id="customerPhone" name="customerPhone" placeholder="07XX XXX XXX" required value={formData.customerPhone} onChange={handleInputChange} />
-                  <p className="text-xs text-muted-foreground">This number receives the prompt for M-Pesa / Airtel payments.</p>
+                  <p className="text-xs text-muted-foreground">{paymentMethod === 'mpesa_manual' ? 'We call or text this number about your delivery.' : 'This number receives the prompt for M-Pesa / Airtel payments.'}</p>
                 </div>
               </div>
             </div>
@@ -372,7 +378,18 @@ export default function CheckoutPage() {
 
             <div className="bg-card border rounded-xl p-6 shadow-sm">
               <h2 className="text-xl font-bold mb-6 pb-4 border-b">Payment Method</h2>
-              <RadioGroup value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)} className="space-y-4">
+              {settingsLoading ? (
+                <div className="h-24 rounded-lg bg-muted animate-pulse" />
+              ) : PAYMENT_OPTIONS.length === 0 ? (
+                <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                  <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                  <p>
+                    Payments are being set up and aren't available right now. Please contact us
+                    {settings?.contactPhone ? <> on <strong>{settings.contactPhone}</strong></> : null} to place your order.
+                  </p>
+                </div>
+              ) : (
+              <RadioGroup value={paymentMethod ?? ''} onValueChange={(v: any) => setPaymentMethod(v)} className="space-y-4">
                 {PAYMENT_OPTIONS.map(({ value, icon: Icon, iconClass, title, sub }) => (
                   <div
                     key={value}
@@ -392,6 +409,7 @@ export default function CheckoutPage() {
                   </div>
                 ))}
               </RadioGroup>
+              )}
             </div>
           </div>
 
@@ -463,9 +481,9 @@ export default function CheckoutPage() {
                 type="submit"
                 size="lg"
                 className="w-full mt-8 h-14 text-base font-bold shadow-lg shadow-primary/20"
-                disabled={createOrder.isPending || busy}
+                disabled={createOrder.isPending || busy || !paymentMethod}
               >
-                {createOrder.isPending || busy ? 'Processing...' : 'Place Order'}
+                {createOrder.isPending || busy ? 'Processing...' : paymentMethod === 'mpesa_manual' ? 'Place Order & Pay via M-Pesa' : 'Place Order'}
               </Button>
             </div>
           </div>
@@ -474,7 +492,7 @@ export default function CheckoutPage() {
 
       {/* Mobile-money waiting overlay (M-Pesa / Airtel) */}
       <Dialog open={showMobileModal} onOpenChange={setShowMobileModal}>
-        <DialogContent className="sm:max-w-md text-center p-8" onPointerDownOutside={(e) => e.preventDefault()}>
+        <DialogContent className="sm:max-w-md max-h-[92vh] overflow-y-auto text-center p-5 sm:p-8" onPointerDownOutside={(e) => e.preventDefault()}>
           <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
             <Smartphone className="w-10 h-10" />
           </div>
@@ -503,40 +521,18 @@ export default function CheckoutPage() {
                 <p>{FALLBACK_MSG}</p>
               </div>
 
-              {(settings?.mpesaPaybill || settings?.mpesaTill || settings?.mpesaSendPhone) && (
-                <div className="border border-emerald-200 bg-emerald-50/60 rounded-xl p-4 mb-4 text-left">
-                  <p className="font-bold text-sm text-emerald-800 flex items-center gap-1.5 mb-2">
-                    <Smartphone className="w-4 h-4" /> Pay via M-Pesa manually
-                  </p>
-                  <div className="space-y-1.5 text-sm text-foreground">
-                    {settings?.mpesaPaybill && (
-                      <p>Lipa na M-Pesa → <strong>Pay Bill</strong><br />Business no: <strong className="tabular-nums">{settings.mpesaPaybill}</strong>
-                        {settings?.mpesaAccountName && <> · Account: <strong>{settings.mpesaAccountName}</strong></>}
-                      </p>
-                    )}
-                    {settings?.mpesaTill && (
-                      <p><strong>Buy Goods</strong> → Till no: <strong className="tabular-nums">{settings.mpesaTill}</strong></p>
-                    )}
-                    {settings?.mpesaSendPhone && (
-                      <p><strong>Send Money</strong> to <strong className="tabular-nums">{settings.mpesaSendPhone}</strong>
-                        {settings?.mpesaAccountName && <> ({settings.mpesaAccountName})</>}
-                      </p>
-                    )}
-                    <p className="pt-1">Amount: <strong>{formatCurrency(finalTotal)}</strong>{pendingOrderId ? <> · Ref: <strong>Order #{pendingOrderId}</strong></> : null}</p>
-                    {settings?.mpesaInstructions && <p className="text-xs text-muted-foreground pt-1">{settings.mpesaInstructions}</p>}
-                  </div>
-                  <div className="flex gap-2 mt-3">
-                    <Input
-                      value={mpesaRef}
-                      onChange={(e) => setMpesaRef(e.target.value)}
-                      placeholder="M-Pesa code e.g. SGH7XK9QptM"
-                      className="h-10 bg-background"
-                    />
-                    <Button type="button" className="h-10 shrink-0" disabled={mpesaRefBusy || !mpesaRef.trim()} onClick={submitMpesaReference}>
-                      {mpesaRefBusy ? 'Sending…' : "I've paid"}
-                    </Button>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mt-2">Enter the confirmation code from the M-Pesa SMS. We'll verify and confirm your order.</p>
+              {hasMpesaDetails(settings) && pendingOrderId && (
+                <div className="mb-4">
+                  <ManualMpesaPanel
+                    settings={settings}
+                    orderId={pendingOrderId}
+                    amount={finalTotal}
+                    onSubmitted={() => {
+                      setShowMobileModal(false);
+                      clear();
+                      setLocation(`/orders/${pendingOrderId}`);
+                    }}
+                  />
                 </div>
               )}
 

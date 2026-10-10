@@ -5,7 +5,7 @@ import { useListProducts, useListCategories, ListProductsSort, Product } from '@
 import { useQuery } from '@tanstack/react-query';
 import { ProductCard } from '@/components/products/ProductCard';
 import { SkeletonCard } from '@/components/products/SkeletonCard';
-import { Search, Filter, SlidersHorizontal, X, ChevronRight, Tag } from 'lucide-react';
+import { Search, Filter, SlidersHorizontal, X, ChevronRight, Tag, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -77,7 +77,7 @@ export default function ProductsPage() {
     queryFn: () => fetchFacets(selectedCategoryId),
   });
 
-  const { data: productsPage, isLoading, isFetching } = useListProducts(
+  const { data: productsPage, isLoading, isFetching, isError, refetch } = useListProducts(
     {
       search: search || undefined,
       category: selectedCategoryId,
@@ -214,7 +214,7 @@ export default function ProductsPage() {
     if (!el) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && hasMore && !isFetching) {
+        if (entry.isIntersecting && hasMore && !isFetching && !isError) {
           setPage((p) => p + 1);
         }
       },
@@ -222,7 +222,7 @@ export default function ProductsPage() {
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [hasMore, isFetching]);
+  }, [hasMore, isFetching, isError]);
 
   const saveScroll = () => {
     sessionStorage.setItem('productsScrollY', String(window.scrollY));
@@ -588,6 +588,18 @@ export default function ProductsPage() {
               {Array.from({ length: PAGE_SIZE }).map((_, i) => (
                 <SkeletonCard key={i} />
               ))}
+            </div>
+          ) : isError && allProducts.length === 0 ? (
+            // A failed request is not "no products": say so, and let the shopper retry.
+            <div className="text-center py-16 px-6 bg-muted/30 rounded-xl border border-dashed" role="alert">
+              <div className="w-14 h-14 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold">We couldn't load the products</h3>
+              <p className="text-muted-foreground mt-1 text-sm">Check your connection and try again — it usually takes just a moment.</p>
+              <Button className="mt-5 h-11 px-6 font-semibold" onClick={() => refetch()} disabled={isFetching}>
+                {isFetching ? 'Trying again…' : 'Try again'}
+              </Button>
             </div>
           ) : allProducts.length === 0 ? (
             <div className="text-center py-20 bg-muted/30 rounded-xl border border-dashed">

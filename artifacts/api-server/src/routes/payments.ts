@@ -13,6 +13,7 @@ import {
 } from "../lib/paystack";
 import { sendOrderPaidEmail, type OrderEmailData } from "../lib/email";
 import { deductInventoryForOrder, releaseReservationsForOrder } from "../lib/inventory";
+import { notifyAdminPaid, configuredSiteUrl } from "../lib/orderNotifications";
 
 const router: IRouter = Router();
 
@@ -43,7 +44,7 @@ async function emailOrderPaid(order: OrderRow): Promise<void> {
 
 // Mark an order paid + confirmed once, and notify the customer. Idempotent: a
 // duplicate webhook/callback for an already-paid order won't re-email.
-export async function markOrderPaid(order: OrderRow): Promise<void> {
+export async function markOrderPaid(order: OrderRow, opts: { byAdmin?: boolean } = {}): Promise<void> {
   if (order.paymentStatus === "paid") return;
   const [updated] = await db
     .update(ordersTable)
@@ -58,7 +59,12 @@ export async function markOrderPaid(order: OrderRow): Promise<void> {
   } catch (err) {
     logger.error({ err, orderId: order.id }, "Inventory deduction after payment failed");
   }
-  if (updated) void emailOrderPaid(updated);
+  if (updated) {
+    void emailOrderPaid(updated);
+    // The shop team already knows when one of them confirms a payment by hand;
+    // tell them when an ONLINE payment lands so it gets fulfilled.
+    if (!opts.byAdmin) notifyAdminPaid(updated, configuredSiteUrl());
+  }
 }
 
 // ── Mobile money via Paystack Charge API (M-Pesa / Airtel Money) ───────────

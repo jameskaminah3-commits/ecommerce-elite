@@ -32,6 +32,12 @@ export const siteSettingsTable = pgTable("site_settings", {
   mpesaAccountName: text("mpesa_account_name").notNull().default(""),
   mpesaSendPhone: text("mpesa_send_phone").notNull().default(""),
   mpesaInstructions: text("mpesa_instructions").notNull().default(""),
+  // When false, the online channels (M-Pesa STK push, Airtel Money, card) are hidden at
+  // checkout and only manual M-Pesa is offered — e.g. while the payment gateway is
+  // still being set up. They are also hidden automatically if the gateway isn't configured.
+  onlinePaymentsEnabled: boolean("online_payments_enabled").notNull().default(true),
+  // Who is emailed when an order is placed / a payment code is submitted. Comma-separated.
+  orderNotifyEmails: text("order_notify_emails").notNull().default(""),
   // Referral promotion: a friend who checks out with a referral code gets this
   // percentage off their first order. Disabled by default.
   referralEnabled: boolean("referral_enabled").notNull().default(false),

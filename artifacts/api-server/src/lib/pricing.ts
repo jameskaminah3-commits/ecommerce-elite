@@ -1,5 +1,6 @@
 import { and, eq, gt, lte, sql, type SQL } from "drizzle-orm";
 import { db, promotionsTable, categoriesTable } from "@workspace/db";
+import { logger } from "./logger";
 
 // One source of truth for "what discount applies to this product right now".
 // A product's price can be reduced by (a) an Offer set on the product itself, or
@@ -30,6 +31,18 @@ export const clampPercent = (n: number | null | undefined): number => Math.min(M
 // Promotions that are live right now AND actually discount something. Always read
 // fresh: pricing must be correct the instant an admin pauses or ends a campaign.
 export async function loadPricingPromos(now = new Date()): Promise<PricingPromo[]> {
+  // Promotions are a layer on top of the catalogue: if they can't be read (a table
+  // not migrated yet, a transient DB error) products simply show their normal
+  // prices — the shop must never go down because of a campaign lookup.
+  try {
+    return await loadPricingPromosUnsafe(now);
+  } catch (err) {
+    logger.warn({ err: (err as Error)?.message }, "Promotion pricing unavailable — using regular prices");
+    return [];
+  }
+}
+
+async function loadPricingPromosUnsafe(now: Date): Promise<PricingPromo[]> {
   const rows = await db
     .select()
     .from(promotionsTable)
