@@ -31,6 +31,9 @@ export const siteSettingsTable = pgTable("site_settings", {
   mpesaTill: text("mpesa_till").notNull().default(""),
   mpesaAccountName: text("mpesa_account_name").notNull().default(""),
   mpesaSendPhone: text("mpesa_send_phone").notNull().default(""),
+  // Pochi la Biashara: the business wallet small shops use — customers pay it from
+  // Lipa na M-PESA using the shop's phone number and see the business name.
+  mpesaPochiPhone: text("mpesa_pochi_phone").notNull().default(""),
   mpesaInstructions: text("mpesa_instructions").notNull().default(""),
   // When false, the online channels (M-Pesa STK push, Airtel Money, card) are hidden at
   // checkout and only manual M-Pesa is offered — e.g. while the payment gateway is

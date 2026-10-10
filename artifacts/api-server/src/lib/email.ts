@@ -142,6 +142,7 @@ export interface OrderEmailData {
 
 // Where and how to pay by hand — the admin's M-Pesa details.
 export interface ManualPaymentInfo {
+  pochi?: string;
   phone?: string;
   till?: string;
   paybill?: string;
@@ -165,29 +166,48 @@ function totalsRows(data: OrderEmailData): string {
 }
 
 // "Send money to 0712… (Jane Doe)" — the pay-by-hand block, for the customer's email.
+// "How to pay" exactly as it reads on the customer's phone (Safaricom M-PESA menu).
 function manualPaymentBlock(data: OrderEmailData, m: ManualPaymentInfo): string {
-  const lines: string[] = [];
-  if (m.phone) lines.push(`<strong>Send Money</strong> to <strong>${esc(m.phone)}</strong>${m.accountName ? ` (${esc(m.accountName)})` : ""}`);
-  if (m.till) lines.push(`<strong>Buy Goods</strong> — Till number <strong>${esc(m.till)}</strong>${m.accountName && !m.phone ? ` (${esc(m.accountName)})` : ""}`);
-  if (m.paybill) lines.push(`<strong>Pay Bill</strong> — Business number <strong>${esc(m.paybill)}</strong>, account <strong>${esc(m.accountName || `Order ${data.orderId}`)}</strong>`);
-  if (lines.length === 0) return "";
-  return `<div style="margin:20px 0 4px;padding:16px 18px;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;">
-      <p style="margin:0 0 8px;font-weight:800;">How to pay ${currencyKES(data.total)}</p>
-      <p style="margin:0 0 6px;font-size:14px;line-height:1.6;">${lines.join("<br>")}</p>
-      <p style="margin:8px 0 0;font-size:13px;color:#555;">Use <strong>Order #${data.orderId}</strong> as the reference. When you get the M-Pesa confirmation SMS, enter its code on your order page so we can confirm your payment.${m.instructions ? `<br>${esc(m.instructions)}` : ""}</p>
+  const amount = currencyKES(data.total);
+  const name = m.accountName ? ` — confirm the name <strong>${esc(m.accountName.toUpperCase())}</strong>` : "";
+  const ways: string[] = [];
+  if (m.pochi) ways.push(`<strong>Pochi la Biashara</strong><br>M-PESA › Lipa na M-PESA › Pochi la Biashara › enter <strong>${esc(m.pochi)}</strong> › amount <strong>${amount}</strong> › PIN${name}`);
+  if (m.till) ways.push(`<strong>Buy Goods (Till)</strong><br>M-PESA › Lipa na M-PESA › Buy Goods and Services › Till <strong>${esc(m.till)}</strong> › amount <strong>${amount}</strong> › PIN${name}`);
+  if (m.paybill) ways.push(`<strong>Paybill</strong><br>M-PESA › Lipa na M-PESA › Pay Bill › Business no. <strong>${esc(m.paybill)}</strong> › Account <strong>${data.orderId}</strong> › amount <strong>${amount}</strong> › PIN`);
+  if (m.phone) ways.push(`<strong>Send Money</strong><br>M-PESA › Send Money › <strong>${esc(m.phone)}</strong> › amount <strong>${amount}</strong> › PIN${name}`);
+  if (ways.length === 0) return "";
+  return `<div style="margin:20px 0 4px;padding:16px 18px;background:#f0faf3;border:1px solid #cdebd6;border-radius:12px;">
+      <p style="margin:0 0 10px;font-weight:800;color:#14532d;">Pay ${amount} with Lipa na M-PESA</p>
+      ${ways.map((w) => `<p style="margin:0 0 10px;font-size:14px;line-height:1.6;">${w}</p>`).join("")}
+      <p style="margin:6px 0 0;font-size:13px;color:#555;">You'll get an M-PESA confirmation SMS — enter its code (e.g. SGH7XK9QPM) on your order page and we'll confirm your order. Your items are reserved for you.${m.instructions ? `<br>${esc(m.instructions)}` : ""}</p>
+    </div>`;
+}
+
+// No payment number published yet: the team calls to confirm, like a shop taking a phone order.
+function confirmCallBlock(data: OrderEmailData, contactPhone?: string): string {
+  return `<div style="margin:20px 0 4px;padding:16px 18px;background:#f6f6f4;border-radius:12px;">
+      <p style="margin:0 0 8px;font-weight:800;">What happens next</p>
+      <p style="margin:0;font-size:14px;line-height:1.7;">1. We call you${data.customerPhone ? ` on <strong>${esc(data.customerPhone)}</strong>` : ""} to confirm your order and delivery.<br>
+      2. You pay <strong>${currencyKES(data.total)}</strong> with M-PESA — we'll share our business details on the call.<br>
+      3. We dispatch your order and send you a confirmation.</p>
+      ${contactPhone ? `<p style="margin:10px 0 0;font-size:13px;color:#555;">Questions? Call or WhatsApp us on <strong>${esc(contactPhone)}</strong>.</p>` : ""}
     </div>`;
 }
 
 export async function sendOrderReceivedEmail(
   to: string,
   data: OrderEmailData,
-  opts: { manual?: ManualPaymentInfo | null; orderUrl?: string } = {},
+  opts: { manual?: ManualPaymentInfo | null; orderUrl?: string; confirmCall?: { contactPhone?: string } | null } = {},
 ): Promise<boolean> {
+  const intro = opts.confirmCall
+    ? "thanks for your order — it's reserved for you. We'll call you shortly to confirm it."
+    : "thanks for your order. We'll confirm it as soon as your payment is received.";
   const html = shell(
     `Order #${data.orderId} received`,
-    `<p style="margin:0 0 16px;color:#555;">Hi ${esc(data.customerName)}, thanks for your order. We'll confirm it as soon as your payment is received.</p>
+    `<p style="margin:0 0 16px;color:#555;">Hi ${esc(data.customerName)}, ${intro}</p>
      <table style="width:100%;border-collapse:collapse;font-size:14px;">${orderRows(data.items)}${totalsRows(data)}</table>
      ${opts.manual ? manualPaymentBlock(data, opts.manual) : ""}
+     ${opts.confirmCall ? confirmCallBlock(data, opts.confirmCall.contactPhone) : ""}
      ${opts.orderUrl ? button(opts.orderUrl, opts.manual ? "Enter your M-Pesa code" : "View your order") : ""}`,
   );
   return sendEmail({ to, subject: `Order #${data.orderId} received — ${BRAND}`, html });
@@ -225,7 +245,7 @@ export async function sendAdminOrderEmail(
   recipients: string[],
   data: OrderEmailData,
   event: AdminOrderEvent,
-  ctx: { adminUrl?: string; code?: string } = {},
+  ctx: { adminUrl?: string; code?: string; callCustomer?: boolean } = {},
 ): Promise<boolean> {
   if (recipients.length === 0) return false;
   const paid = data.paymentPaid === true;
@@ -244,7 +264,7 @@ export async function sendAdminOrderEmail(
 
   const html = shell(
     heading,
-    `${event === "code" && ctx.code ? `<div style="margin:0 0 16px;padding:14px 16px;background:#f6f6f4;border-radius:12px;text-align:center;"><div style="color:#9a9a95;font-size:12px;letter-spacing:.08em;text-transform:uppercase;">M-Pesa code</div><div style="font-family:monospace;font-size:26px;font-weight:800;letter-spacing:3px;">${esc(ctx.code)}</div><div style="color:#555;font-size:13px;">for ${currencyKES(data.total)} · check it against your M-Pesa statement</div></div>` : ""}
+    `${ctx.callCustomer ? `<div style="margin:0 0 16px;padding:14px 16px;background:#fff4ec;border:1px solid #fbd5bd;border-radius:12px;"><strong>Next step: call the customer</strong><br><span style="font-size:14px;color:#555;">No M-Pesa number is published on the shop yet, so call ${data.customerPhone ? `<a href="tel:${esc(data.customerPhone)}" style="color:#e8430f;">${esc(data.customerPhone)}</a>` : "the customer"} to confirm the order and share how to pay. Tip: add your Pochi la Biashara or Till in Admin › Footer &amp; payments so customers can pay straight away.</span></div>` : ""}${event === "code" && ctx.code ? `<div style="margin:0 0 16px;padding:14px 16px;background:#f6f6f4;border-radius:12px;text-align:center;"><div style="color:#9a9a95;font-size:12px;letter-spacing:.08em;text-transform:uppercase;">M-Pesa code</div><div style="font-family:monospace;font-size:26px;font-weight:800;letter-spacing:3px;">${esc(ctx.code)}</div><div style="color:#555;font-size:13px;">for ${currencyKES(data.total)} · check it against your M-Pesa statement</div></div>` : ""}
      <table style="font-size:14px;border-collapse:collapse;margin-bottom:16px;">
        ${cell("Customer", esc(data.customerName))}
        ${data.customerPhone ? cell("Phone", `<a href="tel:${esc(data.customerPhone)}" style="color:#e8430f;">${esc(data.customerPhone)}</a>`) : ""}

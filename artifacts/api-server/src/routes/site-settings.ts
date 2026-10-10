@@ -4,6 +4,7 @@ import { db, siteSettingsTable, type FooterLink } from "@workspace/db";
 import { requireAdmin, isAdminRequest } from "../middlewares/requireAdmin";
 import { paymentOptionsFrom } from "../lib/paymentOptions";
 import { parseEmailList } from "../lib/orderNotifications";
+import { manualPaymentHoldMs } from "../lib/inventory";
 
 const router: IRouter = Router();
 
@@ -37,6 +38,7 @@ const DEFAULTS = {
   mpesaTill: "",
   mpesaAccountName: "",
   mpesaSendPhone: "",
+  mpesaPochiPhone: "",
   mpesaInstructions: "",
   onlinePaymentsEnabled: true,
   orderNotifyEmails: "",
@@ -66,6 +68,9 @@ function view(row: Awaited<ReturnType<typeof getOrCreate>>, isAdmin: boolean) {
     ...(isAdmin ? { ...publicRow, orderNotifyEmails } : publicRow),
     onlinePaymentsAvailable: options.onlineAvailable,
     manualMpesaAvailable: options.manualMpesaAvailable,
+    manualPaymentMode: options.manualPaymentMode,
+    // How long a pay-by-M-PESA order keeps its items reserved (shown to customers).
+    manualHoldHours: Math.max(1, Math.round(manualPaymentHoldMs() / 3_600_000)),
   };
 }
 
@@ -93,7 +98,7 @@ router.put("/site-settings", requireAdmin, async (req, res): Promise<void> => {
   const textFields = [
     "brandBlurb", "aboutHeading", "supportHeading", "contactPhone", "contactEmail", "liveChatUrl",
     "facebookUrl", "instagramUrl", "pinterestUrl", "tiktokUrl", "currencyLabel", "copyrightText",
-    "mpesaPaybill", "mpesaTill", "mpesaAccountName", "mpesaSendPhone",
+    "mpesaPaybill", "mpesaTill", "mpesaAccountName", "mpesaSendPhone", "mpesaPochiPhone",
   ] as const;
   for (const k of textFields) if (has(k)) patch[k] = str(b[k]).trim().slice(0, 500);
   if (has("mpesaInstructions")) patch.mpesaInstructions = str(b["mpesaInstructions"]).slice(0, 500);

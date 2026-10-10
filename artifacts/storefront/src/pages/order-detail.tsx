@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatCurrency, classNames } from '@/lib/utils';
 import { CheckCircle2, Clock, Truck, PackageCheck, AlertTriangle, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ManualMpesaPanel, hasMpesaDetails, type MpesaDetails } from '@/components/checkout/ManualMpesaPanel';
+import { ManualMpesaPanel, ConfirmByCallPanel, hasMpesaDetails, type MpesaDetails } from '@/components/checkout/ManualMpesaPanel';
 
 const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
 
@@ -14,7 +14,7 @@ const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/
 // same wording shown at checkout (never the raw enum like "cash_on_delivery").
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   mpesa: 'M-Pesa',
-  mpesa_manual: 'M-Pesa (paid manually)',
+  mpesa_manual: 'Lipa na M-PESA',
   airtel: 'Airtel Money',
   card: 'Card / Bank Transfer',
   cash_on_delivery: 'Cash on Delivery',
@@ -88,7 +88,8 @@ export default function OrderPage() {
 
   const getStatusIcon = () => {
     switch (order.status) {
-      case 'pending': return <Clock className="w-12 h-12 text-amber-500" />;
+      // Received is good news — the payment step is explained just below.
+      case 'pending': return <CheckCircle2 className="w-12 h-12 text-emerald-500" />;
       case 'confirmed': return <CheckCircle2 className="w-12 h-12 text-emerald-500" />;
       case 'processing': return <PackageCheck className="w-12 h-12 text-blue-500" />;
       case 'shipped': return <Truck className="w-12 h-12 text-purple-500" />;
@@ -104,8 +105,10 @@ export default function OrderPage() {
   const paymentReference = (order as any).paymentReference as string | null | undefined;
   const isMpesaOrder = !order.paymentMethod || order.paymentMethod === 'mpesa' || order.paymentMethod === 'mpesa_manual';
   // Still owes an M-Pesa payment and hasn't told us the code yet → show how to pay.
-  const needsManualPayment =
-    !isCancelled && order.paymentStatus !== 'paid' && !paymentReference && isMpesaOrder && hasMpesaDetails(payDetails);
+  const awaitingMpesa = !isCancelled && order.paymentStatus !== 'paid' && !paymentReference && isMpesaOrder;
+  const needsManualPayment = awaitingMpesa && hasMpesaDetails(payDetails);
+  // Manual order placed before any payment number was published: the team confirms by phone.
+  const confirmByCall = awaitingMpesa && !needsManualPayment && order.paymentMethod === 'mpesa_manual' && !!payDetails;
 
   return (
     <StorefrontLayout>
@@ -118,15 +121,23 @@ export default function OrderPage() {
             </h1>
             <p className="text-muted-foreground">Order #{order.id} • Placed on {new Date(order.createdAt).toLocaleDateString()}</p>
             {!isCancelled && order.paymentStatus !== 'paid' && (
-              <p className="mt-4 mx-auto max-w-md text-sm rounded-lg bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3">
+              <p className="mt-4 mx-auto max-w-md text-sm text-muted-foreground">
                 {paymentReference
-                  ? <>We've received your M-Pesa code <strong className="font-mono">{paymentReference}</strong> and are verifying it. You'll get a confirmation shortly.</>
+                  ? <>We've received your M-PESA code <strong className="font-mono text-foreground">{paymentReference}</strong> and are confirming it. You'll get a confirmation shortly.</>
                   : needsManualPayment
-                    ? 'Almost done — pay with M-Pesa below, then enter your code to confirm your order.'
-                    : 'Awaiting payment. Your order is confirmed as soon as payment is received.'}
+                    ? 'One last step — pay with M-PESA below, then enter the code from your SMS.'
+                    : confirmByCall
+                      ? "Thank you! We'll call you shortly to confirm your order."
+                      : 'Your order is confirmed as soon as payment is received.'}
               </p>
             )}
           </div>
+
+          {confirmByCall && (
+            <div className="p-4 sm:p-8 border-b bg-background">
+              <ConfirmByCallPanel settings={payDetails} orderId={order.id} amount={order.total} customerPhone={order.customerPhone} />
+            </div>
+          )}
 
           {needsManualPayment && (
             <div className="p-4 sm:p-8 border-b bg-background">
@@ -172,7 +183,7 @@ export default function OrderPage() {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x border-b">
-            <div className="p-8">
+            <div className="p-5 sm:p-8">
               <h3 className="font-bold text-lg mb-4 text-primary">Delivery Details</h3>
               <div className="space-y-3 text-sm">
                 <div>
@@ -189,42 +200,50 @@ export default function OrderPage() {
                 </div>
               </div>
             </div>
-            <div className="p-8">
+            <div className="p-5 sm:p-8">
               <h3 className="font-bold text-lg mb-4 text-primary">Payment Details</h3>
               <div className="space-y-3 text-sm">
                 <div>
                   <span className="text-muted-foreground block mb-0.5">Method</span>
-                  <span className="font-medium capitalize text-emerald-700 bg-emerald-50 px-2 py-1 rounded inline-block">{paymentMethodLabel(order.paymentMethod)}</span>
+                  <span className="font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded inline-block">{paymentMethodLabel(order.paymentMethod)}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground block mb-0.5">Status</span>
-                  <span className={classNames("font-bold uppercase tracking-wider", order.paymentStatus === 'paid' ? 'text-emerald-600' : 'text-amber-500')}>
-                    {order.paymentStatus}
+                  <span className={classNames("font-semibold", order.paymentStatus === 'paid' ? 'text-emerald-600' : order.paymentStatus === 'failed' ? 'text-destructive' : 'text-foreground')}>
+                    {order.paymentStatus === 'paid'
+                      ? 'Paid'
+                      : order.paymentStatus === 'failed'
+                        ? 'Payment failed'
+                        : paymentReference
+                          ? 'Being confirmed'
+                          : confirmByCall
+                            ? 'Pay on confirmation'
+                            : 'Awaiting payment'}
                   </span>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="p-8 bg-muted/10">
+          <div className="p-5 sm:p-8 bg-muted/10">
             <h3 className="font-bold text-lg mb-6 text-primary">Order Items</h3>
             <div className="space-y-4">
               {order.items?.map((item) => (
-                <div key={item.id} className="flex gap-4 p-4 bg-background border rounded-lg shadow-sm">
-                  <div className="w-16 h-16 bg-muted rounded overflow-hidden shrink-0 border">
+                <div key={item.id} className="flex gap-3 sm:gap-4 p-3 sm:p-4 bg-background border rounded-lg shadow-sm">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 bg-muted rounded overflow-hidden shrink-0 border">
                     {item.productImageUrl && <img src={item.productImageUrl} alt="" className="w-full h-full object-cover" />}
                   </div>
-                  <div className="flex-1 flex flex-col justify-between">
+                  <div className="flex-1 min-w-0 flex flex-col justify-between">
                     <div>
-                      <p className="font-bold leading-tight">{item.productName}</p>
+                      <p className="font-bold leading-snug line-clamp-3">{item.productName}</p>
                       <p className="text-sm text-muted-foreground mt-1">
                         {item.variantSize && `Size: ${item.variantSize} | `} 
                         {item.variantColor && `Color: ${item.variantColor}`}
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-lg">{formatCurrency(item.price)}</p>
+                  <div className="text-right shrink-0">
+                    <p className="font-bold text-base sm:text-lg whitespace-nowrap">{formatCurrency(item.price)}</p>
                     <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
                     {(order.paymentStatus === 'paid' || order.status === 'delivered') && (item as any).productId && (
                       <Link

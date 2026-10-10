@@ -32,6 +32,7 @@ interface SiteSettings {
   mpesaTill: string;
   mpesaAccountName: string;
   mpesaSendPhone: string;
+  mpesaPochiPhone: string;
   mpesaInstructions: string;
   onlinePaymentsEnabled: boolean;
   onlinePaymentsAvailable?: boolean;
@@ -251,40 +252,46 @@ export default function AdminFooter() {
             </div>
           </div>
 
-          {/* M-Pesa manual payment */}
+          {/* Lipa na M-PESA (manual) */}
           <div className="bg-card border rounded-xl p-5 shadow-sm space-y-4">
             <div>
-              <h3 className="font-bold">M-Pesa — pay to our number</h3>
+              <h3 className="font-bold">Lipa na M-PESA</h3>
               <p className="text-xs text-muted-foreground mt-1">
-                Customers send money to the details below, then enter the M-Pesa code on their order. You confirm each payment
-                in <strong>Orders</strong>. Fill in whichever you use — it appears at checkout as soon as one is set.
+                How customers pay you directly, like at the shop counter. They pay on their phone, enter the M-PESA code on their order,
+                and you confirm it in <strong>Orders</strong> (Mark paid). Add the ones you use — customers see them at checkout.
               </p>
             </div>
             <div className="space-y-2">
-              <Label>Send Money phone number</Label>
-              <Input value={form.mpesaSendPhone || ''} onChange={(e) => set('mpesaSendPhone', e.target.value)} placeholder="e.g. 0712 345 678" inputMode="tel" />
-            </div>
-            <div className="space-y-2">
-              <Label>Registered name <span className="text-muted-foreground font-normal">(shown so customers can check it before paying)</span></Label>
-              <Input value={form.mpesaAccountName || ''} onChange={(e) => set('mpesaAccountName', e.target.value)} placeholder="e.g. James Kaminah" />
+              <Label>Pochi la Biashara number</Label>
+              <Input value={form.mpesaPochiPhone || ''} onChange={(e) => set('mpesaPochiPhone', e.target.value)} placeholder="e.g. 0740 478 464" inputMode="tel" />
+              <p className="text-xs text-muted-foreground">Customers pay via Lipa na M-PESA › Pochi la Biashara and see your business name before entering their PIN.</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Buy Goods Till <span className="text-muted-foreground font-normal">(optional)</span></Label>
-                <Input value={form.mpesaTill || ''} onChange={(e) => set('mpesaTill', e.target.value)} placeholder="e.g. 5203012" />
+                <Input value={form.mpesaTill || ''} onChange={(e) => set('mpesaTill', e.target.value)} placeholder="e.g. 5203012" inputMode="numeric" />
               </div>
               <div className="space-y-2">
                 <Label>Pay Bill number <span className="text-muted-foreground font-normal">(optional)</span></Label>
-                <Input value={form.mpesaPaybill || ''} onChange={(e) => set('mpesaPaybill', e.target.value)} placeholder="e.g. 247247" />
+                <Input value={form.mpesaPaybill || ''} onChange={(e) => set('mpesaPaybill', e.target.value)} placeholder="e.g. 247247" inputMode="numeric" />
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Extra instructions <span className="text-muted-foreground font-normal">(optional)</span></Label>
-              <Textarea value={form.mpesaInstructions || ''} onChange={(e) => set('mpesaInstructions', e.target.value)} rows={2} placeholder="e.g. Please pay within 24 hours to keep your items reserved." />
+              <Label>Send Money number <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Input value={form.mpesaSendPhone || ''} onChange={(e) => set('mpesaSendPhone', e.target.value)} placeholder="e.g. 0712 345 678" inputMode="tel" />
             </div>
-            {!form.manualMpesaAvailable && (
-              <p className="text-xs rounded-md bg-amber-50 border border-amber-200 text-amber-900 px-3 py-2">
-                Manual M-Pesa isn't shown to customers yet — add a Send Money number, Till or Pay Bill and save.
+            <div className="space-y-2">
+              <Label>Registered M-PESA name</Label>
+              <Input value={form.mpesaAccountName || ''} onChange={(e) => set('mpesaAccountName', e.target.value)} placeholder="e.g. Happyfine Wholesalers" />
+              <p className="text-xs text-muted-foreground">Exactly as M-PESA shows it, so customers can check it before paying — this builds trust.</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Extra note for customers <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Textarea value={form.mpesaInstructions || ''} onChange={(e) => set('mpesaInstructions', e.target.value)} rows={2} placeholder="e.g. Payments are confirmed 8am–8pm, Monday to Saturday." />
+            </div>
+            {!form.mpesaPochiPhone && !form.mpesaTill && !form.mpesaPaybill && !form.mpesaSendPhone && (
+              <p className="text-xs rounded-md bg-muted px-3 py-2 text-muted-foreground">
+                Until you add one, customers can still order — checkout offers “M-PESA on confirmation” and you get an email to call them.
               </p>
             )}
           </div>

@@ -13,9 +13,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { ShoppingBag, CreditCard, Smartphone, AlertCircle, Gift, HandCoins } from 'lucide-react';
+import { ShoppingBag, CreditCard, Smartphone, AlertCircle, Gift, ShieldCheck, Clock3, PhoneCall } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ManualMpesaPanel, hasMpesaDetails } from '@/components/checkout/ManualMpesaPanel';
+import { ManualMpesaPanel, hasMpesaDetails, paymentWays, MpesaMark } from '@/components/checkout/ManualMpesaPanel';
 
 const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
 const STK_COUNTDOWN = 30; // seconds
@@ -30,9 +30,13 @@ interface SiteSettings {
   mpesaAccountName?: string;
   mpesaSendPhone?: string;
   mpesaInstructions?: string;
+  mpesaPochiPhone?: string;
   onlinePaymentsAvailable?: boolean;
   manualMpesaAvailable?: boolean;
+  manualPaymentMode?: 'pay_now' | 'confirm_call';
+  manualHoldHours?: number;
   contactPhone?: string;
+  liveChatUrl?: string;
   referralEnabled?: boolean;
   referralDiscountPercent?: number;
 }
@@ -254,7 +258,10 @@ export default function CheckoutPage() {
         // Nothing to charge — the order page walks them through paying and entering the code.
         clear();
         setLocation(`/orders/${order.id}`);
-        toast({ title: 'Order placed', description: 'Complete your M-Pesa payment to confirm it.' });
+        toast({
+          title: 'Order placed',
+          description: hasMpesaDetails(settings) ? 'Complete your M-PESA payment to confirm it.' : "We'll call you shortly to confirm it.",
+        });
         setBusy(false);
         return;
       }
@@ -295,8 +302,23 @@ export default function CheckoutPage() {
   const referralDiscount = referral ? Math.round(cart.total * (referral.discountPercent / 100) * 100) / 100 : 0;
   const finalTotal = Math.max(0, cart.total + deliveryFee - referralDiscount);
 
-  const ALL_OPTIONS: { value: PaymentMethod; icon: React.ElementType; iconClass: string; title: string; sub: string }[] = [
-    { value: 'mpesa_manual', icon: HandCoins, iconClass: 'text-emerald-600', title: 'M-Pesa — pay to our number', sub: 'Place your order, send the money on your phone, then enter the M-Pesa code. We confirm it shortly.' },
+  const payNow = (settings?.manualPaymentMode ?? 'pay_now') === 'pay_now' && hasMpesaDetails(settings);
+  const ways = paymentWays(settings);
+  const holdHours = settings?.manualHoldHours ?? 24;
+  const ALL_OPTIONS: { value: PaymentMethod; icon?: React.ElementType; iconClass?: string; mark?: boolean; title: string; sub: string }[] = [
+    payNow
+      ? {
+          value: 'mpesa_manual',
+          mark: true,
+          title: 'Lipa na M-PESA',
+          sub: `Pay on your phone via ${ways.map((w) => w.tab).join(', ').replace(/, ([^,]*)$/, ' or $1')}, then enter the M-PESA code from your SMS.`,
+        }
+      : {
+          value: 'mpesa_manual',
+          mark: true,
+          title: 'M-PESA on confirmation',
+          sub: 'Place your order now — we call you to confirm it and you pay with M-PESA. Nothing to pay yet.',
+        },
     { value: 'mpesa', icon: Smartphone, iconClass: 'text-emerald-600', title: 'M-Pesa (STK Push)', sub: 'Pay instantly via a Safaricom M-Pesa SIM PIN prompt.' },
     { value: 'airtel', icon: Smartphone, iconClass: 'text-red-600', title: 'Airtel Money', sub: 'Pay instantly via an Airtel SIM prompt.' },
     { value: 'card', icon: CreditCard, iconClass: 'text-blue-600', title: 'Card / Bank Transfer', sub: 'Pay via Visa, Mastercard, or Equity Bank (Pesalink).' },
@@ -333,7 +355,7 @@ export default function CheckoutPage() {
                 <div className="space-y-2">
                   <Label htmlFor="customerPhone">Phone Number *</Label>
                   <Input id="customerPhone" name="customerPhone" placeholder="07XX XXX XXX" required value={formData.customerPhone} onChange={handleInputChange} />
-                  <p className="text-xs text-muted-foreground">{paymentMethod === 'mpesa_manual' ? 'We call or text this number about your delivery.' : 'This number receives the prompt for M-Pesa / Airtel payments.'}</p>
+                  <p className="text-xs text-muted-foreground">{paymentMethod === 'mpesa_manual' ? (payNow ? 'We call or text this number about your delivery.' : 'We call this number to confirm your order.') : 'This number receives the prompt for M-Pesa / Airtel payments.'}</p>
                 </div>
               </div>
             </div>
@@ -381,16 +403,16 @@ export default function CheckoutPage() {
               {settingsLoading ? (
                 <div className="h-24 rounded-lg bg-muted animate-pulse" />
               ) : PAYMENT_OPTIONS.length === 0 ? (
-                <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                  <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                <div className="flex items-start gap-3 rounded-lg border bg-muted/30 p-4 text-sm">
+                  <PhoneCall className="w-5 h-5 shrink-0 mt-0.5 text-primary" />
                   <p>
-                    Payments are being set up and aren't available right now. Please contact us
-                    {settings?.contactPhone ? <> on <strong>{settings.contactPhone}</strong></> : null} to place your order.
+                    Order by phone or WhatsApp
+                    {settings?.contactPhone ? <> on <strong>{settings.contactPhone}</strong></> : null} — we'll confirm your items and delivery with you.
                   </p>
                 </div>
               ) : (
               <RadioGroup value={paymentMethod ?? ''} onValueChange={(v: any) => setPaymentMethod(v)} className="space-y-4">
-                {PAYMENT_OPTIONS.map(({ value, icon: Icon, iconClass, title, sub }) => (
+                {PAYMENT_OPTIONS.map(({ value, icon: Icon, iconClass, mark, title, sub }) => (
                   <div
                     key={value}
                     className={classNames(
@@ -401,7 +423,7 @@ export default function CheckoutPage() {
                     <RadioGroupItem value={value} id={value} className="mt-1 text-primary" />
                     <div className="grid gap-1.5 flex-1 cursor-pointer" onClick={() => setPaymentMethod(value)}>
                       <Label htmlFor={value} className="font-bold flex items-center gap-2 text-base cursor-pointer">
-                        <Icon className={classNames('w-5 h-5', iconClass)} />
+                        {mark ? <MpesaMark /> : Icon ? <Icon className={classNames('w-5 h-5', iconClass)} /> : null}
                         {title}
                       </Label>
                       <p className="text-sm text-muted-foreground">{sub}</p>
@@ -409,6 +431,48 @@ export default function CheckoutPage() {
                   </div>
                 ))}
               </RadioGroup>
+              )}
+
+              {/* What paying by M-PESA looks like — before they commit, like the till sticker at a shop. */}
+              {paymentMethod === 'mpesa_manual' && !settingsLoading && (
+                <div className="mt-4 rounded-xl border bg-emerald-50/40 p-4 space-y-3" data-testid="mpesa-preview">
+                  {payNow ? (
+                    <>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">You'll pay to</p>
+                      <div className="space-y-2">
+                        {ways.map((w) => (
+                          <div key={w.key} className="flex items-center justify-between gap-3 rounded-lg bg-background border px-3 py-2">
+                            <span className="text-sm text-muted-foreground">{w.tab}</span>
+                            <span className="font-bold tabular-nums">{w.number}</span>
+                          </div>
+                        ))}
+                      </div>
+                      {settings?.mpesaAccountName && (
+                        <p className="flex items-start gap-2 text-xs text-emerald-900">
+                          <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-700" />
+                          <span>Registered name <strong>{settings.mpesaAccountName.toUpperCase()}</strong> — M-PESA shows it before you enter your PIN.</span>
+                        </p>
+                      )}
+                      <p className="flex items-start gap-2 text-xs text-muted-foreground">
+                        <Clock3 className="w-4 h-4 shrink-0" />
+                        <span>Place your order first — you'll see the exact amount and steps. Your items are reserved for {holdHours} hours.</span>
+                      </p>
+                    </>
+                  ) : (
+                    <ol className="space-y-2 text-sm">
+                      {[
+                        'Place your order — nothing to pay yet.',
+                        'We call you to confirm your order and delivery.',
+                        'You pay with M-PESA, then we dispatch.',
+                      ].map((t, i) => (
+                        <li key={t} className="flex gap-2.5">
+                          <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                          <span>{t}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -483,7 +547,7 @@ export default function CheckoutPage() {
                 className="w-full mt-8 h-14 text-base font-bold shadow-lg shadow-primary/20"
                 disabled={createOrder.isPending || busy || !paymentMethod}
               >
-                {createOrder.isPending || busy ? 'Processing...' : paymentMethod === 'mpesa_manual' ? 'Place Order & Pay via M-Pesa' : 'Place Order'}
+                {createOrder.isPending || busy ? 'Processing...' : paymentMethod === 'mpesa_manual' && payNow ? 'Place Order · Pay with M-PESA' : 'Place Order'}
               </Button>
             </div>
           </div>

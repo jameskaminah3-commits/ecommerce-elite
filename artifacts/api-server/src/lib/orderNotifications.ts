@@ -15,7 +15,7 @@ type OrderRow = typeof ordersTable.$inferSelect;
 
 const METHOD_LABELS: Record<string, string> = {
   mpesa: "M-Pesa (STK push)",
-  mpesa_manual: "M-Pesa (paid manually)",
+  mpesa_manual: "Lipa na M-PESA",
   airtel: "Airtel Money",
   card: "Card / bank",
   paystack: "Card / bank",
@@ -66,13 +66,14 @@ async function buildData(order: OrderRow): Promise<OrderEmailData> {
 function manualInfo(settings: Awaited<ReturnType<typeof getSettingsRow>>): ManualPaymentInfo | null {
   if (!settings) return null;
   const info: ManualPaymentInfo = {
+    pochi: settings.mpesaPochiPhone || undefined,
     phone: settings.mpesaSendPhone || undefined,
     till: settings.mpesaTill || undefined,
     paybill: settings.mpesaPaybill || undefined,
     accountName: settings.mpesaAccountName || undefined,
     instructions: settings.mpesaInstructions || undefined,
   };
-  return info.phone || info.till || info.paybill ? info : null;
+  return info.pochi || info.phone || info.till || info.paybill ? info : null;
 }
 
 // Fire-and-forget wrapper: an email problem must never fail or slow an order.
@@ -85,11 +86,18 @@ function safely(label: string, p: Promise<unknown>): void {
 export function notifyOrderPlaced(order: OrderRow, siteUrl: string): void {
   safely("order-placed", (async () => {
     const [data, settings, recipients] = await Promise.all([buildData(order), getSettingsRow(), adminRecipients()]);
-    const manual = order.paymentMethod === "mpesa_manual" ? manualInfo(settings) : null;
+    const isManual = order.paymentMethod === "mpesa_manual";
+    const manual = isManual ? manualInfo(settings) : null;
+    // Manual order but no payment number published yet → the team confirms by phone.
+    const confirmCall = isManual && !manual ? { contactPhone: settings?.contactPhone || undefined } : null;
     await Promise.all([
-      sendAdminOrderEmail(recipients, data, "placed", { adminUrl: `${siteUrl}/admin/orders` }),
+      sendAdminOrderEmail(recipients, data, "placed", { adminUrl: `${siteUrl}/admin/orders`, callCustomer: !!confirmCall }),
       order.customerEmail
-        ? sendOrderReceivedEmail(order.customerEmail, data, { manual, orderUrl: manual ? `${siteUrl}/orders/${order.id}` : undefined })
+        ? sendOrderReceivedEmail(order.customerEmail, data, {
+            manual,
+            confirmCall,
+            orderUrl: isManual ? `${siteUrl}/orders/${order.id}` : undefined,
+          })
         : Promise.resolve(false),
     ]);
   })());
