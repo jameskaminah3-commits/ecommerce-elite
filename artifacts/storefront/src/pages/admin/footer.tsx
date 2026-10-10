@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, GripVertical } from 'lucide-react';
+import { parsePhones } from '@/lib/contact';
 
 const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
 
@@ -21,6 +22,8 @@ interface SiteSettings {
   contactPhone: string;
   contactEmail: string;
   liveChatUrl: string;
+  whatsappNumber: string;
+  googleSiteVerification: string;
   facebookUrl: string;
   instagramUrl: string;
   pinterestUrl: string;
@@ -188,15 +191,29 @@ export default function AdminFooter() {
           <div className="bg-card border rounded-xl p-5 shadow-sm space-y-4">
             <h3 className="font-bold">Get in touch</h3>
             <div className="space-y-2">
-              <Label>Phone</Label>
-              <Input value={form.contactPhone} onChange={(e) => set('contactPhone', e.target.value)} placeholder="+254 700 000 000" />
+              <Label>Phone number(s)</Label>
+              <Input value={form.contactPhone} onChange={(e) => set('contactPhone', e.target.value)} placeholder="0719 627 868 / 0740 478 464" inputMode="tel" />
+              {parsePhones(form.contactPhone).length > 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Shown as: {parsePhones(form.contactPhone).map((p) => p.display).join('  ·  ')}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">Separate several numbers with “/”. Each becomes its own tap-to-call link.</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>WhatsApp number</Label>
+              <Input value={form.whatsappNumber || ''} onChange={(e) => set('whatsappNumber', e.target.value)} placeholder={parsePhones(form.contactPhone)[0]?.display || 'e.g. 0719 627 868'} inputMode="tel" />
+              <p className="text-xs text-muted-foreground">
+                Powers “Chat on WhatsApp” in the footer, contact page and the green chat button. Leave blank to use your first phone number.
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Email</Label>
               <Input value={form.contactEmail} onChange={(e) => set('contactEmail', e.target.value)} placeholder="support@happyfine.co.ke" />
             </div>
             <div className="space-y-2">
-              <Label>Live chat URL <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Label>Other live chat link <span className="text-muted-foreground font-normal">(optional, e.g. Messenger)</span></Label>
               <Input value={form.liveChatUrl} onChange={(e) => set('liveChatUrl', e.target.value)} placeholder="https://…" />
             </div>
           </div>
@@ -330,6 +347,31 @@ export default function AdminFooter() {
               <p className="text-xs text-muted-foreground">
                 Comma-separated. These addresses are emailed for every new order and whenever a customer submits an M-Pesa code to verify.
               </p>
+            </div>
+          </div>
+
+          {/* Google Search */}
+          <div className="bg-card border rounded-xl p-5 shadow-sm space-y-4">
+            <div>
+              <h3 className="font-bold">Google Search</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Prove to Google that you own the shop so you can submit your sitemap and see how people find you.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Search Console verification code</Label>
+              <Input
+                value={form.googleSiteVerification || ''}
+                onChange={(e) => set('googleSiteVerification', e.target.value)}
+                placeholder='Paste the code or the whole <meta name="google-site-verification" …> tag'
+              />
+              <p className="text-xs text-muted-foreground">
+                In Search Console choose <strong>URL prefix</strong> › <strong>HTML tag</strong>, paste it here, save, then click Verify.
+              </p>
+            </div>
+            <div className="rounded-lg bg-muted/50 px-3 py-2 text-xs">
+              <p className="text-muted-foreground">Your sitemap (submit this in Search Console › Sitemaps):</p>
+              <p className="font-mono break-all text-foreground mt-0.5">{typeof window !== 'undefined' ? `${window.location.origin}/sitemap.xml` : '/sitemap.xml'}</p>
             </div>
           </div>
 

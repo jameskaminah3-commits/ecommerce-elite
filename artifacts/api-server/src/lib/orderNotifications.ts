@@ -1,3 +1,4 @@
+import { parseContactPhones } from "./phone";
 import { eq } from "drizzle-orm";
 import { db, orderItemsTable, ordersTable } from "@workspace/db";
 import { logger } from "./logger";
@@ -89,7 +90,8 @@ export function notifyOrderPlaced(order: OrderRow, siteUrl: string): void {
     const isManual = order.paymentMethod === "mpesa_manual";
     const manual = isManual ? manualInfo(settings) : null;
     // Manual order but no payment number published yet → the team confirms by phone.
-    const confirmCall = isManual && !manual ? { contactPhone: settings?.contactPhone || undefined } : null;
+    const phones = parseContactPhones(settings?.contactPhone).map((p) => p.display).join(" / ");
+    const confirmCall = isManual && !manual ? { contactPhone: phones || undefined } : null;
     await Promise.all([
       sendAdminOrderEmail(recipients, data, "placed", { adminUrl: `${siteUrl}/admin/orders`, callCustomer: !!confirmCall }),
       order.customerEmail

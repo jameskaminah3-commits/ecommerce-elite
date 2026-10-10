@@ -3,7 +3,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { logger } from "./lib/logger";
-import { buildRobots, buildSitemap, metaForPath, publicOrigin, renderHead } from "./seo";
+import { buildRobots, buildSitemap, googleVerificationCode, metaForPath, publicOrigin, renderHead } from "./seo";
 
 // Serve the built storefront (a static Vite SPA) from the same Node process as
 // the API. This collapses the whole app into one service/port, which is what
@@ -71,8 +71,11 @@ export function mountStorefront(app: Express): void {
     let html = template;
     let status = 200;
     try {
-      const meta = await metaForPath(req.path, req.query as Record<string, unknown>, origin);
-      html = renderHead(template, meta, origin);
+      const [meta, googleVerification] = await Promise.all([
+        metaForPath(req.path, req.query as Record<string, unknown>, origin),
+        googleVerificationCode(),
+      ]);
+      html = renderHead(template, { ...meta, googleVerification }, origin);
       status = meta.status ?? 200;
     } catch (err) {
       logger.error({ err, path: req.path }, "meta render failed — serving plain shell");

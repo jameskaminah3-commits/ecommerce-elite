@@ -2,7 +2,9 @@ import React from 'react';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { Phone, Mail, MessageCircle, ChevronDown } from 'lucide-react';
+import { SiWhatsapp } from 'react-icons/si';
 import { PaymentLogo, isPaymentKind } from './PaymentLogos';
+import { parsePhones, whatsappHref } from '@/lib/contact';
 
 const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
 
@@ -16,6 +18,7 @@ interface SiteSettings {
   contactPhone: string;
   contactEmail: string;
   liveChatUrl: string;
+  whatsappNumber?: string;
   facebookUrl: string;
   instagramUrl: string;
   pinterestUrl: string;
@@ -41,8 +44,9 @@ const FALLBACK: SiteSettings = {
     { label: 'Refunds & returns', href: '/returns' },
     { label: 'Terms & conditions', href: '/terms' },
   ],
-  contactPhone: '+254 700 000 000',
-  contactEmail: 'support@happyfine.co.ke',
+  // Blank until the real settings load — never flash a placeholder number.
+  contactPhone: '',
+  contactEmail: '',
   liveChatUrl: '',
   facebookUrl: '', instagramUrl: '', pinterestUrl: '', tiktokUrl: '',
   acceptedPayments: ['mpesa', 'visa', 'mastercard', 'amex', 'paypal'],
@@ -84,6 +88,8 @@ export function Footer() {
   const { data } = useQuery({ queryKey: ['site-settings'], queryFn: fetchSettings });
   const s = data ?? FALLBACK;
 
+  const phones = parsePhones(s.contactPhone);
+  const waHref = whatsappHref(s, 'Hi Happyfine Wholesalers 👋');
   const socials = [
     { kind: 'facebook', url: s.facebookUrl },
     { kind: 'pinterest', url: s.pinterestUrl },
@@ -94,7 +100,7 @@ export function Footer() {
   const badges = (s.acceptedPayments ?? []).filter(isPaymentKind);
 
   return (
-    <footer className="bg-muted/20 border-t border-border/60 mt-auto">
+    <footer className="bg-muted/20 border-t border-border/60 mt-auto md:pb-16">
       <div className="container mx-auto px-4 py-14 md:py-16">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-y-10 gap-x-8">
           {/* About us */}
@@ -125,24 +131,38 @@ export function Footer() {
           <div>
             <h4 className="font-bold text-sm mb-4">Get in touch</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
-              {s.contactPhone && (
+              {phones.length > 0 && (
+                <li className="flex items-start gap-2.5">
+                  <Phone className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span className="flex flex-col gap-1">
+                    {phones.map((p) => (
+                      <a key={p.msisdn} href={`tel:${p.tel}`} className="tabular-nums whitespace-nowrap hover:text-primary transition-colors">
+                        {p.display}
+                      </a>
+                    ))}
+                  </span>
+                </li>
+              )}
+              {waHref && (
                 <li>
-                  <a href={`tel:${s.contactPhone.replace(/\s+/g, '')}`} className="flex items-center gap-2.5 hover:text-primary transition-colors">
-                    <Phone className="w-4 h-4 shrink-0" /> <span className="underline underline-offset-2">{s.contactPhone}</span>
+                  <a href={waHref} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 hover:text-[#1da851] transition-colors">
+                    <SiWhatsapp className="w-4 h-4 shrink-0 text-[#25D366]" /> <span>Chat on WhatsApp</span>
                   </a>
                 </li>
               )}
               {s.contactEmail && (
                 <li>
                   <a href={`mailto:${s.contactEmail}`} className="flex items-center gap-2.5 hover:text-primary transition-colors">
-                    <Mail className="w-4 h-4 shrink-0" /> <span className="underline underline-offset-2">Email us</span>
+                    <Mail className="w-4 h-4 shrink-0" />
+                    <span className="sm:hidden">Email us</span>
+                    <span className="hidden sm:inline">{s.contactEmail}</span>
                   </a>
                 </li>
               )}
-              {s.liveChatUrl && (
+              {s.liveChatUrl && !/wa\.me|whatsapp/i.test(s.liveChatUrl) && (
                 <li>
                   <a href={s.liveChatUrl} className="flex items-center gap-2.5 hover:text-primary transition-colors">
-                    <MessageCircle className="w-4 h-4 shrink-0" /> <span className="underline underline-offset-2">Live chat</span>
+                    <MessageCircle className="w-4 h-4 shrink-0" /> <span>Live chat</span>
                   </a>
                 </li>
               )}

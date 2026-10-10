@@ -1,6 +1,7 @@
 import type { Request } from "express";
 import { logger } from "./lib/logger";
 import { productPath } from "./lib/slug";
+import { parseContactPhones } from "./lib/phone";
 import { loadPricingPromos, effectiveDiscount } from "./lib/pricing";
 import { and, eq, sql } from "drizzle-orm";
 import { db, productsTable, productVariantsTable, categoriesTable, blogPostsTable, siteSettingsTable } from "@workspace/db";
@@ -38,6 +39,26 @@ export interface PageMeta {
   jsonLd?: JsonLd | JsonLd[] | null;
   price?: { amount: number; currency: string };
   availability?: "instock" | "oos";
+  /** Google Search Console ownership code (site-wide). */
+  googleVerification?: string;
+}
+
+// The Search Console code is read on every page render, so cache it briefly.
+let verificationCache: { at: number; code: string } | null = null;
+export async function googleVerificationCode(): Promise<string> {
+  if (verificationCache && Date.now() - verificationCache.at < 60_000) return verificationCache.code;
+  let code = (process.env["GOOGLE_SITE_VERIFICATION"] ?? "").trim();
+  try {
+    const [row] = await db
+      .select({ code: siteSettingsTable.googleSiteVerification })
+      .from(siteSettingsTable)
+      .where(eq(siteSettingsTable.id, 1));
+    code = row?.code?.trim() || code;
+  } catch {
+    /* settings unavailable — fall back to the env var */
+  }
+  verificationCache = { at: Date.now(), code };
+  return code;
 }
 
 const kes = (n: number) => `KES ${Math.round(n).toLocaleString("en-KE")}`;
@@ -341,7 +362,8 @@ export async function metaForPath(path: string, query: Record<string, unknown>, 
                 "@type": "ContactPoint",
                 contactType: "customer service",
                 areaServed: "KE",
-                ...(settings.contactPhone ? { telephone: settings.contactPhone } : {}),
+                availableLanguage: ["English", "Swahili"],
+                ...(parseContactPhones(settings.contactPhone)[0] ? { telephone: parseContactPhones(settings.contactPhone)[0].e164 } : {}),
                 ...(settings.contactEmail ? { email: settings.contactEmail } : {}),
               },
             }
@@ -386,6 +408,7 @@ export function renderHead(html: string, meta: PageMeta, origin: string): string
     `<title>${esc(meta.title)}</title>`,
     `<meta name="description" content="${esc(meta.description)}" />`,
     `<meta name="robots" content="${robots}" />`,
+    ...(meta.googleVerification ? [`<meta name="google-site-verification" content="${esc(meta.googleVerification)}" />`] : []),
     `<meta property="og:site_name" content="${esc(BRAND)}" />`,
     `<meta property="og:locale" content="en_KE" />`,
     `<meta property="og:type" content="${meta.type === "product" ? "product" : meta.type ?? "website"}" />`,

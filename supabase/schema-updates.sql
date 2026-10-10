@@ -84,6 +84,10 @@ ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS referral_discount_percent int
 
 ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS mpesa_pochi_phone text NOT NULL DEFAULT '';
 
+ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS whatsapp_number text NOT NULL DEFAULT '';
+
+ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS google_site_verification text NOT NULL DEFAULT '';
+
 ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS online_payments_enabled boolean NOT NULL DEFAULT true;
 
 ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS order_notify_emails text NOT NULL DEFAULT '';

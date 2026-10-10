@@ -14,3 +14,31 @@ export function normalizeKenyanMsisdn(input: string): string | null {
 
   return null;
 }
+
+export interface ContactPhone {
+  /** How Kenyans write it: 0719 627 868 */
+  display: string;
+  /** For tel: links and schema.org: +254719627868 */
+  e164: string;
+  /** For wa.me links: 254719627868 */
+  msisdn: string;
+}
+
+// The admin may type several numbers in one box ("+254 719627868/+254740478464",
+// "0719 627 868, 0740 478 464"). Split them and format each one consistently.
+export function parseContactPhones(raw: string | null | undefined): ContactPhone[] {
+  const out: ContactPhone[] = [];
+  for (const part of (raw ?? "").split(/[\/,;|]|\s+or\s+|\s+and\s+/i)) {
+    const msisdn = normalizeKenyanMsisdn(part);
+    if (!msisdn) {
+      const other = part.trim();
+      // Keep a non-Kenyan number as typed rather than dropping it.
+      if (other.replace(/\D/g, "").length >= 7) out.push({ display: other, e164: `+${other.replace(/\D/g, "")}`, msisdn: other.replace(/\D/g, "") });
+      continue;
+    }
+    if (out.some((p) => p.msisdn === msisdn)) continue;
+    const local = `0${msisdn.slice(3)}`;
+    out.push({ display: `${local.slice(0, 4)} ${local.slice(4, 7)} ${local.slice(7)}`, e164: `+${msisdn}`, msisdn });
+  }
+  return out;
+}

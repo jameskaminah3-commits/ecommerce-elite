@@ -27,6 +27,8 @@ const DEFAULTS = {
   contactPhone: "+254 700 000 000",
   contactEmail: "support@happyfine.co.ke",
   liveChatUrl: "",
+  whatsappNumber: "",
+  googleSiteVerification: "",
   facebookUrl: "",
   instagramUrl: "",
   pinterestUrl: "",
@@ -98,7 +100,7 @@ router.put("/site-settings", requireAdmin, async (req, res): Promise<void> => {
   const textFields = [
     "brandBlurb", "aboutHeading", "supportHeading", "contactPhone", "contactEmail", "liveChatUrl",
     "facebookUrl", "instagramUrl", "pinterestUrl", "tiktokUrl", "currencyLabel", "copyrightText",
-    "mpesaPaybill", "mpesaTill", "mpesaAccountName", "mpesaSendPhone", "mpesaPochiPhone",
+    "mpesaPaybill", "mpesaTill", "mpesaAccountName", "mpesaSendPhone", "mpesaPochiPhone", "whatsappNumber",
   ] as const;
   for (const k of textFields) if (has(k)) patch[k] = str(b[k]).trim().slice(0, 500);
   if (has("mpesaInstructions")) patch.mpesaInstructions = str(b["mpesaInstructions"]).slice(0, 500);
@@ -108,6 +110,12 @@ router.put("/site-settings", requireAdmin, async (req, res): Promise<void> => {
     patch.acceptedPayments = Array.isArray(b["acceptedPayments"])
       ? (b["acceptedPayments"] as unknown[]).filter((x): x is string => typeof x === "string")
       : [];
+  }
+  // Accept either the bare code or the whole <meta name="google-site-verification" content="…"> tag.
+  if (has("googleSiteVerification")) {
+    const raw = str(b["googleSiteVerification"]).trim();
+    const m = raw.match(/content=["']([^"']+)["']/i);
+    patch.googleSiteVerification = (m ? m[1] : raw).replace(/[^A-Za-z0-9_\-]/g, "").slice(0, 100);
   }
   if (has("onlinePaymentsEnabled")) patch.onlinePaymentsEnabled = Boolean(b["onlinePaymentsEnabled"]);
   // Keep only well-formed addresses, normalised to a clean comma-separated list.

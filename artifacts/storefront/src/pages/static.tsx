@@ -3,6 +3,11 @@ import { StorefrontLayout } from '@/components/layout/StorefrontLayout';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Mail, Phone, MapPin, Clock } from 'lucide-react';
+import { SiWhatsapp } from 'react-icons/si';
+import { useQuery } from '@tanstack/react-query';
+import { parsePhones, whatsappHref, whatsappPhone } from '@/lib/contact';
+
+const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
 
 // Shared layout for the footer's info/policy pages.
 function ContentPage({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
@@ -82,35 +87,76 @@ export function FaqPage() {
 }
 
 // ── Contact ─────────────────────────────────────────────────────────────────
+// Real numbers from Admin › Footer & payments — several phones, WhatsApp and email.
 export function ContactPage() {
+  const { data } = useQuery({
+    queryKey: ['site-settings'],
+    queryFn: async () => {
+      const r = await fetch(`${API_BASE}/api/site-settings`);
+      return r.ok ? r.json() : {};
+    },
+  });
+  const phones = parsePhones(data?.contactPhone);
+  const wa = whatsappHref(data, 'Hi Happyfine Wholesalers 👋');
+  const email: string | undefined = data?.contactEmail || undefined;
   return (
-    <ContentPage title="Contact us" subtitle="We’re a real team in Nairobi — happy to help.">
+    <ContentPage title="Contact us" subtitle="We’re a real team in Kenya — happy to help with orders, delivery and returns.">
       <div className="grid sm:grid-cols-2 gap-4 not-prose">
-        {[
-          { icon: Phone, label: 'Call or WhatsApp', value: '+254 700 000 000', href: 'tel:+254700000000' },
-          { icon: Mail, label: 'Email', value: 'support@happyfine.co.ke', href: 'mailto:support@happyfine.co.ke' },
-          { icon: MapPin, label: 'Location', value: 'Nairobi, Kenya', href: undefined },
-          { icon: Clock, label: 'Hours', value: 'Mon–Sat, 8am–6pm', href: undefined },
-        ].map(({ icon: Icon, label, value, href }) => (
-          <div key={label} className="flex items-start gap-3 p-4 rounded-xl border bg-card">
-            <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-              <Icon className="w-4.5 h-4.5" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">{label}</p>
-              {href ? (
-                <a href={href} className="font-semibold text-foreground hover:text-primary transition-colors">{value}</a>
-              ) : (
-                <p className="font-semibold text-foreground">{value}</p>
-              )}
-            </div>
-          </div>
-        ))}
+        {phones.length > 0 && (
+          <ContactCard icon={<Phone className="w-[18px] h-[18px]" />} label="Call us">
+            {phones.map((p) => (
+              <a key={p.msisdn} href={`tel:${p.tel}`} className="block font-semibold tabular-nums text-foreground hover:text-primary transition-colors">
+                {p.display}
+              </a>
+            ))}
+          </ContactCard>
+        )}
+        {wa && (
+          <ContactCard icon={<SiWhatsapp className="w-[18px] h-[18px]" />} label="WhatsApp" tone="whatsapp">
+            <a href={wa} target="_blank" rel="noopener noreferrer" className="font-semibold text-foreground hover:text-[#1da851] transition-colors">
+              Chat with us{whatsappPhone(data) ? ` · ${whatsappPhone(data)!.display}` : ''}
+            </a>
+          </ContactCard>
+        )}
+        {email && (
+          <ContactCard icon={<Mail className="w-[18px] h-[18px]" />} label="Email">
+            <a href={`mailto:${email}`} className="font-semibold text-foreground hover:text-primary transition-colors break-all">{email}</a>
+          </ContactCard>
+        )}
+        <ContactCard icon={<MapPin className="w-[18px] h-[18px]" />} label="Delivery">
+          <p className="font-semibold text-foreground">Across Kenya</p>
+        </ContactCard>
+        <ContactCard icon={<Clock className="w-[18px] h-[18px]" />} label="Hours">
+          <p className="font-semibold text-foreground">Mon–Sat, 8am–6pm</p>
+        </ContactCard>
       </div>
-      <div className="pt-4">
-        <Button asChild><a href="mailto:support@happyfine.co.ke">Email our team</a></Button>
-      </div>
+      {(wa || email) && (
+        <div className="pt-4 flex flex-wrap gap-2">
+          {wa && (
+            <Button asChild className="bg-[#25D366] hover:bg-[#1ebe5b] text-white">
+              <a href={wa} target="_blank" rel="noopener noreferrer"><SiWhatsapp className="w-4 h-4 mr-2" /> Chat on WhatsApp</a>
+            </Button>
+          )}
+          {email && (
+            <Button asChild variant="outline"><a href={`mailto:${email}`}>Email our team</a></Button>
+          )}
+        </div>
+      )}
     </ContentPage>
+  );
+}
+
+function ContactCard({ icon, label, tone, children }: { icon: React.ReactNode; label: string; tone?: 'whatsapp'; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-3 p-4 rounded-xl border bg-card">
+      <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${tone === 'whatsapp' ? 'bg-[#25D366]/10 text-[#1da851]' : 'bg-primary/10 text-primary'}`}>
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        {children}
+      </div>
+    </div>
   );
 }
 

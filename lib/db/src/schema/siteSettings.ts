@@ -17,6 +17,10 @@ export const siteSettingsTable = pgTable("site_settings", {
   contactPhone: text("contact_phone").notNull().default(""),
   contactEmail: text("contact_email").notNull().default(""),
   liveChatUrl: text("live_chat_url").notNull().default(""),
+  // WhatsApp number for "Chat on WhatsApp" links. Blank = the first contact phone.
+  whatsappNumber: text("whatsapp_number").notNull().default(""),
+  // Google Search Console "HTML tag" verification code (the content="…" value).
+  googleSiteVerification: text("google_site_verification").notNull().default(""),
   facebookUrl: text("facebook_url").notNull().default(""),
   instagramUrl: text("instagram_url").notNull().default(""),
   pinterestUrl: text("pinterest_url").notNull().default(""),

@@ -3,13 +3,14 @@ import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { MessageCircle } from 'lucide-react';
 import { SiWhatsapp } from 'react-icons/si';
+import { whatsappHref } from '@/lib/contact';
 
 const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
 
 // A floating "chat to order" button. WhatsApp is where many Kenyan shoppers ask
 // "is it available?" before paying, so one tap from any page matters. It uses the
-// admin's existing "Live chat URL" setting (e.g. https://wa.me/2547XXXXXXXX) and
-// stays hidden until that is set.
+// shop's WhatsApp number (or first contact phone) and, on a product page, opens the
+// chat with the product link already typed — "Is this available?".
 export function ChatBubble() {
   const [location] = useLocation();
   const { data } = useQuery({
@@ -19,7 +20,11 @@ export function ChatBubble() {
       return r.ok ? r.json() : {};
     },
   });
-  const url = (data?.liveChatUrl as string | undefined)?.trim();
+  const onProduct = location.startsWith('/products/');
+  const message = onProduct && typeof window !== 'undefined'
+    ? `Hi Happyfine Wholesalers, is this available? ${window.location.origin}${location}`
+    : 'Hi Happyfine Wholesalers 👋';
+  const url = whatsappHref(data, message) ?? (data?.liveChatUrl as string | undefined)?.trim();
   if (!url) return null;
   // Browsing grids are full of tappable cards (quick-add, ratings) at the screen
   // edge — a floating button there competes with them. It appears where shoppers

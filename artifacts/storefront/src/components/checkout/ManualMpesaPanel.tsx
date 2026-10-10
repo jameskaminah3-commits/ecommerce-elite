@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency, classNames } from '@/lib/utils';
+import { parsePhones, whatsappHref } from '@/lib/contact';
 
 const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
 
@@ -16,6 +17,7 @@ export interface MpesaDetails {
   mpesaInstructions?: string;
   contactPhone?: string;
   liveChatUrl?: string;
+  whatsappNumber?: string;
   manualHoldHours?: number;
 }
 
@@ -300,15 +302,6 @@ export function ManualMpesaPanel({ settings, orderId, amount, onSubmitted }: Pro
   );
 }
 
-function whatsappLink(s?: MpesaDetails | null, orderId?: number): string | null {
-  if (s?.liveChatUrl && /^https?:\/\//i.test(s.liveChatUrl)) return s.liveChatUrl;
-  const digits = (s?.contactPhone ?? '').replace(/\D/g, '');
-  if (!digits) return null;
-  const intl = digits.startsWith('0') ? `254${digits.slice(1)}` : digits;
-  const text = encodeURIComponent(orderId ? `Hi, I've placed order #${orderId}.` : 'Hi!');
-  return `https://wa.me/${intl}?text=${text}`;
-}
-
 /**
  * Before the shop has published a payment number: a phone order, the way many
  * Kenyan shops already sell — we call to confirm, then the customer pays by M-PESA.
@@ -324,8 +317,8 @@ export function ConfirmByCallPanel({
   amount: number;
   customerPhone?: string | null;
 }) {
-  const wa = whatsappLink(settings, orderId);
-  const tel = settings?.contactPhone?.replace(/[^\d+]/g, '');
+  const wa = whatsappHref(settings, `Hi, I've just placed order #${orderId}.`);
+  const phone = parsePhones(settings?.contactPhone)[0];
   const steps = [
     <>We call you{customerPhone ? <> on <strong className="tabular-nums">{customerPhone}</strong></> : null} to confirm your order and delivery.</>,
     <>You pay <strong className="tabular-nums">{formatCurrency(amount)}</strong> with M-PESA — we share our business details on the call.</>,
@@ -351,12 +344,12 @@ export function ConfirmByCallPanel({
             </li>
           ))}
         </ol>
-        {(tel || wa) && (
+        {(phone || wa) && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {tel && (
+            {phone && (
               <Button asChild variant="outline" className="h-11 font-semibold">
-                <a href={`tel:${tel}`}>
-                  <Phone className="w-4 h-4 mr-2" /> Call {settings?.contactPhone}
+                <a href={`tel:${phone.tel}`}>
+                  <Phone className="w-4 h-4 mr-2" /> Call {phone.display}
                 </a>
               </Button>
             )}
