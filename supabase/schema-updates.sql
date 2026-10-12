@@ -120,6 +120,13 @@ ALTER TABLE newsletter_signups ADD COLUMN IF NOT EXISTS unsubscribed_at timestam
 
 ALTER TABLE newsletter_signups ADD COLUMN IF NOT EXISTS last_emailed_at timestamptz;
 
+DO $$ DECLARE c record; BEGIN
+  FOR c IN SELECT conname FROM pg_constraint
+           WHERE conrelid = 'public.orders'::regclass AND contype = 'c'
+             AND pg_get_constraintdef(oid) ILIKE '%payment_method%'
+  LOOP EXECUTE format('ALTER TABLE public.orders DROP CONSTRAINT %I', c.conname); END LOOP;
+END $$;
+
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_code text;
 
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_amount numeric(12,2) NOT NULL DEFAULT 0;

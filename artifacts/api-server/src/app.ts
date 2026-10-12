@@ -83,6 +83,21 @@ app.use("/api", router);
 
 // In production, this same process also serves the built storefront SPA
 // (no-op when the build isn't present, e.g. API-only local dev).
+// Any unexpected error in an API route answers in JSON with a plain-English
+// message (instead of Express's HTML "Internal Server Error"), so the storefront
+// can show the customer something useful — and the real cause is logged.
+app.use("/api", (err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (res.headersSent) return next(err);
+  logger.error({ err, method: req.method, path: req.originalUrl }, "API request failed");
+  const status = typeof (err as { status?: unknown })?.status === "number" ? (err as { status: number }).status : 500;
+  res.status(status >= 400 && status < 600 ? status : 500).json({
+    error:
+      status === 400
+        ? "Some of the details sent weren't valid. Please check and try again."
+        : "Something went wrong on our side. Please try again — if it keeps happening, contact us on WhatsApp.",
+  });
+});
+
 mountStorefront(app);
 
 export default app;

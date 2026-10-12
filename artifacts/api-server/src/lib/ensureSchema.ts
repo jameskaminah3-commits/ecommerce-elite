@@ -96,6 +96,17 @@ export const SCHEMA_STATEMENTS: string[] = [
   `ALTER TABLE newsletter_signups ADD COLUMN IF NOT EXISTS unsubscribe_token text`,
   `ALTER TABLE newsletter_signups ADD COLUMN IF NOT EXISTS unsubscribed_at timestamptz`,
   `ALTER TABLE newsletter_signups ADD COLUMN IF NOT EXISTS last_emailed_at timestamptz`,
+  // The original Supabase setup (supabase/migrations/…core_schema_rls.sql) limited
+  // orders.payment_method to ('mpesa','pesapal','cash_on_delivery'). Newer methods
+  // (mpesa_manual = Lipa na M-PESA, airtel, card, paystack) were then rejected by the
+  // database and checkout failed. The API validates the method itself, so drop any
+  // such legacy rule.
+  `DO $$ DECLARE c record; BEGIN
+     FOR c IN SELECT conname FROM pg_constraint
+              WHERE conrelid = 'public.orders'::regclass AND contype = 'c'
+                AND pg_get_constraintdef(oid) ILIKE '%payment_method%'
+     LOOP EXECUTE format('ALTER TABLE public.orders DROP CONSTRAINT %I', c.conname); END LOOP;
+   END $$`,
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_code text`,
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_amount numeric(12,2) NOT NULL DEFAULT 0`,
 
