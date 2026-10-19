@@ -78,8 +78,10 @@ function storageConfig(): StorageConfig | null {
   return { url: url.replace(/\/+$/, ""), key };
 }
 
-function publicUrl(cfg: StorageConfig, path: string): string {
-  return `${cfg.url}/storage/v1/object/public/${BUCKET}/${path}`;
+// Photos are served from the shop's own address (/media/...), which works for
+// private and public buckets alike — see lib/mediaUrls.ts.
+function publicUrl(_cfg: StorageConfig, path: string): string {
+  return `/media/${path}`;
 }
 
 // Create the storage bucket on first use so setup is just two env vars. Safe to

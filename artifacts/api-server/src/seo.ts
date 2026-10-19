@@ -2,6 +2,7 @@ import type { Request } from "express";
 import { logger } from "./lib/logger";
 import { productPath } from "./lib/slug";
 import { parseContactPhones } from "./lib/phone";
+import { toShopMediaUrl } from "./lib/mediaUrls";
 import { loadPricingPromos, effectiveDiscount } from "./lib/pricing";
 import { and, eq, sql } from "drizzle-orm";
 import { db, productsTable, productVariantsTable, categoriesTable, blogPostsTable, siteSettingsTable } from "@workspace/db";
@@ -121,6 +122,7 @@ export function publicOrigin(req: Request): string {
 
 function absolute(url: string | null | undefined, origin: string): string | null {
   if (!url) return null;
+  url = toShopMediaUrl(url);
   if (/^https?:\/\//i.test(url)) return url;
   if (url.startsWith("//")) return `https:${url}`;
   return `${origin}${url.startsWith("/") ? "" : "/"}${url}`;
