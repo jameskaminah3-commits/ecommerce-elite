@@ -2,6 +2,7 @@ import express, { Router, type IRouter } from "express";
 import crypto from "crypto";
 import { requireAdmin } from "../middlewares/requireAdmin";
 import { logger } from "../lib/logger";
+import { supabaseBase } from "../lib/mediaUrls";
 
 const router: IRouter = Router();
 
@@ -72,10 +73,10 @@ interface StorageConfig {
 }
 
 function storageConfig(): StorageConfig | null {
-  const url = process.env["SUPABASE_URL"];
+  const url = supabaseBase();
   const key = process.env["SUPABASE_SERVICE_ROLE_KEY"];
   if (!url || !key) return null;
-  return { url: url.replace(/\/+$/, ""), key };
+  return { url, key };
 }
 
 // Photos are served from the shop's own address (/media/...), which works for

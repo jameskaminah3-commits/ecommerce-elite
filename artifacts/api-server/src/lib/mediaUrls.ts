@@ -9,8 +9,27 @@ import { logger } from "./logger";
 
 export const MEDIA_BUCKET = process.env["SUPABASE_STORAGE_BUCKET"] ?? "media";
 
-// https://<project>.supabase.co/storage/v1/object/public/<bucket>/<path>
-const PUBLIC_LINK = /^https?:\/\/[^/]+\/storage\/v1\/object\/public\/([^/?#]+)\/([^?#]+)/i;
+/**
+ * SUPABASE_URL exactly as Supabase shows it is https://<project>.supabase.co, but a
+ * typo like "https:/<project>…" or a missing "https://" still works for the server
+ * while producing photo links browsers can't open. Normalise it to a clean origin.
+ */
+export function supabaseBase(): string {
+  const raw = (process.env["SUPABASE_URL"] ?? "").trim();
+  if (!raw) return "";
+  const m = raw.match(/^(https?):\/*(.*)$/i);
+  const scheme = m ? m[1].toLowerCase() : "https";
+  const rest = m ? m[2] : raw;
+  try {
+    return new URL(`${scheme}://${rest}`).origin;
+  } catch {
+    return "";
+  }
+}
+
+// Any form of a Supabase public storage link — with "https://", a broken "https:/",
+// or no scheme at all: <host>/storage/v1/object/public/<bucket>/<path>
+const PUBLIC_LINK = /^(?:https?:\/*)?(?:[a-z0-9.-]+)?\/storage\/v1\/object\/public\/([^/?#]+)\/([^?#]+)/i;
 
 export function toShopMediaUrl(url: string): string {
   const m = url.match(PUBLIC_LINK);
@@ -42,7 +61,7 @@ const SAFE_PATH = /^[A-Za-z0-9][A-Za-z0-9._\-/]{0,300}$/;
 /** GET /media/<path> — stream a stored photo (works for private buckets). */
 export async function serveMedia(req: Request, res: Response): Promise<void> {
   const path = String((req.params as Record<string, string>)[0] ?? "");
-  const base = (process.env["SUPABASE_URL"] ?? "").replace(/\/+$/, "");
+  const base = supabaseBase();
   const key = process.env["SUPABASE_SERVICE_ROLE_KEY"] ?? "";
   if (!SAFE_PATH.test(path) || path.includes("..") || !base || !key) {
     res.status(404).type("text/plain").send("Not found");
@@ -74,4 +93,37 @@ export async function serveMedia(req: Request, res: Response): Promise<void> {
     logger.error({ err, path }, "Media proxy error");
     res.status(502).type("text/plain").send("Image temporarily unavailable");
   }
+}
+
+/**
+ * A photo link saved without its https:// shows up as a page on our own site, e.g.
+ * /gqhon….supabase.co/storage/v1/object/public/media/products/x.jpg — send those
+ * straight to the real photo.
+ */
+export const BROKEN_LINK_PATH = /^\/[a-z0-9.-]+\.supabase\.co\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/i;
+
+export function redirectBrokenMediaLink(req: Request, res: Response, next: NextFunction): void {
+  const m = req.path.match(BROKEN_LINK_PATH);
+  if (!m || m[1] !== MEDIA_BUCKET) return next();
+  res.redirect(301, `/media/${m[2]}`);
+}
+
+/** SQL that turns any saved Supabase public link (well-formed or not) into /media/... */
+export function repairMediaLinksSql(): string[] {
+  const pattern = `'^.*/storage/v1/object/public/${MEDIA_BUCKET.replace(/[^A-Za-z0-9_-]/g, "")}/'`;
+  const fix = (col: string) => `regexp_replace(${col}, ${pattern}, '/media/')`;
+  const where = (col: string) => `${col} LIKE '%/storage/v1/object/public/%'`;
+  const textCols: [string, string][] = [
+    ["products", "image_url"],
+    ["product_variants", "image_url"],
+    ["categories", "image_url"],
+    ["homepage_blocks", "image_url"],
+    ["blog_posts", "cover_image_url"],
+    ["order_items", "product_image_url"],
+  ];
+  return [
+    ...textCols.map(([t, c]) => `UPDATE ${t} SET ${c} = ${fix(c)} WHERE ${where(c)}`),
+    `UPDATE products SET images = ARRAY(SELECT ${fix("u")} FROM unnest(images) WITH ORDINALITY AS t(u, i) ORDER BY i)
+      WHERE array_to_string(images, ' ') LIKE '%/storage/v1/object/public/%'`,
+  ];
 }

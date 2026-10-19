@@ -4,7 +4,7 @@ import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { mountStorefront } from "./static";
-import { rewriteMediaLinks, serveMedia } from "./lib/mediaUrls";
+import { rewriteMediaLinks, serveMedia, redirectBrokenMediaLink } from "./lib/mediaUrls";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -85,6 +85,7 @@ app.use("/api", router);
 
 // Product photos, served from the shop's own address (see lib/mediaUrls).
 app.get(/^\/media\/(.+)$/, serveMedia);
+app.use(redirectBrokenMediaLink);
 
 // In production, this same process also serves the built storefront SPA
 // (no-op when the build isn't present, e.g. API-only local dev).

@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
+import { repairMediaLinksSql } from "./mediaUrls";
 import { logger } from "./logger";
 
 // Self-healing schema. Every statement is idempotent and additive (CREATE ... IF
@@ -134,6 +135,9 @@ export const SCHEMA_STATEMENTS: string[] = [
   `ALTER TABLE promotions ADD COLUMN IF NOT EXISTS category_ids integer[] NOT NULL DEFAULT '{}'`,
   `ALTER TABLE promotions ADD COLUMN IF NOT EXISTS product_ids integer[] NOT NULL DEFAULT '{}'`,
 ];
+
+// Data repair: saved Supabase photo links → the shop's own /media/... address.
+SCHEMA_STATEMENTS.push(...repairMediaLinksSql());
 
 export async function ensureSchema(): Promise<void> {
   // Escape hatch for locked-down database roles / migrations managed elsewhere.
