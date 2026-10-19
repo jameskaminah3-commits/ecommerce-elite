@@ -45,6 +45,7 @@ import { Boxes, Star } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchDeliveryClasses } from '@/lib/deliveryApi';
 import { productPath } from '@/lib/utils';
+import { useUploadsPending } from '@/lib/imageUpload';
 import {
   shopVisibility,
   seoChecklist,
@@ -420,6 +421,8 @@ function ProductFormDialog({
     setForm((f) => ({ ...f, [key]: value }));
 
   const isPending = createMutation.isPending || updateMutation.isPending;
+  // Never save while a photo is still uploading — it would be lost.
+  const uploadsPending = useUploadsPending();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -651,8 +654,8 @@ function ProductFormDialog({
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>Cancel</Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Product'}
+            <Button type="submit" disabled={isPending || uploadsPending > 0}>
+              {uploadsPending > 0 ? 'Uploading photo…' : isPending ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Product'}
             </Button>
           </DialogFooter>
         </form>

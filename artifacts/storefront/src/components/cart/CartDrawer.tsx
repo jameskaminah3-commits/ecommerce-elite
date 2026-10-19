@@ -1,5 +1,8 @@
 import React from 'react';
 import { useCart } from '@/contexts/CartContext';
+import { useQuery } from '@tanstack/react-query';
+import { WhatsAppOrderButton } from '@/components/whatsapp/WhatsAppOrderButton';
+import type { WaOrder } from '@/lib/whatsappOrder';
 import { useListProducts } from '@workspace/api-client-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { formatCurrency, productPath } from '@/lib/utils';
@@ -11,6 +14,26 @@ const FREE_DELIVERY_THRESHOLD = 5000; // KES
 
 export function CartDrawer() {
   const { cart, isCartDrawerOpen, setCartDrawerOpen, updateItem, removeItem, addItem } = useCart();
+  const { data: siteSettings } = useQuery({
+    queryKey: ['site-settings'],
+    queryFn: async () => {
+      const r = await fetch(`${((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '')}/api/site-settings`);
+      return r.ok ? r.json() : {};
+    },
+  });
+  const waOrder: WaOrder | null = cart?.items?.length
+    ? {
+        source: 'Cart',
+        lines: cart.items.map((i) => ({
+          name: i.productName,
+          option: [i.variantColor, i.variantSize].filter(Boolean).join(' · ') || null,
+          quantity: i.quantity,
+          amount: i.price * i.quantity,
+        })),
+        total: cart.total,
+        url: typeof window !== 'undefined' ? window.location.origin : undefined,
+      }
+    : null;
 
   const cartTotal = cart?.total || 0;
   const progress = Math.min((cartTotal / FREE_DELIVERY_THRESHOLD) * 100, 100);
@@ -31,7 +54,7 @@ export function CartDrawer() {
         data-testid="cart-drawer"
       >
         {/* Header */}
-        <SheetHeader className="px-5 pt-5 pb-4 border-b shrink-0">
+        <SheetHeader className="pl-5 pr-14 pt-5 pb-4 border-b shrink-0">
           <SheetTitle className="text-base font-extrabold flex items-center gap-2.5 tracking-tight">
             <ShoppingBag className="w-4.5 h-4.5" />
             Your Cart
@@ -108,6 +131,7 @@ export function CartDrawer() {
                         src={item.productImageUrl}
                         alt={item.productName}
                         className="w-full h-full object-cover"
+                        onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-secondary/5">
@@ -203,7 +227,9 @@ export function CartDrawer() {
                             <img
                               src={product.imageUrl}
                               alt={product.name}
+                              loading="lazy"
                               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                              onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }}
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
@@ -255,6 +281,7 @@ export function CartDrawer() {
                   <ChevronRight className="w-4 h-4 ml-2" />
                 </Link>
               </Button>
+              <WhatsAppOrderButton settings={siteSettings} order={waOrder} label="Order via WhatsApp instead" />
               <Button
                 asChild
                 variant="ghost"

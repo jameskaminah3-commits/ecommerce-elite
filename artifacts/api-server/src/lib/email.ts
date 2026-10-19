@@ -327,3 +327,35 @@ export async function sendAccountWelcomeEmail(to: string, opts: { name: string; 
   );
   return sendEmail({ to, subject: `Welcome to ${BRAND}`, html, text: `Welcome, ${first}! Your ${BRAND} account is ready. Shop: ${opts.shopUrl}` });
 }
+
+// ── Customer inquiries (WhatsApp orders, contact form) → shop team ─────────
+
+export interface InquiryEmail {
+  subject: string;
+  heading: string;
+  intro?: string;
+  rows: [string, string][];
+  items?: { name: string; detail?: string; amount?: number }[];
+  total?: number;
+  message?: string;
+  replyTo?: string;
+  actionUrl?: string;
+  actionLabel?: string;
+}
+
+export async function sendAdminInquiryEmail(recipients: string[], e: InquiryEmail): Promise<boolean> {
+  if (recipients.length === 0) return false;
+  const cell = (label: string, value: string) =>
+    `<tr><td style="padding:6px 12px 6px 0;color:#9a9a95;white-space:nowrap;vertical-align:top;">${esc(label)}</td><td style="padding:6px 0;">${value}</td></tr>`;
+  const html = shell(
+    e.heading,
+    `${e.intro ? `<p style="margin:0 0 14px;color:#555;">${esc(e.intro)}</p>` : ""}
+     <table style="font-size:14px;border-collapse:collapse;margin-bottom:14px;">${e.rows.map(([k, v]) => cell(k, v)).join("")}</table>
+     ${e.items?.length ? `<table style="width:100%;border-collapse:collapse;font-size:14px;">${e.items
+       .map((i) => `<tr><td style="padding:8px 0;border-bottom:1px solid #f0f0ee;">${esc(i.name)}${i.detail ? ` <span style="color:#9a9a95;">${esc(i.detail)}</span>` : ""}</td><td style="padding:8px 0;border-bottom:1px solid #f0f0ee;text-align:right;">${i.amount != null ? currencyKES(i.amount) : ""}</td></tr>`)
+       .join("")}${e.total != null ? `<tr><td style="padding:12px 0 0;font-weight:800;">Total (before delivery)</td><td style="padding:12px 0 0;text-align:right;font-weight:800;">${currencyKES(e.total)}</td></tr>` : ""}</table>` : ""}
+     ${e.message ? `<div style="margin-top:14px;padding:14px 16px;background:#f6f6f4;border-radius:12px;white-space:pre-wrap;font-size:14px;">${esc(e.message)}</div>` : ""}
+     ${e.actionUrl ? button(e.actionUrl, e.actionLabel ?? "Open") : ""}`,
+  );
+  return sendEmail({ to: recipients, subject: e.subject, html, replyTo: e.replyTo });
+}

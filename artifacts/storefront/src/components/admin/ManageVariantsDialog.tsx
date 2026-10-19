@@ -194,7 +194,20 @@ function VariantRow({ variant, onChanged }: { variant: ProductVariant; onChanged
           </Button>
         </div>
       </div>
-      <MediaPicker value={imageUrl} onChange={setImageUrl} label={`Photo for ${color || 'this variant'}`} />
+      <MediaPicker
+        value={imageUrl}
+        onChange={async (url) => {
+          // A photo is saved the moment it's chosen — no separate Save tap to forget.
+          setImageUrl(url);
+          try {
+            await updateMutation.mutateAsync({ id: variant.id, data: { imageUrl: url } as any });
+            onChanged();
+          } catch {
+            toast({ title: 'Photo uploaded but not saved — tap Save', variant: 'destructive' });
+          }
+        }}
+        label={`Photo for ${color || 'this variant'}`}
+      />
     </div>
   );
 }

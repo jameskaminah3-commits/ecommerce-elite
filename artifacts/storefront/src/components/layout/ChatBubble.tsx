@@ -30,6 +30,9 @@ export function ChatBubble() {
   // edge — a floating button there competes with them. It appears where shoppers
   // are deciding or paying: product pages, cart/checkout, orders and help pages.
   if (location === '/' || location === '/products' || location.startsWith('/blog') || location.startsWith('/admin')) return null;
+  // Product pages and checkout have their own "Order on WhatsApp" buttons — a
+  // second floating one there would just compete with them.
+  if (location.startsWith('/products/') || location === '/checkout') return null;
   const isWhatsapp = /wa\.me|whatsapp/i.test(url);
 
   return (

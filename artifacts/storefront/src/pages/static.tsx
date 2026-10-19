@@ -130,6 +130,8 @@ export function ContactPage() {
           <p className="font-semibold text-foreground">Mon–Sat, 8am–6pm</p>
         </ContactCard>
       </div>
+      <ContactForm />
+
       {(wa || email) && (
         <div className="pt-4 flex flex-wrap gap-2">
           {wa && (
@@ -143,6 +145,60 @@ export function ContactPage() {
         </div>
       )}
     </ContentPage>
+  );
+}
+
+// "Send us a message" — goes straight to the shop team's inbox; replies go to the customer.
+function ContactForm() {
+  const [state, setState] = React.useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [error, setError] = React.useState('');
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    setState('sending');
+    setError('');
+    try {
+      const r = await fetch(`${API_BASE}/api/inquiries/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.fromEntries(f.entries())),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Could not send your message.');
+      setState('sent');
+    } catch (err: any) {
+      setState('error');
+      setError(err?.message || 'Could not send your message.');
+    }
+  };
+  if (state === 'sent') {
+    return (
+      <div className="not-prose mt-6 rounded-2xl border bg-emerald-50/60 border-emerald-200 p-6 text-center" data-testid="contact-sent">
+        <p className="font-semibold text-emerald-900">Thanks — your message is with our team.</p>
+        <p className="text-sm text-emerald-800/80 mt-1">We usually reply within a few hours (Mon–Sat).</p>
+      </div>
+    );
+  }
+  const field = 'w-full h-12 rounded-xl border bg-background px-4 text-[15px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40';
+  return (
+    <form onSubmit={submit} className="not-prose mt-6 rounded-2xl border bg-card p-5 sm:p-6 space-y-3" data-testid="contact-form">
+      <div>
+        <h2 className="text-lg font-semibold">Send us a message</h2>
+        <p className="text-sm text-muted-foreground">Ask about a product, an order or delivery — we'll get back to you.</p>
+      </div>
+      <input name="name" required placeholder="Your name" autoComplete="name" aria-label="Your name" className={field} />
+      <div className="grid sm:grid-cols-2 gap-3">
+        <input name="phone" type="tel" inputMode="tel" placeholder="Phone (e.g. 0712 345 678)" autoComplete="tel" aria-label="Phone" className={field} />
+        <input name="email" type="email" inputMode="email" placeholder="Email (optional)" autoComplete="email" aria-label="Email" className={field} />
+      </div>
+      <textarea name="message" required rows={4} placeholder="How can we help?" aria-label="Message" className={`${field} h-auto py-3 resize-y`} />
+      {/* Bots fill this in; people never see it. */}
+      <input name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className="hidden" />
+      {state === 'error' && <p role="alert" className="text-sm text-destructive">{error}</p>}
+      <Button type="submit" className="w-full h-12 font-bold" disabled={state === 'sending'}>
+        {state === 'sending' ? 'Sending…' : 'Send message'}
+      </Button>
+    </form>
   );
 }
 

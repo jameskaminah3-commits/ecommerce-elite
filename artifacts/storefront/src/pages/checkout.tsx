@@ -15,6 +15,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { ShoppingBag, CreditCard, Smartphone, AlertCircle, Gift, ShieldCheck, Clock3, PhoneCall, Tag } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { WhatsAppOrderButton } from '@/components/whatsapp/WhatsAppOrderButton';
+import type { WaOrder } from '@/lib/whatsappOrder';
 import { ManualMpesaPanel, hasMpesaDetails, paymentWays, MpesaMark } from '@/components/checkout/ManualMpesaPanel';
 
 const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
@@ -376,6 +378,22 @@ export default function CheckoutPage() {
     { value: 'airtel', icon: Smartphone, iconClass: 'text-red-600', title: 'Airtel Money', sub: 'Pay instantly via an Airtel SIM prompt.' },
     { value: 'card', icon: CreditCard, iconClass: 'text-blue-600', title: 'Card / Bank Transfer', sub: 'Pay via Visa, Mastercard, or Equity Bank (Pesalink).' },
   ];
+  // Same basket, sent as a WhatsApp message with whatever details they've typed.
+  const waOrder: WaOrder = {
+    source: 'Checkout',
+    lines: cart.items.map((i) => ({
+      name: i.productName,
+      option: [i.variantColor, i.variantSize].filter(Boolean).join(' · ') || null,
+      quantity: i.quantity,
+      amount: i.price * i.quantity,
+    })),
+    total: Math.max(0, cart.total - referralDiscount - discountAmount),
+    customerName: formData.customerName.trim() || undefined,
+    customerPhone: formData.customerPhone.trim() || undefined,
+    deliveryTown: selectedLocation?.name,
+    address: formData.shippingAddress.trim() || undefined,
+    url: typeof window !== 'undefined' ? window.location.origin : undefined,
+  };
   const PAYMENT_OPTIONS = ALL_OPTIONS.filter((o) => availableMethods.includes(o.value));
   const emailRequired = paymentMethod !== 'mpesa_manual';
 
@@ -645,6 +663,14 @@ export default function CheckoutPage() {
               >
                 {createOrder.isPending || busy ? 'Processing...' : paymentMethod === 'mpesa_manual' && payNow ? 'Place Order · Pay with M-PESA' : 'Place Order'}
               </Button>
+
+              <div className="mt-4" data-testid="checkout-whatsapp">
+                <div className="flex items-center gap-3 text-[11px] uppercase tracking-wider text-muted-foreground mb-3">
+                  <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
+                </div>
+                <WhatsAppOrderButton settings={settings} order={waOrder} label="Send this order on WhatsApp" />
+                <p className="mt-2 text-center text-[11px] text-muted-foreground">We'll confirm stock, delivery and payment with you in the chat.</p>
+              </div>
             </div>
           </div>
         </form>

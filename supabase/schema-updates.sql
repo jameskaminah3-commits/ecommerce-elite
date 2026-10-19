@@ -96,6 +96,8 @@ ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS online_payments_enabled boole
 
 ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS order_notify_emails text NOT NULL DEFAULT '';
 
+UPDATE site_settings SET order_notify_emails = 'gnyambura540@gmail.com, jameskaminah3@gmail.com' WHERE order_notify_emails = '';
+
 CREATE TABLE IF NOT EXISTS newsletter_signups (
   id serial PRIMARY KEY,
   email text NOT NULL UNIQUE,

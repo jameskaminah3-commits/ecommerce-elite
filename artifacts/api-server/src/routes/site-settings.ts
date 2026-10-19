@@ -44,7 +44,8 @@ const DEFAULTS = {
   mpesaPochiPhone: "",
   mpesaInstructions: "",
   onlinePaymentsEnabled: true,
-  orderNotifyEmails: "",
+  // The shop team's inbox for orders, payments and customer messages.
+  orderNotifyEmails: "gnyambura540@gmail.com, jameskaminah3@gmail.com",
   welcomeDiscountPercent: 10,
   welcomeCodeDays: 30,
   referralEnabled: false,

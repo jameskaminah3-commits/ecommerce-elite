@@ -92,13 +92,18 @@ async function ensureBucket(cfg: StorageConfig): Promise<void> {
     headers: { Authorization: `Bearer ${cfg.key}`, "Content-Type": "application/json" },
     body: JSON.stringify({ id: BUCKET, name: BUCKET, public: true }),
   });
-  if (resp.ok || resp.status === 409) {
-    bucketReady = true;
-    return;
-  }
-  const text = await resp.text().catch(() => "");
-  // A "already exists" style error also means we are good to go.
-  if (text.toLowerCase().includes("exist")) {
+  const text = resp.ok ? "" : await resp.text().catch(() => "");
+  if (resp.ok || resp.status === 409 || text.toLowerCase().includes("exist")) {
+    // A bucket made earlier by hand may be PRIVATE: uploads then succeed but every
+    // public image link fails, so photos never show. Make sure it's public.
+    if (!resp.ok) {
+      const upd = await fetch(`${cfg.url}/storage/v1/bucket/${BUCKET}`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${cfg.key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ id: BUCKET, name: BUCKET, public: true }),
+      }).catch(() => null);
+      if (upd && !upd.ok) logger.warn({ status: upd.status }, "Could not make storage bucket public");
+    }
     bucketReady = true;
     return;
   }

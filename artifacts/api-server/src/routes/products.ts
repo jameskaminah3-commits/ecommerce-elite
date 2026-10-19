@@ -58,7 +58,8 @@ function productRow(p: any, categoryName: string | null, totalStock: number, pro
     categoryId: p.categoryId,
     categoryName,
     categorySlug,
-    imageUrl: p.imageUrl,
+    // No main photo chosen? Use the first gallery photo so the card is never blank.
+    imageUrl: p.imageUrl || (p.images ?? [])[0] || null,
     images: p.images ?? [],
     tags: p.tags ?? [],
     status: p.status,

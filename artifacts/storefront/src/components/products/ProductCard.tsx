@@ -15,16 +15,20 @@ export function ProductCard({ product, className }: ProductCardProps) {
   const { price, original, discountPct, onSale } = getPriceInfo(product);
   const soldOut = (product as { totalStock?: number }).totalStock === 0;
 
+  // A broken image link shows the tidy placeholder instead of a broken-image icon.
+  const [imgBroken, setImgBroken] = React.useState(false);
   return (
     <>
       <div className={classNames('group relative flex flex-col', className)}>
         {/* Image on a soft, product-on-light panel */}
         <div className="relative aspect-square rounded-2xl bg-muted/40 overflow-hidden ring-1 ring-border/50 transition-all duration-500 group-hover:ring-border group-hover:shadow-lg group-hover:shadow-black/5">
           <Link href={productPath(product)} className="block w-full h-full">
-            {product.imageUrl ? (
+            {product.imageUrl && !imgBroken ? (
               <img
                 src={product.imageUrl}
                 alt={product.name}
+                decoding="async"
+                onError={() => setImgBroken(true)}
                 className={classNames(
                   'w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]',
                   soldOut && 'opacity-70',

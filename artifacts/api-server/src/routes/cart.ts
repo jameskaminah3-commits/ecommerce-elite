@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { db, cartItemsTable, productVariantsTable, productsTable } from "@workspace/db";
 import { loadPricingPromos, effectiveDiscount, discountedPrice } from "../lib/pricing";
 import {
@@ -27,7 +27,7 @@ async function buildCart(sessionId: string) {
       quantity: cartItemsTable.quantity,
       productId: productsTable.id,
       productName: productsTable.name,
-      productImageUrl: productsTable.imageUrl,
+      productImageUrl: sql<string | null>`coalesce(nullif(${productVariantsTable.imageUrl}, ''), nullif(${productsTable.imageUrl}, ''), ${productsTable.images}[1])`,
       variantSku: productVariantsTable.sku,
       variantSize: productVariantsTable.size,
       variantColor: productVariantsTable.color,

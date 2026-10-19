@@ -170,7 +170,7 @@ router.post("/orders", async (req, res): Promise<void> => {
       quantity: cartItemsTable.quantity,
       productId: productsTable.id,
       productName: productsTable.name,
-      productImageUrl: productsTable.imageUrl,
+      productImageUrl: sql<string | null>`coalesce(nullif(${productVariantsTable.imageUrl}, ''), nullif(${productsTable.imageUrl}, ''), ${productsTable.images}[1])`,
       variantSku: productVariantsTable.sku,
       variantSize: productVariantsTable.size,
       variantColor: productVariantsTable.color,

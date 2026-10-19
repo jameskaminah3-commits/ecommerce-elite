@@ -9,7 +9,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Image as ImageIcon, Upload, LibraryBig, X, Trash2 } from 'lucide-react';
+import { Image as ImageIcon, Upload, LibraryBig, X, Trash2, AlertTriangle } from 'lucide-react';
+import { preparePhoto, trackUpload } from '@/lib/imageUpload';
 
 const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
 
@@ -25,7 +26,19 @@ const TYPE_BY_EXT: Record<string, string> = {
   gif: 'image/gif', avif: 'image/avif', svg: 'image/svg+xml',
 };
 
-async function uploadImage(file: File): Promise<string> {
+// Shrink the photo first (see preparePhoto), then upload. Tracked so forms can
+// wait for it before saving.
+function uploadImage(original: File): Promise<string> {
+  return trackUpload(preparePhoto(original).then(uploadPrepared));
+}
+
+async function uploadPrepared(file: File): Promise<string> {
+  if (file.size > 10 * 1024 * 1024) {
+    throw new Error('That photo is too large (over 10 MB). Please choose a smaller one.');
+  }
+  if (/\.(heic|heif)$/i.test(file.name) || /heic|heif/i.test(file.type)) {
+    throw new Error('iPhone HEIC photos can’t be shown on websites. In Camera settings choose “Most Compatible”, or send the photo as JPEG.');
+  }
   const ext = file.name.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1] ?? '';
   const contentType = file.type || TYPE_BY_EXT[ext] || 'application/octet-stream';
   const res = await fetch(`${API_BASE}/api/media/upload`, {
@@ -93,8 +106,10 @@ export function MediaPicker({
       <Label>{label}</Label>
       <div className="flex items-start gap-3">
         <div className="w-20 h-20 rounded-lg border bg-muted flex items-center justify-center overflow-hidden shrink-0">
-          {value ? (
-            <img src={value} alt="" className="w-full h-full object-cover" />
+          {busy ? (
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" aria-label="Uploading" />
+          ) : value ? (
+            <PreviewImage src={value} />
           ) : (
             <ImageIcon className="w-6 h-6 text-muted-foreground/30" />
           )}
@@ -237,4 +252,20 @@ function MediaLibraryDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+// The admin's preview doubles as a check: if the saved address can't be displayed,
+// say so now rather than letting shoppers see a broken picture.
+function PreviewImage({ src }: { src: string }) {
+  const [broken, setBroken] = useState(false);
+  useEffect(() => setBroken(false), [src]);
+  if (broken) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center gap-0.5 bg-destructive/10 text-destructive px-1 text-center" title="This image address can't be displayed. Upload the photo again, or check the link.">
+        <AlertTriangle className="w-4 h-4" />
+        <span className="text-[9px] font-semibold leading-tight">Can't display</span>
+      </div>
+    );
+  }
+  return <img src={src} alt="" className="w-full h-full object-cover" onError={() => setBroken(true)} />;
 }

@@ -80,6 +80,8 @@ export const SCHEMA_STATEMENTS: string[] = [
   `ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS google_site_verification text NOT NULL DEFAULT ''`,
   `ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS online_payments_enabled boolean NOT NULL DEFAULT true`,
   `ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS order_notify_emails text NOT NULL DEFAULT ''`,
+  // The shop team's notification inbox, unless the admin has already set one.
+  `UPDATE site_settings SET order_notify_emails = 'gnyambura540@gmail.com, jameskaminah3@gmail.com' WHERE order_notify_emails = ''`,
 
   // ── newsletter welcome codes + order discounts ─────────────────────────────
   `CREATE TABLE IF NOT EXISTS newsletter_signups (

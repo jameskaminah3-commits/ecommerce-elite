@@ -9,6 +9,8 @@ import { formatCurrency, classNames, cn, getPriceInfo, productPath } from '@/lib
 import { ReviewsSection } from '@/components/products/ReviewsSection';
 import { ShareButtons } from '@/components/social/ShareButtons';
 import { autoSeoTitle } from '@/lib/productSeo';
+import { WhatsAppOrderButton } from '@/components/whatsapp/WhatsAppOrderButton';
+import type { WaOrder } from '@/lib/whatsappOrder';
 import { Star, Truck, ShieldCheck, ChevronRight, Minus, Plus, ShoppingBag, CheckCircle2, AlertCircle, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -238,6 +240,16 @@ export default function ProductDetail() {
       ? ` (retail ${formatCurrency(priceInfo.original)} — save ${priceInfo.discountPct}%)`
       : '';
   const shareTitle = `${product.name} — wholesale price ${formatCurrency(displayPrice)}${saveNote}. No minimum order!`;
+
+  // The same order, ready to send on WhatsApp — including the chosen option and
+  // quantity. Works even when out of stock: "is it available?" is a sale too.
+  const optionLabel = [selectedVariant?.color, selectedVariant?.size].filter(Boolean).join(' · ') || null;
+  const waOrder: WaOrder = {
+    source: 'Product page',
+    lines: [{ name: product.name, option: optionLabel, quantity, amount: displayPrice * quantity }],
+    total: displayPrice * quantity,
+    url: typeof window !== 'undefined' ? `${window.location.origin}${productPath(product)}` : undefined,
+  };
 
   const onThumbClick = (img: string) => {
     const v = variantByImage.get(img);
@@ -568,7 +580,14 @@ export default function ProductDetail() {
               </div>
             </div>
 
-            <p className="-mt-3 mb-7 text-center text-xs text-muted-foreground">
+            <div className="-mt-3 mb-5" data-testid="whatsapp-buy-box">
+              <WhatsAppOrderButton settings={siteSettings} order={waOrder} />
+              <p className="mt-2 text-center text-[11px] text-muted-foreground">
+                Prefer to chat? Send this order on WhatsApp — we confirm stock, delivery and payment with you.
+              </p>
+            </div>
+
+            <p className="mb-7 text-center text-xs text-muted-foreground">
               Buy just one — <span className="font-semibold text-foreground">no minimum order</span>. Pay with M-Pesa, Airtel Money or card.
             </p>
 
@@ -610,7 +629,7 @@ export default function ProductDetail() {
       {/* Sticky mobile add-to-cart bar — the CTA stays reachable on a long
           phone scroll (hidden on desktop, where the buy box is sticky). */}
       <div
-        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-background/95 backdrop-blur border-t border-border px-4 py-3 flex items-center gap-4"
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-background/95 backdrop-blur border-t border-border px-4 py-3 flex items-center gap-3"
         style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
       >
         <div className="shrink-0">
@@ -619,6 +638,7 @@ export default function ProductDetail() {
           </p>
           <p className="text-lg font-bold text-foreground leading-none">{formatCurrency(displayPrice)}</p>
         </div>
+        <WhatsAppOrderButton settings={siteSettings} order={waOrder} variant="icon" label="Order on WhatsApp" />
         <Button
           className="flex-1 h-12 font-bold"
           onClick={handleAddToCart}
