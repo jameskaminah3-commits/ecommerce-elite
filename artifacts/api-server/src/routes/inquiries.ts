@@ -22,7 +22,7 @@ function allowed(req: Request, max: number, windowMs: number): boolean {
 const text = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "");
 const tel = (raw: string) => {
   const p = parseContactPhones(raw)[0];
-  return p ? `<a href="tel:${p.e164}" style="color:#e8430f;">${p.display}</a> · <a href="https://wa.me/${p.msisdn}" style="color:#1da851;">WhatsApp</a>` : raw.replace(/[<>&"]/g, "");
+  return p ? `<a href="tel:${p.e164}" style="color:#c46008;">${p.display}</a> · <a href="https://wa.me/${p.msisdn}" style="color:#1da851;">WhatsApp</a>` : raw.replace(/[<>&"]/g, "");
 };
 
 // A shopper tapped "Order on WhatsApp": tell the team what they're about to ask

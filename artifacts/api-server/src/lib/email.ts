@@ -82,10 +82,19 @@ function esc(s: unknown): string {
     .replace(/"/g, "&quot;");
 }
 
+// Logo + name at the top of every email. The logo needs an absolute address, so it
+// appears once PUBLIC_URL is set (otherwise the name alone is shown).
+function brandHeader(): string {
+  const site = (process.env["PUBLIC_URL"] ?? "").trim().replace(/\/+$/, "");
+  const name = `<span style="font-weight:800;font-size:19px;letter-spacing:-0.02em;color:#00351a;vertical-align:middle;">${BRAND}</span>`;
+  if (!/^https?:\/\//.test(site)) return `<div style="margin-bottom:24px;">${name}</div>`;
+  return `<div style="margin-bottom:24px;"><img src="${esc(site)}/logo-256.png" width="44" height="44" alt="" style="vertical-align:middle;border-radius:50%;margin-right:10px;border:0;" />${name}</div>`;
+}
+
 function shell(title: string, bodyHtml: string): string {
   return `<!doctype html><html><body style="margin:0;background:#f6f6f4;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1a1a1a;">
   <div style="max-width:560px;margin:0 auto;padding:32px 20px;">
-    <div style="font-weight:800;font-size:20px;letter-spacing:-0.02em;margin-bottom:24px;">${BRAND}</div>
+    ${brandHeader()}
     <div style="background:#ffffff;border:1px solid #ececea;border-radius:16px;padding:28px;">
       <h1 style="margin:0 0 16px;font-size:20px;">${esc(title)}</h1>
       ${bodyHtml}
@@ -96,7 +105,7 @@ function shell(title: string, bodyHtml: string): string {
 }
 
 function button(href: string, label: string): string {
-  return `<p style="margin:22px 0 0;"><a href="${esc(href)}" style="display:inline-block;background:#e8430f;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 22px;border-radius:999px;">${esc(label)}</a></p>`;
+  return `<p style="margin:22px 0 0;"><a href="${esc(href)}" style="display:inline-block;background:#c46008;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 22px;border-radius:999px;">${esc(label)}</a></p>`;
 }
 
 function currencyKES(amount: number): string {
@@ -266,10 +275,10 @@ export async function sendAdminOrderEmail(
 
   const html = shell(
     heading,
-    `${ctx.callCustomer ? `<div style="margin:0 0 16px;padding:14px 16px;background:#fff4ec;border:1px solid #fbd5bd;border-radius:12px;"><strong>Next step: call the customer</strong><br><span style="font-size:14px;color:#555;">No M-Pesa number is published on the shop yet, so call ${data.customerPhone ? `<a href="tel:${esc(data.customerPhone)}" style="color:#e8430f;">${esc(data.customerPhone)}</a>` : "the customer"} to confirm the order and share how to pay. Tip: add your Pochi la Biashara or Till in Admin › Footer &amp; payments so customers can pay straight away.</span></div>` : ""}${event === "code" && ctx.code ? `<div style="margin:0 0 16px;padding:14px 16px;background:#f6f6f4;border-radius:12px;text-align:center;"><div style="color:#9a9a95;font-size:12px;letter-spacing:.08em;text-transform:uppercase;">M-Pesa code</div><div style="font-family:monospace;font-size:26px;font-weight:800;letter-spacing:3px;">${esc(ctx.code)}</div><div style="color:#555;font-size:13px;">for ${currencyKES(data.total)} · check it against your M-Pesa statement</div></div>` : ""}
+    `${ctx.callCustomer ? `<div style="margin:0 0 16px;padding:14px 16px;background:#fff4ec;border:1px solid #fbd5bd;border-radius:12px;"><strong>Next step: call the customer</strong><br><span style="font-size:14px;color:#555;">No M-Pesa number is published on the shop yet, so call ${data.customerPhone ? `<a href="tel:${esc(data.customerPhone)}" style="color:#c46008;">${esc(data.customerPhone)}</a>` : "the customer"} to confirm the order and share how to pay. Tip: add your Pochi la Biashara or Till in Admin › Footer &amp; payments so customers can pay straight away.</span></div>` : ""}${event === "code" && ctx.code ? `<div style="margin:0 0 16px;padding:14px 16px;background:#f6f6f4;border-radius:12px;text-align:center;"><div style="color:#9a9a95;font-size:12px;letter-spacing:.08em;text-transform:uppercase;">M-Pesa code</div><div style="font-family:monospace;font-size:26px;font-weight:800;letter-spacing:3px;">${esc(ctx.code)}</div><div style="color:#555;font-size:13px;">for ${currencyKES(data.total)} · check it against your M-Pesa statement</div></div>` : ""}
      <table style="font-size:14px;border-collapse:collapse;margin-bottom:16px;">
        ${cell("Customer", esc(data.customerName))}
-       ${data.customerPhone ? cell("Phone", `<a href="tel:${esc(data.customerPhone)}" style="color:#e8430f;">${esc(data.customerPhone)}</a>`) : ""}
+       ${data.customerPhone ? cell("Phone", `<a href="tel:${esc(data.customerPhone)}" style="color:#c46008;">${esc(data.customerPhone)}</a>`) : ""}
        ${data.customerEmail ? cell("Email", esc(data.customerEmail)) : ""}
        ${data.shippingAddress ? cell("Deliver to", `${esc(data.shippingAddress)}${data.deliveryLocation ? `, ${esc(data.deliveryLocation)}` : ""}`) : ""}
        ${cell("Payment", `${esc(data.paymentMethodLabel ?? "—")} · <strong>${esc(status)}</strong>`)}

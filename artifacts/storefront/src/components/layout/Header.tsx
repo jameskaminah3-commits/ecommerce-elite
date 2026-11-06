@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { BrandLogo } from '@/components/brand/BrandLogo';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
@@ -103,18 +104,18 @@ export function Header() {
       <div className="w-full bg-secondary text-secondary-foreground/85 text-[11px] font-medium text-center py-2 px-3 tracking-wide border-b border-white/5">
         {promo?.announcement ? (
           <Link href={promo.ctaHref.startsWith('/') ? promo.ctaHref : '/products'} className="inline-flex items-center gap-1.5 hover:text-secondary-foreground">
-            <span className="text-primary font-bold">{promo.announcement}</span>
+            <span className="text-[#f5b301] font-bold">{promo.announcement}</span>
             <ArrowRight className="w-3 h-3" />
           </Link>
         ) : (
           <>
             <span className="sm:hidden">
-              <span className="text-primary font-bold">Wholesale prices</span> for everyone · No minimum order
+              <span className="text-[#f5b301] font-bold">Wholesale prices</span> for everyone · No minimum order
             </span>
             <span className="hidden sm:inline">
-              <span className="text-primary font-bold">Wholesale prices for everyone</span>
+              <span className="text-[#f5b301] font-bold">Wholesale prices for everyone</span>
               &nbsp;·&nbsp; Buy just one — no minimum order &nbsp;·&nbsp; Free delivery over{' '}
-              <span className="text-primary font-bold">KES 5,000</span> &nbsp;·&nbsp; Pay with M-Pesa
+              <span className="text-[#f5b301] font-bold">KES 5,000</span> &nbsp;·&nbsp; Pay with M-Pesa
             </span>
           </>
         )}
@@ -130,11 +131,8 @@ export function Header() {
             <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setMobileOpen(true)}>
               <Menu className="h-5 w-5" />
             </Button>
-            <Link href="/" className="flex items-center gap-2.5 shrink-0">
-              <div className="w-7 h-7 bg-primary rounded flex items-center justify-center text-primary-foreground font-black text-lg tracking-tighter leading-none">
-                H
-              </div>
-              <span className="font-black text-lg tracking-tight hidden sm:inline-block">Happyfine</span>
+            <Link href="/" className="flex items-center shrink-0" aria-label="Happyfine Wholesalers — home">
+              <BrandLogo size={38} />
             </Link>
 
             {/* Desktop nav */}
@@ -539,7 +537,7 @@ export function Header() {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
           <div className="absolute left-0 top-0 bottom-0 w-72 bg-background border-r flex flex-col">
             <div className="flex items-center justify-between px-4 h-14 border-b">
-              <span className="font-black text-lg">Happyfine</span>
+              <BrandLogo size={34} />
               <Button variant="ghost" size="icon" onClick={() => setMobileOpen(false)}>
                 <X className="w-5 h-5" />
               </Button>

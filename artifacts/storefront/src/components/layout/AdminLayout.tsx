@@ -1,4 +1,5 @@
 import React from 'react';
+import { BrandLogo } from '@/components/brand/BrandLogo';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
@@ -48,10 +49,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside className="w-64 bg-sidebar border-r flex flex-col hidden md:flex sticky top-0 h-[100dvh]">
         <div className="h-16 flex items-center px-6 border-b bg-sidebar-primary text-sidebar-primary-foreground">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-white text-sidebar-primary rounded flex items-center justify-center font-bold text-sm">H</div>
-            <span className="font-bold text-lg tracking-tight">Admin Console</span>
-          </div>
+          <BrandLogo size={36} tone="light" subline="Admin console" />
         </div>
         
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -95,7 +93,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         <header className="h-16 border-b bg-background flex items-center justify-between px-4 sm:px-6 sticky top-0 z-10">
           <div className="md:hidden flex items-center gap-4">
              {/* Mobile menu trigger could go here */}
-             <span className="font-bold text-lg">Admin</span>
+             <BrandLogo size={32} subline="Admin" />
           </div>
           <div className="flex-1" />
           <Button asChild variant="ghost" size="sm">

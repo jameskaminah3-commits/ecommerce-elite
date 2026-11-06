@@ -110,7 +110,7 @@ router.get("/newsletter/unsubscribe", async (req, res): Promise<void> => {
 <div style="background:#fff;border:1px solid #ececea;border-radius:16px;padding:28px;max-width:420px;text-align:center;">
 <h1 style="font-size:20px;margin:0 0 10px;">${ok ? "You've been unsubscribed" : "Link not recognised"}</h1>
 <p style="color:#555;margin:0 0 20px;">${ok ? "You won't get marketing emails from Happyfine Wholesalers any more. Order emails still arrive as normal." : "This unsubscribe link is invalid or has already been used."}</p>
-<a href="${origin}/" style="display:inline-block;background:#e8430f;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:999px;">Back to the shop</a>
+<a href="${origin}/" style="display:inline-block;background:#c46008;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:999px;">Back to the shop</a>
 </div></body></html>`);
 });
 

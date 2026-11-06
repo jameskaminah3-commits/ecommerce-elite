@@ -90,22 +90,22 @@
   --sidebar: 40 33% 98%;
   --sidebar-foreground: 220 20% 10%;
   --sidebar-border: 40 15% 85%;
-  --sidebar-primary: 14 85% 50%;
+  --sidebar-primary: 147 100% 11%;
   --sidebar-primary-foreground: 0 0% 100%;
   --sidebar-accent: 40 20% 92%;
   --sidebar-accent-foreground: 220 20% 10%;
-  --sidebar-ring: 14 85% 50%;
+  --sidebar-ring: 28 92% 40%;
 
   --popover: 0 0% 100%;
   --popover-foreground: 220 20% 10%;
   --popover-border: 40 15% 85%;
 
   /* Vibrant Commercial Rust/Orange */
-  --primary: 14 85% 50%;
+  --primary: 28 92% 40%;
   --primary-foreground: 0 0% 100%;
 
   /* Deep Forest Green for trust, high contrast headers */
-  --secondary: 160 50% 15%;
+  --secondary: 147 100% 11%;
   --secondary-foreground: 0 0% 100%;
 
   --muted: 40 20% 92%;
@@ -118,10 +118,10 @@
   --destructive-foreground: 0 0% 100%;
 
   --input: 40 15% 85%;
-  --ring: 14 85% 50%;
+  --ring: 28 92% 40%;
   
-  --chart-1: 14 85% 50%;
-  --chart-2: 160 50% 15%;
+  --chart-1: 28 92% 40%;
+  --chart-2: 147 100% 11%;
   --chart-3: 40 80% 50%;
   --chart-4: 220 80% 50%;
   --chart-5: 280 60% 60%;
@@ -178,20 +178,20 @@
   --sidebar: 220 20% 6%;
   --sidebar-foreground: 40 33% 98%;
   --sidebar-border: 220 20% 15%;
-  --sidebar-primary: 14 85% 55%;
+  --sidebar-primary: 147 55% 18%;
   --sidebar-primary-foreground: 0 0% 100%;
   --sidebar-accent: 220 20% 12%;
   --sidebar-accent-foreground: 40 33% 98%;
-  --sidebar-ring: 14 85% 55%;
+  --sidebar-ring: 32 92% 52%;
 
   --popover: 220 20% 8%;
   --popover-foreground: 40 33% 98%;
   --popover-border: 220 20% 15%;
 
-  --primary: 14 85% 55%;
+  --primary: 32 92% 52%;
   --primary-foreground: 0 0% 100%;
 
-  --secondary: 160 30% 25%;
+  --secondary: 147 55% 22%;
   --secondary-foreground: 0 0% 100%;
 
   --muted: 220 20% 12%;
@@ -204,9 +204,9 @@
   --destructive-foreground: 0 0% 100%;
 
   --input: 220 20% 15%;
-  --ring: 14 85% 55%;
+  --ring: 32 92% 52%;
   
-  --chart-1: 14 85% 55%;
+  --chart-1: 32 92% 52%;
   --chart-2: 160 40% 40%;
   --chart-3: 40 80% 50%;
   --chart-4: 220 80% 50%;

@@ -356,6 +356,7 @@ export async function metaForPath(path: string, query: Record<string, unknown>, 
         "@type": "Organization",
         name: BRAND,
         url: `${origin}/`,
+        logo: `${origin}/logo-256.png`,
         description: DEFAULT_DESC,
         ...(sameAs.length ? { sameAs } : {}),
         ...(settings?.contactPhone || settings?.contactEmail
@@ -383,7 +384,7 @@ export async function metaForPath(path: string, query: Record<string, unknown>, 
           "query-input": "required name=search_term_string",
         },
       };
-      return { ...base, image: absolute(hero?.imageUrl, origin), jsonLd: [org, website] };
+      return { ...base, image: absolute(hero?.imageUrl, origin) ?? `${origin}/og-default.jpg`, jsonLd: [org, website] };
     }
   } catch (err) {
     // Fall back to the brand defaults so a database hiccup never breaks page
@@ -403,6 +404,8 @@ export function renderHead(html: string, meta: PageMeta, origin: string): string
     .replace(/<meta\s+name="twitter:[^"]*"[^>]*>\s*/gi, "");
 
   const url = meta.canonicalPath ? `${origin}${meta.canonicalPath}` : null;
+  // Pages without their own photo share the branded card (logo on forest green).
+  if (!meta.image && !meta.noindex) meta = { ...meta, image: `${origin}/og-default.jpg`, imageAlt: meta.imageAlt ?? BRAND };
   const social = meta.ogTitle ?? meta.title;
   const robots =
     meta.noindex === "follow" ? "noindex, follow" : meta.noindex ? "noindex, nofollow" : "index, follow, max-image-preview:large";
