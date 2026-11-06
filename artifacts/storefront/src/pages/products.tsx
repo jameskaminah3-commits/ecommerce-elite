@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { isBackForwardNavigation } from '@/lib/navigation';
 import { useSearch, Link } from 'wouter';
 import { StorefrontLayout } from '@/components/layout/StorefrontLayout';
 import { useListProducts, useListCategories, ListProductsSort, Product } from '@workspace/api-client-react';
@@ -195,12 +196,21 @@ export default function ProductsPage() {
     const url = params.toString()
       ? `${window.location.pathname}?${params.toString()}`
       : window.location.pathname;
-    window.history.pushState({}, '', url);
+    // Only record a new history step when the filters actually changed — never a
+    // duplicate on arrival (which would make Back need two taps).
+    if (url !== window.location.pathname + window.location.search) {
+      window.history.pushState({}, '', url);
+    }
   }, [search, category, sort, selectedTags, minPrice, maxPrice]);
 
-  // Restore scroll position when navigating back from product detail
+  // Restore the shopper's place only when they come BACK from a product (Back
+  // button). Arriving from a menu or category link always starts at the top.
   useEffect(() => {
     const saved = sessionStorage.getItem('productsScrollY');
+    if (saved && !isBackForwardNavigation()) {
+      sessionStorage.removeItem('productsScrollY');
+      return;
+    }
     if (saved) {
       const y = parseInt(saved, 10);
       setTimeout(() => window.scrollTo({ top: y, behavior: 'instant' as ScrollBehavior }), 80);
