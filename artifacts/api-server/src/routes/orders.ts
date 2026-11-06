@@ -275,7 +275,7 @@ router.post("/orders", async (req, res): Promise<void> => {
           ? (await db.select({ c: sql<number>`cast(count(*) as int)` }).from(ordersTable).where(or(...priorConds)))[0]?.c ?? 0
           : 0;
         if (priorCount === 0) {
-          referralDiscount = Math.round(itemsTotal * (pct / 100) * 100) / 100;
+          referralDiscount = Math.round(itemsTotal * (pct / 100)); // whole shillings — M-PESA has no cents
           referralCodeUsed = referrer.referralCode;
           referrerId = referrer.id;
         }
@@ -298,7 +298,7 @@ router.post("/orders", async (req, res): Promise<void> => {
       res.status(400).json({ error: "Welcome codes are for your first order only. Please remove the code to continue." });
       return;
     }
-    const amount = Math.round(itemsTotal * (check.percent / 100) * 100) / 100;
+    const amount = Math.round(itemsTotal * (check.percent / 100)); // whole shillings
     if (amount >= referralDiscount) {
       discountAmount = amount;
       discountCode = check.code;

@@ -349,8 +349,9 @@ export default function CheckoutPage() {
   }
 
   const deliveryFee = selectedLocation?.cost ?? 0;
-  const referralAmount = referral ? Math.round(cart.total * (referral.discountPercent / 100) * 100) / 100 : 0;
-  const codeAmount = appliedCode ? Math.round(cart.total * (appliedCode.percent / 100) * 100) / 100 : 0;
+  // Whole shillings, exactly as the server charges (M-PESA has no cents).
+  const referralAmount = referral ? Math.round(cart.total * (referral.discountPercent / 100)) : 0;
+  const codeAmount = appliedCode ? Math.round(cart.total * (appliedCode.percent / 100)) : 0;
   // Same rule as the server: a code and a referral don't stack — the bigger one applies.
   const codeWins = codeAmount > 0 && codeAmount >= referralAmount;
   const referralDiscount = codeWins ? 0 : referralAmount;

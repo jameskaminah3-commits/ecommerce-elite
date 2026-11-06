@@ -245,7 +245,8 @@ router.get("/products/facets", async (req, res): Promise<void> => {
   let catFilter = sql``;
   if (category != null && Number.isInteger(category)) {
     const subtree = await categorySubtreeIds(category);
-    catFilter = sql` and category_id = any(${subtree})`;
+    // One bound parameter per id (passing the array whole produced invalid SQL → 500).
+    catFilter = sql` and category_id in (${sql.join(subtree.map((id) => sql`${id}`), sql`, `)})`;
   }
 
   const tagResult: any = await db.execute(sql`
