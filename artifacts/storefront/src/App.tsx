@@ -29,6 +29,7 @@ const AboutPage = lazy(() => import('@/pages/static').then((m) => ({ default: m.
 const FaqPage = lazy(() => import('@/pages/static').then((m) => ({ default: m.FaqPage })));
 const ContactPage = lazy(() => import('@/pages/static').then((m) => ({ default: m.ContactPage })));
 const ShippingPage = lazy(() => import('@/pages/static').then((m) => ({ default: m.ShippingPage })));
+const PaymentsPage = lazy(() => import('@/pages/static').then((m) => ({ default: m.PaymentsPage })));
 const ReturnsPage = lazy(() => import('@/pages/static').then((m) => ({ default: m.ReturnsPage })));
 const TermsPage = lazy(() => import('@/pages/static').then((m) => ({ default: m.TermsPage })));
 const PrivacyPage = lazy(() => import('@/pages/static').then((m) => ({ default: m.PrivacyPage })));
@@ -81,6 +82,7 @@ function Router() {
       <Route path="/faq" component={FaqPage} />
       <Route path="/contact" component={ContactPage} />
       <Route path="/shipping" component={ShippingPage} />
+      <Route path="/payments" component={PaymentsPage} />
       <Route path="/returns" component={ReturnsPage} />
       <Route path="/terms" component={TermsPage} />
       <Route path="/privacy" component={PrivacyPage} />

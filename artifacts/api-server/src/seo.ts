@@ -83,6 +83,7 @@ const STATIC_PAGES: Record<string, { title: string; description: string }> = {
   "/about": { title: `Our story — ${BRAND}`, description: "Why we sell at wholesale prices to everyone — no minimum order, no middlemen, delivered across Kenya." },
   "/faq": { title: `FAQ — ${BRAND}`, description: "Is there a minimum order? How do I pay? How fast is delivery? Answers to what customers ask us most." },
   "/contact": { title: `Contact us — ${BRAND}`, description: "Talk to our team in Nairobi. We're happy to help with orders, delivery and returns." },
+  "/payments": { title: `Ways to pay — ${BRAND}`, description: "Pay with Lipa na M-PESA or order on WhatsApp. All prices in Kenyan Shillings, every payment confirmed before dispatch." },
   "/shipping": { title: `Shipping information — ${BRAND}`, description: "How and when your order reaches you, with delivery rates for towns across Kenya." },
   "/returns": { title: `Refunds & returns — ${BRAND}`, description: "Not right? Here is how returns and refunds work." },
   "/terms": { title: `Terms of use — ${BRAND}`, description: "The basics of shopping with Happyfine Wholesalers." },

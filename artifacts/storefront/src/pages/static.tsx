@@ -2,7 +2,9 @@ import React from 'react';
 import { StorefrontLayout } from '@/components/layout/StorefrontLayout';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { Mail, Phone, MapPin, Clock } from 'lucide-react';
+import { Mail, Phone, MapPin, Clock, ShieldCheck, Check } from 'lucide-react';
+import { paymentWays } from '@/components/checkout/ManualMpesaPanel';
+import { PaymentLogo } from '@/components/layout/PaymentLogos';
 import { SiWhatsapp } from 'react-icons/si';
 import { useQuery } from '@tanstack/react-query';
 import { parsePhones, whatsappHref, whatsappPhone } from '@/lib/contact';
@@ -302,6 +304,139 @@ export function PrivacyPage() {
       <P>You can unsubscribe from marketing at any time, and you can ask us to update or delete your personal information by contacting us.</P>
       <H2>Contact</H2>
       <P>For any privacy question, reach us via the <Link href="/contact" className="text-primary font-medium hover:underline">contact page</Link>.</P>
+    </ContentPage>
+  );
+}
+
+// ── Ways to pay ─────────────────────────────────────────────────────────────
+// Where the footer's payment badges lead. Built from the live settings, so it only
+// ever describes ways to pay that work today (and the shop's real M-PESA details).
+export function PaymentsPage() {
+  const { data } = useQuery({
+    queryKey: ['site-settings'],
+    queryFn: async () => {
+      const r = await fetch(`${API_BASE}/api/site-settings`);
+      return r.ok ? r.json() : {};
+    },
+  });
+  const ways = paymentWays(data);
+  const payNow = (data?.manualPaymentMode ?? 'pay_now') === 'pay_now' && ways.length > 0;
+  const online = data?.onlinePaymentsAvailable === true;
+  const name: string | undefined = data?.mpesaAccountName?.trim()?.toUpperCase() || undefined;
+  const wa = whatsappHref(data, 'Hi Happyfine Wholesalers 👋 I’d like to order.');
+  const hold = Number(data?.manualHoldHours ?? 24);
+
+  return (
+    <ContentPage title="Ways to pay" subtitle="Simple, safe payment in Kenyan Shillings — with M-PESA, the way you already pay.">
+      <div className="not-prose space-y-4">
+        {/* Lipa na M-PESA */}
+        <section id="mpesa" className="scroll-mt-24 rounded-2xl border bg-card overflow-hidden">
+          <div className="flex items-center gap-3 px-5 py-4 border-b bg-emerald-50/50">
+            <PaymentLogo kind="mpesa" />
+            <div>
+              <h2 className="font-semibold text-lg leading-tight">Lipa na M-PESA</h2>
+              <p className="text-xs text-muted-foreground">{payNow ? 'Pay from your phone after placing your order' : 'Pay with M-PESA when we confirm your order'}</p>
+            </div>
+          </div>
+          <div className="p-5 space-y-4">
+            {payNow ? (
+              <>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  {ways.map((w) => (
+                    <div key={w.key} className="rounded-xl border bg-background px-4 py-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{w.tab}</p>
+                      <p className="text-xl font-extrabold tabular-nums tracking-wide">{w.number}</p>
+                    </div>
+                  ))}
+                </div>
+                {name && (
+                  <p className="flex items-start gap-2 rounded-lg bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900">
+                    <ShieldCheck className="w-4 h-4 mt-0.5 shrink-0 text-emerald-700" />
+                    <span>Registered name: <strong>{name}</strong>. M-PESA shows it before you enter your PIN — only pay if it matches.</span>
+                  </p>
+                )}
+                <ol className="space-y-2 text-sm">
+                  {[
+                    'Add items to your cart and place your order — choose Lipa na M-PESA.',
+                    'Pay the exact amount shown, using the number above.',
+                    'Enter the code from your M-PESA SMS on your order page.',
+                    'We confirm your payment and dispatch your order.',
+                  ].map((t, i) => (
+                    <li key={t} className="flex gap-3">
+                      <span className="w-6 h-6 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                      <span className="pt-0.5">{t}</span>
+                    </li>
+                  ))}
+                </ol>
+                <p className="text-xs text-muted-foreground">Your items are reserved for {hold} hours while you pay.</p>
+              </>
+            ) : (
+              <ol className="space-y-2 text-sm">
+                {['Place your order — nothing to pay yet.', 'We call you to confirm your order and delivery.', 'You pay with M-PESA, then we dispatch.'].map((t, i) => (
+                  <li key={t} className="flex gap-3">
+                    <span className="w-6 h-6 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                    <span className="pt-0.5">{t}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        </section>
+
+        {/* Instant online payment — only while it's switched on */}
+        {online && (
+          <>
+            <section id="airtel" className="scroll-mt-24 rounded-2xl border bg-card p-5 flex items-start gap-4">
+              <PaymentLogo kind="airtel" />
+              <div>
+                <h2 className="font-semibold text-lg leading-tight">M-PESA prompt &amp; Airtel Money</h2>
+                <p className="text-sm text-muted-foreground mt-1">Choose it at checkout and approve the payment prompt on your phone with your PIN. Confirmed instantly.</p>
+              </div>
+            </section>
+            <section id="card" className="scroll-mt-24 rounded-2xl border bg-card p-5 flex items-start gap-4">
+              <div className="flex gap-1.5 shrink-0"><PaymentLogo kind="visa" /><PaymentLogo kind="mastercard" /></div>
+              <div>
+                <h2 className="font-semibold text-lg leading-tight">Visa &amp; Mastercard</h2>
+                <p className="text-sm text-muted-foreground mt-1">Pay by card on a secure checkout page. Your card details never touch our servers.</p>
+              </div>
+            </section>
+          </>
+        )}
+
+        {/* WhatsApp */}
+        {wa && (
+          <section id="whatsapp" className="scroll-mt-24 rounded-2xl border bg-card p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+            <span className="w-11 h-11 rounded-xl bg-[#25D366]/10 text-[#1da851] flex items-center justify-center shrink-0"><SiWhatsapp className="w-6 h-6" /></span>
+            <div className="flex-1">
+              <h2 className="font-semibold text-lg leading-tight">Prefer to chat? Order on WhatsApp</h2>
+              <p className="text-sm text-muted-foreground mt-1">Send us what you’d like — we confirm stock, delivery and payment with you in the chat.</p>
+            </div>
+            <Button asChild className="bg-[#25D366] hover:bg-[#1ebe5b] text-white shrink-0">
+              <a href={wa} target="_blank" rel="noopener noreferrer"><SiWhatsapp className="w-4 h-4 mr-2" /> Chat on WhatsApp</a>
+            </Button>
+          </section>
+        )}
+
+        {/* Reassurance */}
+        <section className="grid sm:grid-cols-3 gap-3">
+          {[
+            { t: 'Kenyan Shillings only', d: 'Every price is in KES. No conversion, no hidden fees.' },
+            { t: 'Pay only what you see', d: 'Item prices plus the delivery fee for your town, shown before you order.' },
+            { t: 'Every payment confirmed', d: 'We check each payment and send you a confirmation before dispatch.' },
+          ].map((x) => (
+            <div key={x.t} className="rounded-xl border bg-muted/30 p-4">
+              <p className="font-semibold text-sm flex items-center gap-1.5"><Check className="w-4 h-4 text-primary" /> {x.t}</p>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{x.d}</p>
+            </div>
+          ))}
+        </section>
+
+        <div className="pt-2">
+          <Button asChild size="lg" className="w-full sm:w-auto h-12 font-bold">
+            <Link href="/products">Start shopping</Link>
+          </Button>
+        </div>
+      </div>
     </ContentPage>
   );
 }

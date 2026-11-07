@@ -32,7 +32,7 @@ export function ChatBubble() {
   if (location === '/' || location === '/products' || location.startsWith('/blog') || location.startsWith('/admin')) return null;
   // Product pages and checkout have their own "Order on WhatsApp" buttons — a
   // second floating one there would just compete with them.
-  if (location.startsWith('/products/') || location === '/checkout') return null;
+  if (location.startsWith('/products/') || location === '/checkout' || location === '/payments') return null;
   const isWhatsapp = /wa\.me|whatsapp/i.test(url);
 
   return (

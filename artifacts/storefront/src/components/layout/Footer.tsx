@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
-import { Phone, Mail, MessageCircle, ChevronDown } from 'lucide-react';
+import { Phone, Mail, MessageCircle, ChevronDown, Check, ArrowRight } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SiWhatsapp } from 'react-icons/si';
 import { PaymentLogo, isPaymentKind } from './PaymentLogos';
 import { parsePhones, whatsappHref } from '@/lib/contact';
@@ -24,6 +25,7 @@ interface SiteSettings {
   pinterestUrl: string;
   tiktokUrl: string;
   acceptedPayments: string[];
+  onlinePaymentsAvailable?: boolean;
   currencyLabel: string;
   copyrightText: string;
 }
@@ -97,7 +99,15 @@ export function Footer() {
     { kind: 'tiktok', url: s.tiktokUrl },
   ].filter((x) => x.url);
 
-  const badges = (s.acceptedPayments ?? []).filter(isPaymentKind);
+  // Only show ways to pay that work today: M-PESA always; card networks and Airtel
+  // only while online payments are live; never a network we don't process (PayPal…).
+  const ONLINE_ONLY = new Set(['visa', 'mastercard', 'amex', 'airtel']);
+  const badges = (s.acceptedPayments ?? [])
+    .filter(isPaymentKind)
+    .filter((k) => k === 'mpesa' || (ONLINE_ONLY.has(k) && s.onlinePaymentsAvailable === true));
+  if (!badges.includes('mpesa')) badges.unshift('mpesa');
+  const anchorFor = (k: string) => (k === 'mpesa' ? 'mpesa' : k === 'airtel' ? 'airtel' : 'card');
+  const nameFor: Record<string, string> = { mpesa: 'M-PESA', visa: 'Visa', mastercard: 'Mastercard', amex: 'American Express', airtel: 'Airtel Money' };
 
   return (
     <footer className="bg-muted/20 border-t border-border/60 mt-auto md:pb-16">
@@ -183,17 +193,48 @@ export function Footer() {
             <h4 className="font-bold text-sm mb-4">We accept</h4>
             <div className="flex flex-wrap gap-2">
               {badges.map((k) => (
-                <span key={k} className="inline-flex rounded-md shadow-sm">
+                <Link
+                  key={k}
+                  href={`/payments#${anchorFor(k)}`}
+                  aria-label={`How to pay with ${nameFor[k] ?? k}`}
+                  title={`How to pay with ${nameFor[k] ?? k}`}
+                  className="inline-flex rounded-md shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
+                >
                   <PaymentLogo kind={k} />
-                </span>
+                </Link>
               ))}
             </div>
+            <Link href="/payments" className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline underline-offset-4">
+              How to pay <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
 
             <h4 className="font-bold text-sm mt-6 mb-2">Currency</h4>
-            <div className="inline-flex items-center justify-between gap-3 h-10 px-3 rounded-lg bg-background border border-border text-sm min-w-[10rem]">
-              <span>{s.currencyLabel}</span>
-              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Currency"
+                  className="inline-flex items-center justify-between gap-3 h-10 px-3 rounded-lg bg-background border border-border text-sm min-w-[10rem] hover:border-primary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 data-[state=open]:border-primary/50"
+                >
+                  <span>{s.currencyLabel}</span>
+                  <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" sideOffset={8} className="w-72 p-0 overflow-hidden rounded-xl" data-testid="currency-menu">
+                <p className="px-4 pt-3.5 pb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Currency</p>
+                <div className="mx-2 mb-2 flex items-center gap-3 rounded-lg bg-muted/60 px-3 py-2.5">
+                  <span className="w-8 h-8 rounded-full bg-secondary text-secondary-foreground text-[10px] font-extrabold flex items-center justify-center tracking-tight">KES</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-semibold text-foreground">Kenyan Shilling</span>
+                    <span className="block text-xs text-muted-foreground">KES · Ksh</span>
+                  </span>
+                  <Check className="w-4 h-4 text-primary shrink-0" aria-label="Selected" />
+                </div>
+                <p className="px-4 py-3 border-t text-xs leading-relaxed text-muted-foreground bg-muted/20">
+                  All prices and payments are in Kenyan Shillings. It’s the only currency we use for now — what you see is what you pay, plus delivery.
+                </p>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
 
