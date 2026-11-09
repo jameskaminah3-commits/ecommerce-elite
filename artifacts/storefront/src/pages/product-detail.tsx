@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency, classNames, cn, getPriceInfo, productPath } from '@/lib/utils';
 import { ReviewsSection } from '@/components/products/ReviewsSection';
+import { ProductDescription } from '@/components/products/ProductDescription';
 import { ShareButtons } from '@/components/social/ShareButtons';
 import { autoSeoTitle } from '@/lib/productSeo';
 import { WhatsAppOrderButton } from '@/components/whatsapp/WhatsAppOrderButton';
@@ -588,7 +589,8 @@ export default function ProductDetail() {
             </div>
 
             <p className="mb-7 text-center text-xs text-muted-foreground">
-              Buy just one — <span className="font-semibold text-foreground">no minimum order</span>. Pay with M-Pesa, Airtel Money or card.
+              Buy just one — <span className="font-semibold text-foreground">no minimum order</span>.{' '}
+              {siteSettings?.onlinePaymentsAvailable ? 'Pay with M-PESA, Airtel Money or card.' : 'Pay with M-PESA or order on WhatsApp.'}
             </p>
 
             {/* Trust signals */}
@@ -617,7 +619,7 @@ export default function ProductDetail() {
             {product.description && (
               <div className="border-t pt-6">
                 <h3 className="font-bold text-sm mb-3 uppercase tracking-wide">Product Details</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{product.description}</p>
+                <ProductDescription text={product.description} />
               </div>
             )}
 
