@@ -509,7 +509,9 @@ export function buildRobots(origin: string): string {
     "Disallow: /checkout",
     "Disallow: /account",
     "Disallow: /orders",
-    "Disallow: /api/",
+    // /api/ must stay crawlable: every page loads its content from it while Google
+    // renders it. Blocking it made product pages look empty ("Soft 404"). API
+    // responses carry X-Robots-Tag: noindex, so they never show up in results.
     "",
     `Sitemap: ${origin}/sitemap.xml`,
     "",

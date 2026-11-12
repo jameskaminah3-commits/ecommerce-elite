@@ -108,7 +108,7 @@ export default function ProductDetail() {
   const { id } = useParams();
   const productId = parseInt(id || '0', 10);
 
-  const { data: product, isLoading } = useGetProduct(productId, {
+  const { data: product, isLoading, error, refetch } = useGetProduct(productId, {
     query: { queryKey: ['/api/products', productId], enabled: !!productId } as any,
   });
 
@@ -194,11 +194,20 @@ export default function ProductDetail() {
 
   if (isLoading) return <ProductDetailSkeleton />;
   if (!product) {
+    // Only a genuine 404 is "not found". A network hiccup gets a retry instead —
+    // so neither shoppers nor Google mistake a temporary error for a dead page.
+    const missing = (error as any)?.status === 404;
     return (
       <StorefrontLayout>
-        <div className="container mx-auto px-4 py-20 text-center">
-          <h2 className="text-2xl font-bold">Product not found</h2>
-          <Button asChild variant="outline" className="mt-4"><a href="/products">Back to products</a></Button>
+        <div className="container mx-auto px-4 py-20 text-center max-w-md">
+          <h1 className="text-2xl font-bold">{missing ? 'This product is no longer available' : 'We couldn’t load this product'}</h1>
+          <p className="text-muted-foreground mt-2">
+            {missing ? 'It may have sold out or been removed. Have a look at similar items in the shop.' : 'Please check your connection and try again.'}
+          </p>
+          <div className="mt-6 flex justify-center gap-3">
+            {!missing && <Button onClick={() => refetch()}>Try again</Button>}
+            <Button asChild variant="outline"><a href="/products">Browse products</a></Button>
+          </div>
         </div>
       </StorefrontLayout>
     );

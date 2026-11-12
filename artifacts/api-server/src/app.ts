@@ -80,6 +80,11 @@ app.use(
 );
 app.use(express.urlencoded({ extended: true }));
 
+// API responses are data for our own pages, never search results.
+app.use("/api", (_req, res, next) => {
+  res.setHeader("X-Robots-Tag", "noindex");
+  next();
+});
 app.use("/api", rewriteMediaLinks);
 app.use("/api", router);
 
